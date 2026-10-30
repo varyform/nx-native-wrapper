@@ -204,12 +204,13 @@ private struct GroupHeader: View {
     let group: CleanupGroup
     let selected: Bool?
     let toggle: () -> Void
+    @Environment(Library.self) private var library
 
     var body: some View {
         HStack(spacing: 10) {
             Checkbox(state: selected, toggle: toggle)
                 .disabled(group.files.allSatisfy { $0.blocked != nil })
-            GameIcon(url: group.game.iconURL).frame(width: 28, height: 28)
+            GameIcon(url: library.icon(for: group.game)).frame(width: 28, height: 28)
             Text(group.game.name).font(.headline).foregroundStyle(.primary)
             Spacer()
             Text(ByteCountFormatter.string(fromByteCount: group.size, countStyle: .file))

@@ -8,7 +8,7 @@ struct GameCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            GameIcon(url: game.iconURL)
+            GameIcon(url: library.icon(for: game))
                 // under the badges, not around the card: a container's help hides theirs
                 .help(help)
                 .overlay(alignment: .topLeading) { ProfileBadges(game: game).padding(6) }

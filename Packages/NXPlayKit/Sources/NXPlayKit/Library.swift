@@ -371,6 +371,9 @@ public final class Library {
         game.titleID.flatMap { eshopIcons[$0.uppercased()] }
     }
 
+    /// A game's artwork wherever it shows: the eShop icon once it is on disk (sharper), else the game's own.
+    public func icon(for game: Game) -> URL? { eshopIcon(for: game) ?? game.iconURL }
+
     public func info(for game: Game) -> TitleInfo? {
         game.titleID.flatMap { titleInfo[$0.uppercased()] }
     }

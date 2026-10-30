@@ -22,7 +22,7 @@ struct Carousel: View {
             HStack(spacing: Self.spacing) {
                 ForEach(games) { game in
                     Tile(
-                        game: game, icon: library.eshopIcon(for: game) ?? game.iconURL,
+                        game: game, icon: library.icon(for: game),
                         isSelected: game.id == selection
                     )
                     .onTapGesture(count: 2) {

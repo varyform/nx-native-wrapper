@@ -24,7 +24,7 @@ struct GameList: View {
                     HStack(spacing: 8) {
                         // beside the badges, not around them: a container's help hides theirs
                         HStack(spacing: 8) {
-                            GameIcon(url: row.game.iconURL).frame(width: 28, height: 28)
+                            GameIcon(url: library.icon(for: row.game)).frame(width: 28, height: 28)
                             Text(row.game.name).lineLimit(1)
                         }
                         .help(row.game.folder.path)
