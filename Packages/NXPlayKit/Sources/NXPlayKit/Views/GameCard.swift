@@ -1,4 +1,5 @@
 import SwiftUI
+
 struct GameCard: View {
     let game: Game
     let job: Job?
@@ -86,7 +87,10 @@ struct GameBadge: View {
     var body: some View {
         switch (job?.status, job?.kind) {
         case (.running?, .play?):
-            Badge(text: job?.isBuilding == true ? "Building\(percent)" : "Running", color: .green)
+            Badge(
+                text: job?.isBuilding == true
+                    ? "Building\(percent)" : job?.isPreparing == true ? "Preparing…" : "Running",
+                color: .green)
         case (.running?, .ipa?):
             Badge(text: "Building IPA\(percent)", color: .blue)
         case (.running?, .macApp?):

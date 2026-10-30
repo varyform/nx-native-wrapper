@@ -61,7 +61,38 @@ import Testing
         try await until { kill(child, 0) != 0 }
     }
 
-    private func job(running body: String, arguments: [String] = []) throws -> Job {
+    @Test func aPlayIsPreparingUntilItBuildsOrTheGameStarts() async throws {
+        let play = try job(
+            running: """
+                echo "nxnative: up to date"
+                sleep 0.5
+                echo "nxplay: starting the game"
+                sleep 0.5
+                """, kind: .play)
+        play.start()
+        try await until { play.note == "nxnative: up to date" }
+        #expect(play.isPreparing && play.showsProgress)
+        #expect(play.progressText == "nxnative: up to date")
+        try await until { play.gameStarted }
+        #expect(!play.isPreparing && !play.showsProgress)  // the game runs: no progress to show
+        try await finished(play)
+
+        // a build's first stage ends the preparing too
+        let building = try job(
+            running: """
+                echo '{"ev": "stage", "k": 2, "n": 4, "name": "shader split", "step": "reading", "t": 1793000000}'
+                echo '{"ev": "progress", "k": 2, "name": "shader split", "step": "reading", "frac": 0.5, "eta": null, "t": 1793000000}'
+                sleep 0.5
+                """, kind: .play)
+        building.start()
+        try await until { building.progress != nil }
+        #expect(!building.isPreparing && building.isBuilding)
+        try await finished(building)
+    }
+
+    private func job(running body: String, arguments: [String] = [], kind: Job.Kind = .extract)
+        throws -> Job
+    {
         let script = folder.appending(path: "nxplay")
         try ("#!/bin/bash\n" + body + "\n").write(to: script, atomically: true, encoding: .utf8)
         let game = Game(
@@ -69,7 +100,7 @@ import Testing
             buildFolder: nil, ipaURL: nil, xcodeBuildFolder: nil, hasPackages: true,
             state: .notExtracted)
         return Job(
-            kind: .extract, game: game,
+            kind: kind, game: game,
             command: NXPlayCommand(
                 script: script, arguments: arguments,
                 environment: ProcessInfo.processInfo.environment))

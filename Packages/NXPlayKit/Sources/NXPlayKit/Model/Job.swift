@@ -58,10 +58,21 @@ public final class Job: Identifiable {
         status == .running && progress.map { !$0.isLastStageDone } == true
     }
 
+    /// nxplay has handed over to the game (its "nxplay: starting the game" line).
+    public private(set) var gameStarted = false
+    /// What nxplay last said about getting ready ("nxnative updated: 3 new commits, rebuilding").
+    public private(set) var note: String?
+
+    /// A play still getting ready: nxplay updating nxnative and working out whether the game needs a rebuild,
+    /// before any build stage or the game itself. A few seconds that otherwise looked like nothing happening.
+    public var isPreparing: Bool {
+        kind == .play && status == .running && progress == nil && !gameStarted
+    }
+
     /// Build work to show progress for: an extraction, rebuild, IPA, app or install, queued or running, or a play
-    /// while it builds (not the game itself).
+    /// while it gets ready and builds (not the game itself).
     public var showsProgress: Bool {
-        status.isActive && (kind != .play || status == .queued || isBuilding)
+        status.isActive && (kind != .play || status == .queued || isPreparing || isBuilding)
     }
 
     /// The whole build done so far, 0 while it waits its turn.
@@ -69,7 +80,9 @@ public final class Job: Identifiable {
 
     /// "4/6 shader split · splitting · 69% · 0:04 left"
     public var progressText: String {
-        status == .queued ? "Waiting for the current build" : progress?.summary ?? "Starting…"
+        if status == .queued { return "Waiting for the current build" }
+        if isPreparing { return note ?? "Checking for nxnative updates…" }
+        return progress?.summary ?? "Starting…"
     }
 
     /// A line from NX Play itself in the run's log (the save backup's).
@@ -166,7 +179,17 @@ public final class Job: Identifiable {
     private func received(_ lines: [String], closed: Bool) {
         if !lines.isEmpty {
             let shown = lines.flatMap { output.read($0) }
-            if !shown.isEmpty { log.append(shown.map { ansi.parse($0) }) }
+            if !shown.isEmpty {
+                let parsed = shown.map { ansi.parse($0) }
+                log.append(parsed)
+                for line in parsed.map(\.text) {
+                    if line.hasPrefix("nxplay: starting the game") {
+                        gameStarted = true
+                    } else if line.hasPrefix("nxnative") || line.hasPrefix("nxplay:") {
+                        note = line
+                    }
+                }
+            }
             if output.progress != progress { progress = output.progress }
         }
         if closed {

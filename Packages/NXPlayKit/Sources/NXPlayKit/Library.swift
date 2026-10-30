@@ -442,7 +442,8 @@ public final class Library {
 
     /// 0…1 across the builds (their average), nil when none runs: the Dock's and the status bar's.
     public var buildFraction: Double? {
-        let building = buildingJobs
+        // a play getting ready has no amount yet: the Dock shows nothing rather than a bar at 0 for a few seconds
+        let building = buildingJobs.filter { !$0.isPreparing }
         guard !building.isEmpty else { return nil }
         return building.reduce(0) { $0 + $1.progressFraction } / Double(building.count)
     }

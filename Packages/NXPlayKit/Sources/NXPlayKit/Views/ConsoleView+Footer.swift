@@ -20,10 +20,8 @@ struct FooterBuild: View {
                 } else {
                     Color.clear.frame(width: 16, height: 16)
                 }
-                Text(
-                    job.map { $0.kind == .play ? "Building \($0.game.name)" : $0.game.name } ?? " "
-                )
-                .fontWeight(.semibold)
+                Text(job.map(Self.title) ?? " ")
+                    .fontWeight(.semibold)
                 if jobs.count > 1 {
                     Text("+\(jobs.count - 1) more").foregroundStyle(.white.opacity(0.6))
                         .layoutPriority(1)
@@ -32,11 +30,20 @@ struct FooterBuild: View {
             .font(.title3)
             .frame(width: Self.bar, alignment: .leading)
             HStack(spacing: 14) {
-                ProgressView(value: job?.progressFraction ?? 0)
-                    .tint(.white)
-                    .frame(width: Self.bar)
+                // getting ready has no amount yet: a moving bar, no percentage (its room kept)
+                let preparing = job?.isPreparing == true
+                Group {
+                    if preparing {
+                        ProgressView().progressViewStyle(.linear)
+                    } else {
+                        ProgressView(value: job?.progressFraction ?? 0)
+                    }
+                }
+                .tint(.white)
+                .frame(width: Self.bar)
                 Text("\(Int(((job?.progressFraction ?? 0) * 100).rounded()))%")
                     .font(.title3.weight(.semibold).monospacedDigit())
+                    .opacity(preparing ? 0 : 1)
             }
             Text(job?.progressText ?? " ")
                 .font(.callout)
@@ -48,6 +55,12 @@ struct FooterBuild: View {
         .foregroundStyle(.white)
         .opacity(job == nil ? 0 : 1)
         .accessibilityHidden(job == nil)
+    }
+
+    /// "Preparing ANIMAL WELL" while nxplay gets ready, "Building ANIMAL WELL" for a play that builds first.
+    static func title(_ job: Job) -> String {
+        guard job.kind == .play else { return job.game.name }
+        return (job.isPreparing ? "Preparing " : "Building ") + job.game.name
     }
 }
 

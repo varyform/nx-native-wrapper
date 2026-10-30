@@ -307,6 +307,8 @@ PY
 
 start() {
   if [[ $build_only -eq 1 ]]; then exit 0; fi
+  # NX Play shows the game as running from this line on, until then as preparing (Job.gameStarted)
+  echo "nxplay: starting the game"
   if [[ $fps -eq 1 ]]; then export DM_METAL_HUD=1; fi
   if [[ $fullscreen -eq 1 ]]; then export DM_FULLSCREEN=1; fi
   # NX Play orders Console Mode by the last play: marked at the start and, through the EXIT trap, at the end,

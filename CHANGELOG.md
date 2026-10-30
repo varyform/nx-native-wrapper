@@ -10,6 +10,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Changed
 
+- **A game getting ready says so:** in the few seconds before a game starts or rebuilds, while `nxplay` checks nxnative for updates, the game's badge reads "Preparing…" instead of "Running", and Console Mode's footer shows "Preparing <game>" with a moving bar and what `nxplay` is doing, such as "nxnative: up to date" or "nxnative updated: 3 new commits, rebuilding". The library's status bar shows the same.
+
 - **Console Mode shows more of the eShop page:** the game's tagline under its name, and its publisher and release year next to its version. Its tiles use the eShop's own icon, which is sharper at that size than the one in the game's files.
 
 - **NX Play opens in the mode you left it in:** quit it in Console Mode and it opens in Console Mode next time, at the game you played last. Quit it in the library and it opens there.
