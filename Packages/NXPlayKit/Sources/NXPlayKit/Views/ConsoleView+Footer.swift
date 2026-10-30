@@ -32,7 +32,7 @@ struct FooterBuild: View {
             HStack(alignment: .bottom, spacing: 14) {
                 // getting ready has no amount yet: the figure waits at the foot, no percentage (its room kept)
                 let preparing = job?.isPreparing == true || job?.progress == nil
-                BuildStairs(progress: preparing ? nil : job?.progress)
+                BuildStairs(progress: preparing ? nil : job?.progress, active: job != nil)
                     .frame(width: Self.bar)
                 Text("\(Int(((job?.progressFraction ?? 0) * 100).rounded()))%")
                     .font(.title3.weight(.semibold).monospacedDigit())

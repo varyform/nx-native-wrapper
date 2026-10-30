@@ -1,22 +1,29 @@
 import SwiftUI
 
 /// Console Mode's build progress as a staircase: a step per stage of the build, rising left to right, the done ones
-/// solid, the current one filling as it goes (pulsing when its work can't be counted), and a figure walking up them,
-/// along the current step as its share grows. It waves from the top step once the build is done.
+/// solid, the current one filling as it goes (pulsing when its work can't be counted), and a figure (StairWalker)
+/// walking up them to where the build is, pacing its step while the build doesn't move, waving from the top once done.
 struct BuildStairs: View {
     let progress: BuildProgress?
+    /// A build is on: the figure moves (it stands still, and costs nothing, while the footer is hidden).
+    var active = true
+    @State private var walker = StairWalker()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     static let height = 56.0
+    /// Room above the top step for the figure.
+    static let headroom = 34.0
     private static let low = 8.0, high = 36.0, gap = 6.0
 
     var body: some View {
-        // before the first stage: the steps of a typical build, the figure at the foot
+        // before the first stage: the steps of a typical build, the figure pacing the first
         let stages = max(progress?.stages ?? 6, 1)
         let current = min(max((progress?.stage ?? 1) - 1, 0), stages - 1)
         let finished = progress?.isLastStageDone == true
         let within = finished ? 1 : progress?.finished == true ? 1 : progress?.stageFraction
         GeometryReader { geometry in
             let width = (geometry.size.width - Self.gap * Double(stages - 1)) / Double(stages)
+            let stairs = StairGeometry(stages: stages, width: width, gap: Self.gap)
             ZStack(alignment: .bottomLeading) {
                 ForEach(0..<stages, id: \.self) { index in
                     step(
@@ -25,16 +32,27 @@ struct BuildStairs: View {
                         filling: index == current && progress != nil ? within : nil,
                         pulsing: index == current && progress != nil && within == nil)
                 }
-                Walker(waving: finished)
-                    .offset(
-                        x: Double(current) * (width + Self.gap) + width * (within ?? 0.5) - 11,
-                        y: -Self.height(current, of: stages) - 1)
             }
             .frame(
                 width: geometry.size.width, height: geometry.size.height, alignment: .bottomLeading
             )
             .animation(.easeInOut(duration: 0.8), value: current)
             .animation(.easeInOut(duration: 0.8), value: within)
+            .overlay(alignment: .bottomLeading) {
+                TimelineView(.animation(minimumInterval: 1.0 / 60, paused: !active || reduceMotion))
+                { timeline in
+                    Canvas { context, size in
+                        walker.update(
+                            now: timeline.date, stairs: stairs,
+                            goal: stairs.start(current) + width
+                                * min(max(within ?? 0.5, 0.06), 0.94),
+                            step: current, countable: progress != nil && within != nil,
+                            finished: finished, animate: active && !reduceMotion)
+                        Self.draw(walker.pose, in: context, height: size.height)
+                    }
+                }
+                .frame(width: geometry.size.width, height: Self.height + Self.headroom)
+            }
         }
         .frame(height: Self.height)
         .accessibilityHidden(true)  // the percentage and the line under it say it
@@ -66,21 +84,26 @@ struct BuildStairs: View {
     static func height(_ index: Int, of stages: Int) -> Double {
         stages == 1 ? high : low + (high - low) * Double(index) / Double(stages - 1)
     }
-}
 
-/// The figure on the stairs: walking with a bob in its step, waving from the top.
-private struct Walker: View {
-    let waving: Bool
-
-    var body: some View {
-        Image(systemName: waving ? "figure.wave" : "figure.walk")
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 22, height: 22)
-            .phaseAnimator(waving ? [0.0] : [0.0, -3.0]) { figure, lift in
-                figure.offset(y: lift)
-            } animation: { _ in
-                .easeInOut(duration: 0.3)
-            }
+    /// The stick figure: far limbs dimmer, then the torso and head, then the near limbs, round joints, white.
+    static func draw(_ pose: StairWalker.Pose, in context: GraphicsContext, height: Double) {
+        func point(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: height - p.y) }
+        func limb(_ points: [CGPoint], opacity: Double) {
+            var path = Path()
+            path.addLines(points.map(point))
+            context.stroke(
+                path, with: .color(.white.opacity(opacity)),
+                style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+        }
+        limb([pose.shoulder, pose.elbows[0], pose.hands[0]], opacity: 0.55)
+        limb([pose.hip, pose.knees[0], pose.feet[0]], opacity: 0.55)
+        limb([pose.hip, pose.shoulder], opacity: 1)
+        let head = point(pose.head)
+        let r = StairWalker.head
+        context.fill(
+            Path(ellipseIn: CGRect(x: head.x - r, y: head.y - r, width: 2 * r, height: 2 * r)),
+            with: .color(.white))
+        limb([pose.hip, pose.knees[1], pose.feet[1]], opacity: 1)
+        limb([pose.shoulder, pose.elbows[1], pose.hands[1]], opacity: 1)
     }
 }
