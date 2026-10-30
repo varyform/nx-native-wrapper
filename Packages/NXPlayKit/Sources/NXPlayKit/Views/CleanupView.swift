@@ -6,7 +6,7 @@ public struct CleanupView: View {
     public static let windowID = "free-up-space"
 
     @Environment(Library.self) private var library
-    @State private var cleanup = Cleanup()
+    @State private var cleanup = Cleanup(cache: SizeCache())
 
     public init() {}
 
@@ -42,7 +42,7 @@ public struct CleanupView: View {
                 description: Text(
                     library.root == nil
                         ? "Choose a games folder first."
-                        : "No game files, IPAs or Xcode builds in \(library.root?.lastPathComponent ?? "")."
+                        : "No game files, builds, IPAs or Xcode builds in \(library.root?.lastPathComponent ?? "")."
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -56,12 +56,17 @@ public struct CleanupView: View {
                 let files = cleanup.files(kind)
                 GridRow {
                     Checkbox(state: cleanup.isSelected(kind)) { cleanup.toggle(kind) }
-                        .disabled(files.allSatisfy { $0.blocked != nil })
+                        .disabled(
+                            files.allSatisfy {
+                                !cleanup.isAvailable($0) && !cleanup.selection.contains($0.url)
+                            })
                     Text(kind.title).fontWeight(.medium)
-                    Text(bytes(cleanup.size(kind)))
-                        .monospacedDigit()
-                        .foregroundStyle(files.isEmpty ? .tertiary : .primary)
-                        .gridColumnAlignment(.trailing)
+                    Text(
+                        bytes(cleanup.size(kind)) + (files.contains(where: \.measuring) ? "…" : "")
+                    )
+                    .monospacedDigit()
+                    .foregroundStyle(files.isEmpty ? .tertiary : .primary)
+                    .gridColumnAlignment(.trailing)
                     Text(kind.note).font(.callout).foregroundStyle(.secondary)
                 }
             }
@@ -73,12 +78,20 @@ public struct CleanupView: View {
             ForEach(cleanup.groups) { group in
                 Section {
                     ForEach(group.files) { file in
-                        FileRow(file: file, isOn: cleanup.selection.contains(file.url)) {
+                        FileRow(
+                            file: file, isOn: cleanup.selection.contains(file.url),
+                            unavailable: file.blocked ?? cleanup.conflict(file)
+                        ) {
                             cleanup.toggle(file)
                         }
                     }
                 } header: {
-                    GroupHeader(group: group, selected: cleanup.isSelected(group)) {
+                    GroupHeader(
+                        group: group, selected: cleanup.isSelected(group),
+                        disabled: group.files.allSatisfy {
+                            !cleanup.isAvailable($0) && !cleanup.selection.contains($0.url)
+                        }
+                    ) {
                         cleanup.toggle(group)
                     }
                 }
@@ -95,7 +108,7 @@ public struct CleanupView: View {
                 Text("Selected: \(bytes(cleanup.selectedSize))").fontWeight(.medium)
                 Spacer()
                 Text(
-                    "\(bytes(cleanup.totalSize)) in \(cleanup.groups.count) game\(cleanup.groups.count == 1 ? "" : "s")"
+                    "\(bytes(cleanup.totalSize))\(cleanup.isMeasuring ? "… (measuring)" : "") in \(cleanup.groups.count) game\(cleanup.groups.count == 1 ? "" : "s")"
                 )
                 .foregroundStyle(.secondary)
             }
@@ -136,11 +149,17 @@ public struct CleanupView: View {
 
     /// The full caveat once game files are in the selection: they are the only thing that cannot be made again.
     private var warning: String {
-        if cleanup.selectedFiles.contains(where: { $0.kind == .gameFiles }) {
-            return
-                "Deleted for good, not moved to the Trash. Without its game files a game can't be rebuilt: it keeps its current build when nxnative updates, and Install on Device and Build IPA need the files back. If this folder holds your only copy of a game, keep a backup elsewhere."
+        let kinds = Set(cleanup.selectedFiles.map(\.kind))
+        var text = "Deleted for good, not moved to the Trash."
+        if kinds.contains(.gameFiles) {
+            text +=
+                " Without its game files a game can't be rebuilt: it keeps its current build when nxnative updates, and Install on Device and Build IPA need the files back. If this folder holds your only copy of a game, keep a backup elsewhere."
         }
-        return "Deleted for good, not moved to the Trash."
+        if kinds.contains(.builds) {
+            text +=
+                " A game without its build is built again from its game files the next time you play it, which takes as long as its first build. Its saves stay."
+        }
+        return text
     }
 
     private func rescan() async {
@@ -167,6 +186,7 @@ extension CleanupKind {
     var title: LocalizedStringKey {
         switch self {
         case .gameFiles: "Game files"
+        case .builds: "Builds"
         case .ipas: "IPAs"
         case .xcodeBuilds: "Xcode builds"
         }
@@ -176,94 +196,9 @@ extension CleanupKind {
         switch self {
         case .gameFiles:
             "NSP, NSZ, XCI, XCZ of games built for the Mac: they keep playing, but can't be rebuilt."
+        case .builds: "Play builds them again from the game files; saves stay."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
-        }
-    }
-}
-
-/// A checkbox with AppKit's mixed state (nil): a dash when some, not all, are selected.
-private struct Checkbox: View {
-    let state: Bool?
-    let toggle: () -> Void
-
-    var body: some View {
-        Toggle(isOn: Binding(get: { state == true }, set: { _ in toggle() })) { EmptyView() }
-            .toggleStyle(.checkbox)
-            .labelsHidden()
-            .overlay {
-                if state == nil {
-                    RoundedRectangle(cornerRadius: 1).fill(.primary).frame(width: 8, height: 2)
-                        .allowsHitTesting(false)
-                }
-            }
-    }
-}
-
-private struct GroupHeader: View {
-    let group: CleanupGroup
-    let selected: Bool?
-    let toggle: () -> Void
-    @Environment(Library.self) private var library
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Checkbox(state: selected, toggle: toggle)
-                .disabled(group.files.allSatisfy { $0.blocked != nil })
-            GameIcon(url: library.icon(for: group.game)).frame(width: 28, height: 28)
-            Text(group.game.name).font(.headline).foregroundStyle(.primary)
-            Spacer()
-            Text(ByteCountFormatter.string(fromByteCount: group.size, countStyle: .file))
-                .font(.headline.monospacedDigit())
-                .foregroundStyle(.primary)
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-private struct FileRow: View {
-    let file: CleanupFile
-    let isOn: Bool
-    let toggle: () -> Void
-
-    var body: some View {
-        HStack {
-            Toggle(isOn: Binding(get: { isOn }, set: { _ in toggle() })) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title).lineLimit(1).truncationMode(.middle)
-                    if let caption {
-                        Text(caption).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .toggleStyle(.checkbox)
-            .disabled(file.blocked != nil)
-            Spacer()
-            Badge(text: file.kind.title, color: file.blocked == nil ? .secondary : .gray)
-            Text(ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file))
-                .monospacedDigit()
-                .foregroundStyle(.secondary)
-                .frame(minWidth: 64, alignment: .trailing)
-        }
-        .padding(.leading, 26)
-        .help(file.url.path)
-    }
-
-    private var title: String {
-        file.role == .xcodeBuild
-            ? "Xcode build (for Install on Device)" : file.url.lastPathComponent
-    }
-
-    /// Why it can't go, or where an extra copy comes from.
-    private var caption: String? {
-        if let blocked = file.blocked { return blocked }
-        let build = file.url.deletingLastPathComponent().deletingLastPathComponent()
-            .lastPathComponent
-        return switch file.role {
-        case .converted: "Converted from NSZ by the build, in \(build)/nsp"
-        case .xcodeBuild:
-            "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
-        default: nil
         }
     }
 }

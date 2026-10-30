@@ -6,6 +6,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Free Up Space removes builds** ([#5](https://github.com/varyform/nx-native-wrapper/issues/5)): each game's `<title ID>_build` folder is listed with its size, and the next Play builds it again from the game files. Its saves stay, and so does when you last played it. A game whose game files are gone keeps its build, since that's how it still plays, and so does a kept build; a game's build and its game files can't be deleted together. A build can hold half a million files, so the window now lists everything at once and measures the builds and Xcode builds in the background, four at a time, each with a spinner until its size is in. Sizes are remembered between launches and measured again only once a folder changes, so the window fills in at once the next time.
+
 - **Several controllers, several players:** every connected controller now drives NX Play and Console Mode, not only the last one connected, each with its own held direction. Console Mode's top bar shows each controller with its player number and battery. **Settings › Playing › Controllers** lists them with the player each one is in a game and chooses how players are given out: each controller a player of its own with the keyboard on player 1 (nxnative's default), the keyboard player 1 on its own with the controllers from player 2, or every controller player 1. NX Play passes the choice to each game it starts (nxnative's `DM_PAD_MERGE` and `DM_KBD_PLAYER`), and lights each controller's player lights to match while NX Play is in front.
 
 ## 1.7.8 — 2026-10-30
