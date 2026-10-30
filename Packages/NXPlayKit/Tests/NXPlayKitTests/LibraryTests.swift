@@ -254,6 +254,20 @@ import Testing
         #expect(Library(defaults: defaults, isScreenshot: true).showsLog)
     }
 
+    @Test func opensInTheModeItWasLeftIn() {
+        let defaults = defaults()
+        defaults.set("/games", forKey: Library.Keys.root)
+        Library(defaults: defaults, isScreenshot: true).consoleMode = true
+        #expect(Library(defaults: defaults, isScreenshot: true).consoleMode)
+        Library(defaults: defaults, isScreenshot: true).consoleMode = false
+        #expect(!Library(defaults: defaults, isScreenshot: true).consoleMode)
+
+        // no games folder yet: the window that asks for one, not an empty Console Mode
+        defaults.removeObject(forKey: Library.Keys.root)
+        defaults.set(true, forKey: Library.Keys.consoleMode)
+        #expect(!Library(defaults: defaults, isScreenshot: true).consoleMode)
+    }
+
     @Test func cloudSavesBecomeTheHostsSwitch() {
         #expect(Library.cloudSaveTarget("") == "0")  // off is said, not left to the shell's environment
         #expect(Library.cloudSaveTarget("icloud") == "icloud")

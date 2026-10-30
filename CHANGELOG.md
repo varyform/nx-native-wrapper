@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **NX Play opens in the mode you left it in:** quit it in Console Mode and it opens in Console Mode next time, at the game you played last. Quit it in the library and it opens there.
+
 ## 1.7.7 — 2026-10-29
 
 ### Added

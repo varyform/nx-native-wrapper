@@ -30,6 +30,7 @@ public final class Library {
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
         static let cloudSaves = "cloudSaves"
+        static let consoleMode = "consoleMode"
     }
 
     /// The games as cards with their icons, or as a sortable list.
@@ -91,6 +92,8 @@ public final class Library {
     public var consoleMode = false {
         // the carousel starts at the game played last
         didSet {
+            // NX Play opens in the mode it was left in
+            defaults.set(consoleMode, forKey: Keys.consoleMode)
             if consoleMode, !oldValue {
                 selection = navigableGames.first?.id
                 fetchBanners(retry: true)
@@ -179,6 +182,10 @@ public final class Library {
         }
         refresh()
         refreshDevices()
+        // left in Console Mode: open in it, at the game played last (set here, after the games are read)
+        if defaults.bool(forKey: Keys.consoleMode), root != nil {
+            consoleMode = true
+        }
     }
 
     // MARK: - Devices

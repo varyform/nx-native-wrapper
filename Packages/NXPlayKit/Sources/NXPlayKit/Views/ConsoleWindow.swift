@@ -15,6 +15,8 @@ struct ConsoleWindowController: NSViewRepresentable {
     @MainActor final class Coordinator {
         /// How the window was before Console Mode; nil while it is not covering.
         var saved: Saved?
+        /// Console Mode as last asked: NX Play opened in it has no window yet at the first update.
+        var wanted = false
         var terminationObserver: (any NSObjectProtocol)?
         /// Waiting for the player's macOS full screen to end before covering.
         var fullScreenExitObserver: (any NSObjectProtocol)?
@@ -103,14 +105,35 @@ struct ConsoleWindowController: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> NSView { NSView() }
+    func makeNSView(context: Context) -> NSView { WindowView(coordinator: context.coordinator) }
 
     func updateNSView(_ view: NSView, context: Context) {
         let state = context.coordinator
         let consoleMode = consoleMode
+        state.wanted = consoleMode
         DispatchQueue.main.async {
             guard let window = view.window else { return }
             if consoleMode { state.cover(window) } else { state.restore(window) }
+        }
+    }
+
+    /// Covers the screen once the view is in its window, for NX Play opened in Console Mode.
+    final class WindowView: NSView {
+        let coordinator: Coordinator
+
+        init(coordinator: Coordinator) {
+            self.coordinator = coordinator
+            super.init(frame: .zero)
+        }
+
+        required init?(coder: NSCoder) { nil }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard let window, coordinator.wanted else { return }
+            DispatchQueue.main.async { [coordinator] in
+                if coordinator.wanted { coordinator.cover(window) }
+            }
         }
     }
 }
