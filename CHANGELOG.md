@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **Controllers use the Switch's buttons in NX Play too:** on an Xbox or PlayStation controller, the right button now plays and the bottom one goes back, as A and B do once the game starts (nxnative maps them by position). Before, Console Mode used them the other way round. The hints show the button to press, such as Ⓑ on an Xbox controller. Pro Controllers and Joy-Con work as before.
+
 ## 1.7.10 — 2026-10-30
 
 ### Added

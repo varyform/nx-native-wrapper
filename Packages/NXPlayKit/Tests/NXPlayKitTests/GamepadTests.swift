@@ -21,6 +21,17 @@ import Testing
         #expect(Gamepad.displayName(vendor: nil, category: GCProductCategoryHID) == "Controller")
     }
 
+    /// nxnative's dm/host/pad_apple.h: only Nintendo pads are named by their labels.
+    @Test func onlyNintendoPadsGoByTheirLabels() {
+        #expect(Gamepad.usesLabels(category: "Switch Pro Controller"))
+        #expect(Gamepad.usesLabels(category: "Nintendo Switch Joy-Con (L/R)"))
+        #expect(Gamepad.usesLabels(category: "Nintendo Switch Joy-Con (R)"))
+
+        #expect(!Gamepad.usesLabels(category: GCProductCategoryXboxOne))
+        #expect(!Gamepad.usesLabels(category: GCProductCategoryDualSense))
+        #expect(!Gamepad.usesLabels(category: GCProductCategoryHID))
+    }
+
     @Test func keepsAControllersOwnName() {
         #expect(
             Gamepad.displayName(

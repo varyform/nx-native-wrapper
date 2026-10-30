@@ -3,7 +3,8 @@ import GameController
 import Observation
 
 /// The game controllers as a remote for NX Play: the D-pad or left stick moves the selection (repeating while held),
-/// A plays, B backs out, Y shows a waiting update, Menu toggles Console Mode. Every connected controller drives it, each with its own held
+/// A plays, B backs out, Y shows a waiting update, Menu toggles Console Mode. A, B and Y are the Switch's, as the games
+/// take them (faceButtons): on an Xbox or PlayStation pad, A is the right button. Every connected controller drives it, each with its own held
 /// direction. Any controller GameController knows works: Joy-Con, Pro Controller, Xbox, DualShock / DualSense, 8BitDo.
 /// macOS gives controller input only to the frontmost app, so a running game's input never reaches NX Play.
 ///
@@ -128,7 +129,26 @@ public final class Gamepad {
         connected(GCController.controllers())
     }
 
-    /// The symbol the controller last used prints on a button (Ⓐ, ✕, …), for on-screen hints.
+    /// Which of GameController's face buttons is the Switch's A, B and Y, as nxnative's host reads them
+    /// (dm/host/pad_apple.h). GameController names a Nintendo pad's buttons by their printed labels (buttonA is the right
+    /// one, marked A), any other pad's by position as on an Xbox pad (buttonA at the bottom). The Switch has A on the
+    /// right, B at the bottom, Y on the left: a Nintendo pad maps name for name, any other by position, so a play starts
+    /// with the same button that confirms in the game.
+    nonisolated static func usesLabels(category: String) -> Bool {
+        category == "Switch Pro Controller" || category.contains("Joy-Con")
+    }
+
+    /// The pad's buttons for the Switch's A, B and Y.
+    static func faceButtons(of pad: GCExtendedGamepad) -> (
+        a: GCControllerButtonInput, b: GCControllerButtonInput, y: GCControllerButtonInput
+    ) {
+        let labelled = pad.controller.map { usesLabels(category: $0.productCategory) } ?? false
+        return labelled
+            ? (pad.buttonA, pad.buttonB, pad.buttonY) : (pad.buttonB, pad.buttonA, pad.buttonX)
+    }
+
+    /// The symbol the controller last used prints on a button (Ⓐ, ✕, …), for on-screen hints: the button that
+    /// does it, so an Xbox pad's Play hint shows its Ⓑ.
     public func symbol(for command: Command) -> String? {
         if !sample.isEmpty {
             return switch command {
@@ -140,11 +160,12 @@ public final class Gamepad {
             }
         }
         guard let pad = (current ?? controllers.first)?.extendedGamepad else { return nil }
+        let face = Self.faceButtons(of: pad)
         return switch command {
-        case .confirm: pad.buttonA.sfSymbolsName
-        case .back: pad.buttonB.sfSymbolsName
+        case .confirm: face.a.sfSymbolsName
+        case .back: face.b.sfSymbolsName
         case .menu: pad.buttonMenu.sfSymbolsName
-        case .info: pad.buttonY.sfSymbolsName
+        case .info: face.y.sfSymbolsName
         default: pad.dpad.sfSymbolsName
         }
     }
@@ -195,10 +216,11 @@ public final class Gamepad {
                 }
             }
         }
-        pad.buttonA.pressedChangedHandler = press(.confirm)
-        pad.buttonB.pressedChangedHandler = press(.back)
+        let face = Self.faceButtons(of: pad)
+        face.a.pressedChangedHandler = press(.confirm)
+        face.b.pressedChangedHandler = press(.back)
+        face.y.pressedChangedHandler = press(.info)
         pad.buttonMenu.pressedChangedHandler = press(.menu)
-        pad.buttonY.pressedChangedHandler = press(.info)
         pad.dpad.left.pressedChangedHandler = direction(.left)
         pad.dpad.right.pressedChangedHandler = direction(.right)
         pad.dpad.up.pressedChangedHandler = direction(.up)
