@@ -29,12 +29,18 @@ struct ConsoleView: View {
                         .frame(height: banner)
                         .overlay(alignment: .bottomLeading) {
                             if let selected {
+                                // swapped whole: animating one caption into the next slid its rows between the two
+                                // games' layouts (a name on one line or two, a tagline or none)
                                 Caption(game: selected, job: library.job(for: selected))
                                     .padding(.horizontal, 56)
                                     .contentShape(.rect)
                                     .onTapGesture { library.showsDetails.toggle() }
+                                    .id(selected.id)
+                                    .transition(
+                                        .asymmetric(insertion: .opacity, removal: .identity))
                             }
                         }
+                        .animation(.easeOut(duration: 0.2), value: selected?.id)
                     if games.isEmpty {
                         Text("No games ready to play yet").font(.largeTitle.bold())
                             .foregroundStyle(.white.opacity(0.7))

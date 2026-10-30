@@ -34,7 +34,7 @@ struct Banner: View {
 
     /// How far the fade reaches below the banner's own area, over the tiles: the image keeps its place and size there
     /// (its fill crop has more of it below), only the blend into the backdrop gets taller.
-    static let overhang = 140.0
+    static let overhang = 80.0
 
     var body: some View {
         GeometryReader { geometry in
@@ -167,7 +167,6 @@ struct Caption: View {
             .font(.title3)
         }
         .foregroundStyle(.white)
-        .animation(.easeInOut(duration: 0.2), value: game.id)
     }
 
     /// "v1.6.0 · Nintendo · 2017 · Played yesterday".
