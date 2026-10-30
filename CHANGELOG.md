@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.11 — 2026-10-30
+
 ### Added
 
 - **Tools › Update All Builds…** brings every game up to date with nxnative, one build after another, so each one is ready when you want to play it. After an nxnative update a game's next build can take from a few minutes to an hour. After an Xcode update every game recompiles its graphics once. A game that's already current takes a few seconds. The window explains this two ways, and you pick one: **Gamer** compares it to the shader pre-caching Steam and consoles do after an update. **Old school** describes it as a make world with a cold compiler cache: nxnative's shader chain, and its cache of compiled shaders keyed by the Metal compiler. Kept builds and games without their game files are skipped. **Only while plugged in**, on by default, holds the next build while the Mac is on battery and starts it once you plug in. The status bar then says it's waiting for the power adapter.
