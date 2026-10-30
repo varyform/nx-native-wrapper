@@ -307,6 +307,9 @@ public final class Library {
     /// The game whose nxnative notes are shown (Game › nxnative Notes…).
     public var notesGame: Game?
 
+    /// The game Game › Remove Game… asks about (Library+Removal.swift).
+    public var removingGame: Game?
+
     /// What nxnative says about the games here that it has a profile for, by title ID.
     public private(set) var gameProfiles: [String: GameProfile] = [:]
 

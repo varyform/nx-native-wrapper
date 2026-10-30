@@ -116,6 +116,14 @@ struct GameActions: View {
             if let logs = game?.logsFolder {
                 Button("Open Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
             }
+
+            Divider()
+
+            Button("Remove Game…", systemImage: "trash", role: .destructive) {
+                library.removingGame = game
+            }
+            .disabled(game.map { !library.canRemove($0) } ?? true)
+            .shortcut(.delete, if: inMenuBar)
         }
         // macOS menus show only titles unless the label style asks for the icons too
         .labelStyle(.titleAndIcon)

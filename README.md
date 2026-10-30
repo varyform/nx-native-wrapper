@@ -83,6 +83,7 @@ Right-click a game for more, or use the **Game** menu:
 - **Transfer Saves**: compares the Mac's save with a device's, file by file, and copies one over the other. The replaced save is kept in `<title ID>_build/run/save-backups`.
 - **nxnative Notes…** (⌥⌘I): what nxnative says about the game: tested, in bring-up, or no profile (a badge on the artwork says the same), and the profile's commits since your build (a blue badge counts them).
 - **Show in Finder**, **Open Save Folder**, **Open Build Logs**.
+- **Remove Game…** (⌘⌫): deletes the game's files, build, IPAs and Mac app for good. Anything else in its folder stays. Its saves stay too, in the folder, unless you also remove them; put the game files back and it plays on from them. You confirm by typing the phrase it shows.
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 

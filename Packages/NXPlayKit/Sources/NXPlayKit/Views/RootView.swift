@@ -50,6 +50,9 @@ public struct RootView: View {
             .sheet(item: Bindable(library).notesGame) { game in
                 ProfileNotesView(game: game)
             }
+            .sheet(item: Bindable(library).removingGame) { game in
+                RemoveGameView(game: game)
+            }
             .alert("Can't run nxplay", isPresented: problemShown) {
                 Button("OK") {}
             } message: {

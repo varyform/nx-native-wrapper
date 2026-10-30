@@ -20,7 +20,9 @@ public enum GameScanner {
         let packages = entries.filter { packageExtensions.contains($0.pathExtension.lowercased()) }
         let hasPackages = !packages.isEmpty
         let builds = entries.filter(isBuildFolder).map(Build.init(folder:))
-        guard hasPackages || !builds.isEmpty else { return nil }
+        // a build with nothing but its run folder holds the saves of a removed game (Remove Game keeps them): no game
+        // until its files come back
+        guard hasPackages || builds.contains(where: \.hasContent) else { return nil }
 
         // A derived profile can leave a second build folder: take the most finished one, then the newest
         let build = builds.max { ($0.rank, $0.modified) < ($1.rank, $1.modified) }
@@ -83,6 +85,8 @@ public enum GameScanner {
         let nacpURL: URL?
         let isReady: Bool
         let modified: Date
+        /// More than the run folder (saves and caches): something extracted or built.
+        let hasContent: Bool
 
         var rank: Int { isReady ? 2 : extract != nil ? 1 : 0 }
 
@@ -105,6 +109,7 @@ public enum GameScanner {
             modified =
                 (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
+            hasContent = GameScanner.children(of: folder).contains { $0.lastPathComponent != "run" }
         }
     }
 
