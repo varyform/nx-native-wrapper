@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.9 — 2026-10-30
+
 ### Added
 
 - **Remove Game…** (Game menu, ⌘⌫) deletes a game for good: its game files, its build, its IPAs and its Mac app. Anything else you keep in its folder stays, and the folder goes once it's empty. Its saves stay unless you also tick **Also remove its saves** and say why: you have a backup, or you don't need them. Kept saves wait in the folder; put the game files back and the game plays on from them. To confirm, type the phrase it shows, one of a few picked at random.
