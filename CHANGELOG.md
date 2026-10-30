@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.12 — Stair Climber — 2026-10-31
+
 ### Changed
 
 - **Console Mode shows which game is building:** a bright arc runs round its tile's border, and a pill at its foot says "Building 42%", or "Queued" for one waiting its turn. When that tile is off screen, a marker at that edge of the row shows the game's icon and progress, with an arrow pointing to it and nudging that way. Click it to select the game.
