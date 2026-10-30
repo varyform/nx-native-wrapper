@@ -55,6 +55,7 @@ struct NXPlayApp: App {
             }
             CommandMenu("Tools") {
                 ToolsMenu()
+                    .library(library)
             }
         }
 

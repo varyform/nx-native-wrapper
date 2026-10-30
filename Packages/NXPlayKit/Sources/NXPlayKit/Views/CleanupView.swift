@@ -206,10 +206,13 @@ extension CleanupKind {
 /// The Tools menu (openWindow needs a view's environment).
 public struct ToolsMenu: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(Library.self) private var library
 
     public init() {}
 
     public var body: some View {
+        Button("Update All Builds…") { library.showsUpdateAll = true }
+            .disabled(library.updatableGames.isEmpty)
         Button("Free Up Space…") { openWindow(id: CleanupView.windowID) }
     }
 }

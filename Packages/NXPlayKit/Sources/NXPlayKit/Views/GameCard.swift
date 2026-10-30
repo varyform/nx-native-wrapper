@@ -98,7 +98,10 @@ struct GameBadge: View {
         case (.running?, .install?):
             Badge(text: "Installing\(percent)", color: .blue)
         case (.running?, _):
-            Badge(text: "Extracting\(percent)", color: .blue)
+            // an extracted game's build only builds (Update All Builds, a play's rebuild first)
+            Badge(
+                text: game.isExtracted ? "Building\(percent)" : "Extracting\(percent)", color: .blue
+            )
         case (.queued?, _):
             Badge(text: "Queued", color: .secondary)
         case (.failed?, _):

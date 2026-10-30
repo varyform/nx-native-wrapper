@@ -4,9 +4,17 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Tools › Update All Builds…** brings every game up to date with nxnative, one build after another, so each one is ready when you want to play it. After an nxnative update a game's next build can take from a few minutes to an hour. After an Xcode update every game recompiles its graphics once. A game that's already current takes a few seconds. The window explains this two ways, and you pick one: **Gamer** compares it to the shader pre-caching Steam and consoles do after an update. **Old school** describes it as a make world with a cold compiler cache: nxnative's shader chain, and its cache of compiled shaders keyed by the Metal compiler. Kept builds and games without their game files are skipped. **Only while plugged in**, on by default, holds the next build while the Mac is on battery and starts it once you plug in. The status bar then says it's waiting for the power adapter.
+
 ### Changed
 
 - **Controllers use the Switch's buttons in NX Play too:** on an Xbox or PlayStation controller, the right button now plays and the bottom one goes back, as A and B do once the game starts (nxnative maps them by position). Before, Console Mode used them the other way round. The hints show the button to press, such as Ⓑ on an Xbox controller. Pro Controllers and Joy-Con work as before.
+
+- **The Mac stays awake while a build runs,** so an overnight build no longer stops when the Mac goes to sleep. App Nap is off too, so a build in the background runs at full speed. The display can still sleep.
+
+- **An update build on a game that's already built says "Building",** not "Extracting".
 
 ## 1.7.10 — 2026-10-30
 

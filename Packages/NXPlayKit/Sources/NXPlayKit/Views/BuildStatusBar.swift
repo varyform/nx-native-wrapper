@@ -47,8 +47,12 @@ struct BuildStatusBar: View {
         .background(.bar)
     }
 
-    /// The game, or "3 builds · 2 waiting · ANIMAL WELL".
+    /// The game, or "3 builds · 2 waiting · ANIMAL WELL"; "Waiting for the power adapter · 3 builds" on battery.
     private var title: String {
+        if library.waitingForPower {
+            return "Waiting for the power adapter · "
+                + (jobs.count == 1 ? jobs[0].game.name : "\(jobs.count) builds")
+        }
         guard jobs.count > 1 else { return jobs[0].game.name }
         let waiting = jobs.filter { $0.status == .queued }.count
         let parts: [String?] = [

@@ -328,6 +328,16 @@ public final class Library {
     /// Bumped by every change to a game's saved choices: they live in nxnative's preferences domains, which
     /// Observation can't see, so the settings views read this to redraw.
     public internal(set) var choicesRevision = 0
+    /// Tools › Update All Builds… is open.
+    public var showsUpdateAll = false
+    /// The queued builds wait while the Mac is on battery (Update All Builds' "only while plugged in"), until the queue
+    /// is empty.
+    public internal(set) var buildsWaitForPower = false
+    /// The next build is waiting for the power adapter.
+    public internal(set) var waitingForPower = false
+    @ObservationIgnored var isOnBattery: () -> Bool = PowerSource.isOnBattery
+    @ObservationIgnored var powerTimer: Timer?
+    @ObservationIgnored var buildActivity: (any NSObjectProtocol)?
     /// A game's choices store, by its domain (org.nxnative.<title ID>); tests give their own.
     @ObservationIgnored var choicesStore: (String) -> UserDefaults? = {
         UserDefaults(suiteName: $0)
@@ -680,7 +690,7 @@ public final class Library {
         game.isExtracted ? play(game) : extract(game)
     }
 
-    private func run(_ kind: Job.Kind, _ game: Game, select: Bool = true) {
+    func run(_ kind: Job.Kind, _ game: Game, select: Bool = true) {
         guard !isBusy(game) else { return }
         if game.isKept, kind.rewritesTheMacBuild {
             problem = Self.keptBuildProblem
@@ -730,11 +740,24 @@ public final class Library {
         quitIfIdle()
     }
 
-    private func startNextExtraction() {
+    /// The next queued build, one at a time; with Update All Builds' "only while plugged in", not on battery
+    /// (Library+UpdateAll.swift).
+    func startNextExtraction() {
         queue.removeAll { $0.status != .queued }
-        guard !jobs.values.contains(where: { $0.kind != .play && $0.status == .running }),
-            let next = queue.first
-        else { return }
+        defer { holdAwakeWhileBuilding() }
+        guard !jobs.values.contains(where: { $0.kind != .play && $0.status == .running }) else {
+            return
+        }
+        guard let next = queue.first else {
+            buildsWaitForPower = false
+            setWaitingForPower(false)
+            return
+        }
+        if buildsWaitForPower, isOnBattery() {
+            setWaitingForPower(true)
+            return
+        }
+        setWaitingForPower(false)
         queue.removeFirst()
         next.start()
     }
