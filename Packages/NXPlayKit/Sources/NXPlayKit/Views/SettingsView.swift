@@ -142,6 +142,40 @@ private struct PlayingSettings: View {
                     "Sets DM_LANG when a game starts. A game without the language gets the same language for another region, or keeps its build's."
                 )
             }
+            ControllerSettings()
+        }
+    }
+}
+
+/// Local co-op: which player each controller is in a game, and the controllers connected now.
+private struct ControllerSettings: View {
+    @Environment(Library.self) private var library
+
+    var body: some View {
+        @Bindable var library = library
+        Section {
+            Picker("Players", selection: $library.controllerPlayers) {
+                Text("Each controller is a player").tag(Library.ControllerPlayers.each)
+                Text("Keyboard is player 1, controllers from player 2").tag(
+                    Library.ControllerPlayers.keyboardOwn)
+                Text("Every controller is player 1").tag(Library.ControllerPlayers.merged)
+            }
+            let players = library.gamepad.players
+            if players.isEmpty {
+                Text("No controller connected").foregroundStyle(.secondary)
+            }
+            ForEach(players) { player in
+                LabeledContent(player.name) {
+                    Text(player.number.map { "Player \($0)" } ?? "Not used (8 players at most)")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text("Controllers")
+        } footer: {
+            Footer(
+                "In a game each controller is a player of its own, in the order they connected: the first is player 1, together with the keyboard, the next player 2, up to 8. A controller that disconnects gets its player back when it returns. A one-player game sees every controller as player 1. The setting applies from a game's next start (nxnative's DM_PAD_MERGE and DM_KBD_PLAYER)."
+            )
         }
     }
 }

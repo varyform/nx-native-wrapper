@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Several controllers, several players:** every connected controller now drives NX Play and Console Mode, not only the last one connected, each with its own held direction. Console Mode's top bar shows each controller with its player number and battery. **Settings › Playing › Controllers** lists them with the player each one is in a game and chooses how players are given out: each controller a player of its own with the keyboard on player 1 (nxnative's default), the keyboard player 1 on its own with the controllers from player 2, or every controller player 1. NX Play passes the choice to each game it starts (nxnative's `DM_PAD_MERGE` and `DM_KBD_PLAYER`), and lights each controller's player lights to match while NX Play is in front.
+
 ## 1.7.8 — 2026-10-30
 
 ### Added

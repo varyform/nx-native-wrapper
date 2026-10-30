@@ -96,28 +96,39 @@ struct TopBar: View {
             }
             .font(.title2.weight(.bold))
             Spacer()
-            if let name = gamepad.name {
-                HStack(spacing: 6) {
-                    Image(systemName: "gamecontroller")
-                    Text(name)
-                    if let battery = gamepad.battery {
-                        Image(
-                            systemName: battery > 0.75
-                                ? "battery.100percent"
-                                : battery > 0.5
-                                    ? "battery.75percent"
-                                    : battery > 0.25 ? "battery.50percent" : "battery.25percent")
+            // each controller with the player it is in a game: one shows its name, several only their numbers and
+            // batteries, to fit
+            let players = gamepad.players
+            HStack(spacing: 18) {
+                ForEach(players) { player in
+                    HStack(spacing: 6) {
+                        Image(systemName: "gamecontroller")
+                        if let number = player.number, players.count > 1 || number > 1 {
+                            Text("P\(number)").fontWeight(.semibold).monospacedDigit()
+                        }
+                        if players.count == 1 { Text(player.name) }
+                        if let battery = player.battery {
+                            Image(systemName: Self.battery(battery))
+                        }
                     }
+                    .help(player.name)
                 }
-                .font(.title3)
-                .foregroundStyle(.white.opacity(0.8))
             }
+            .font(.title3)
+            .foregroundStyle(.white.opacity(0.8))
             TimelineView(.everyMinute) { context in
                 Text(context.date, format: .dateTime.hour().minute())
                     .font(.title2.weight(.semibold).monospacedDigit())
             }
         }
         .foregroundStyle(.white)
+    }
+
+    static func battery(_ level: Float) -> String {
+        level > 0.75
+            ? "battery.100percent"
+            : level > 0.5
+                ? "battery.75percent" : level > 0.25 ? "battery.50percent" : "battery.25percent"
     }
 }
 

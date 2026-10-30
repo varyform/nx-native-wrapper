@@ -31,6 +31,14 @@ public final class Library {
         static let allowOtherMetal = "allowOtherMetal"
         static let cloudSaves = "cloudSaves"
         static let consoleMode = "consoleMode"
+        static let controllerPlayers = "controllerPlayers"
+    }
+
+    /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
+    /// own with the keyboard on player 1 (nxnative's default), the keyboard player 1 alone (DM_KBD_PLAYER=own), or
+    /// every controller player 1 (DM_PAD_MERGE=1, nxnative's behaviour before local co-op).
+    public enum ControllerPlayers: String, CaseIterable, Sendable {
+        case each, keyboardOwn, merged
     }
 
     /// The games as cards with their icons, or as a sortable list.
@@ -55,6 +63,17 @@ public final class Library {
     /// nxnative Saves, empty for off. Each game keeps its own `<title ID>/save.dmsync` there, which its iPhone app
     /// syncs with too.
     public var cloudSaves: String { didSet { defaults.set(cloudSaves, forKey: Keys.cloudSaves) } }
+    public var controllerPlayers: ControllerPlayers {
+        didSet {
+            defaults.set(controllerPlayers.rawValue, forKey: Keys.controllerPlayers)
+            applyControllerPlayers()
+        }
+    }
+
+    private func applyControllerPlayers() {
+        gamepad.merged = controllerPlayers == .merged
+        gamepad.keyboardOwnPlayer = controllerPlayers == .keyboardOwn
+    }
     /// Play with Apple's Metal performance HUD (nxplay --fps).
     public var metalHUD: Bool { didSet { defaults.set(metalHUD, forKey: Keys.metalHUD) } }
     /// Start games in full screen (nxplay --fullscreen); always from Console Mode.
@@ -188,6 +207,10 @@ public final class Library {
         keysPath = defaults.string(forKey: Keys.keys) ?? NSHomeDirectory() + "/.switch/prod.keys"
         saveBackupPath = defaults.string(forKey: Keys.saveBackup) ?? ""
         cloudSaves = defaults.string(forKey: Keys.cloudSaves) ?? ""
+        controllerPlayers =
+            defaults.string(forKey: Keys.controllerPlayers).flatMap(
+                ControllerPlayers.init(rawValue:))
+            ?? .each
         metalHUD = defaults.bool(forKey: Keys.metalHUD)
         fullScreenGames = defaults.bool(forKey: Keys.fullScreenGames)
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
@@ -216,6 +239,7 @@ public final class Library {
         }
         refresh()
         refreshDevices()
+        applyControllerPlayers()  // didSet doesn't run for the value read in init
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
         if defaults.bool(forKey: Keys.consoleMode), root != nil {
             consoleMode = true
@@ -768,6 +792,7 @@ public final class Library {
                 + lang + [game.folder.path]
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
+            Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):
             guard let team, let titleID = game.titleID else {
                 problem =
@@ -786,6 +811,14 @@ public final class Library {
         // an nxplay option, before the game folder (a play can rebuild too)
         if allowOtherMetal { arguments.insert("--allow-other-metal", at: 0) }
         return NXPlayCommand(script: script, arguments: arguments, environment: environment)
+    }
+
+    /// nxnative's switches for the players setting, each said either way so the shell's environment can't decide.
+    static func controllerEnvironment(_ players: ControllerPlayers) -> [String: String?] {
+        [
+            "DM_PAD_MERGE": players == .merged ? "1" : "0",
+            "DM_KBD_PLAYER": players == .keyboardOwn ? "own" : nil,
+        ]
     }
 
     /// DM_SAVE_SYNC for a play: `icloud`, a folder with ~ expanded, or `0` for off.

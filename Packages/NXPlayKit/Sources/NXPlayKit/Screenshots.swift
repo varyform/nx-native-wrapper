@@ -86,7 +86,7 @@
                 library.viewStyle = .list
                 library.jobs[game.id] = job(for: game, finished: false)
             case .console, .consoleDetails:
-                library.gamepad.sample = ("Pro Controller", 0.8)
+                library.gamepad.sample = [("Pro Controller", 0.8), ("Xbox Controller", 0.55)]
                 library.consoleMode = true
                 // the game asked for, else the middle of the carousel, so games show on both sides
                 let carousel = library.navigableGames

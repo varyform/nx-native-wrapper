@@ -301,6 +301,34 @@ import Testing
         #expect(!Library(defaults: defaults, isScreenshot: true).consoleMode)
     }
 
+    @Test func controllersBecomePlayers() {
+        #expect(Gamepad.numbers(count: 3, merged: false, keyboardOwnPlayer: false) == [1, 2, 3])
+        #expect(Gamepad.numbers(count: 2, merged: false, keyboardOwnPlayer: true) == [2, 3])
+        #expect(Gamepad.numbers(count: 2, merged: true, keyboardOwnPlayer: true) == [1, 1])
+        // nxnative has 8 players: a ninth controller isn't used
+        #expect(
+            Gamepad.numbers(count: 9, merged: false, keyboardOwnPlayer: false).last == .some(nil))
+        #expect(
+            Gamepad.numbers(count: 8, merged: false, keyboardOwnPlayer: true).last == .some(nil))
+
+        // each said either way, so the shell's environment can't decide
+        #expect(
+            Library.controllerEnvironment(.each) == ["DM_PAD_MERGE": "0", "DM_KBD_PLAYER": nil])
+        #expect(
+            Library.controllerEnvironment(.keyboardOwn) == [
+                "DM_PAD_MERGE": "0", "DM_KBD_PLAYER": "own",
+            ])
+        #expect(
+            Library.controllerEnvironment(.merged) == ["DM_PAD_MERGE": "1", "DM_KBD_PLAYER": nil])
+
+        let defaults = defaults()
+        let first = Library(defaults: defaults, isScreenshot: true)
+        first.controllerPlayers = .keyboardOwn
+        #expect(first.gamepad.keyboardOwnPlayer && !first.gamepad.merged)
+        let next = Library(defaults: defaults, isScreenshot: true)
+        #expect(next.controllerPlayers == .keyboardOwn && next.gamepad.keyboardOwnPlayer)
+    }
+
     @Test func cloudSavesBecomeTheHostsSwitch() {
         #expect(Library.cloudSaveTarget("") == "0")  // off is said, not left to the shell's environment
         #expect(Library.cloudSaveTarget("icloud") == "icloud")
