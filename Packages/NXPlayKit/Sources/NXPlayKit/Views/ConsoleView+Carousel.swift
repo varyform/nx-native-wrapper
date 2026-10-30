@@ -17,13 +17,14 @@ struct Carousel: View {
     // scroll animation, and scrollTo on a lazy row mid-animation (its off-screen positions only estimated) stopped short
     // of the end, the last game selected off screen.
     var body: some View {
+        let builds = Self.builds(library.buildingJobs)
         GeometryReader { geometry in
             let width = geometry.size.width
             HStack(spacing: Self.spacing) {
                 ForEach(games) { game in
                     Tile(
                         game: game, icon: library.icon(for: game),
-                        isSelected: game.id == selection
+                        isSelected: game.id == selection, build: builds[game.id]
                     )
                     .onTapGesture(count: 2) {
                         library.selection = game.id
@@ -43,8 +44,52 @@ struct Carousel: View {
             }
             .onChange(of: width) { follow(width: width) }
             .onChange(of: games.count) { follow(width: width) }
+            // the game being built, off screen: a marker at that edge pointing to it
+            .overlay(
+                alignment: offscreen(builds, width: width)?.toLeft == true ? .leading : .trailing
+            ) {
+                if let off = offscreen(builds, width: width) {
+                    OffscreenBuild(
+                        game: off.game, icon: library.icon(for: off.game), fraction: off.fraction,
+                        toLeft: off.toLeft
+                    )
+                    .padding(.horizontal, 24)
+                    .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: offscreen(builds, width: width)?.game.id)
         }
         .frame(height: Self.height)
+    }
+
+    /// What each game's tile shows of its build: a play that only gets ready (it may not build at all) shows nothing.
+    static func builds(_ jobs: [Job]) -> [Game.ID: TileBuild] {
+        var builds: [Game.ID: TileBuild] = [:]
+        for job in jobs where !(job.kind == .play && job.isPreparing) {
+            builds[job.game.id] = job.status == .queued ? .queued : .running(job.progressFraction)
+        }
+        return builds
+    }
+
+    /// The running build's game when its tile is off screen, and which way it is.
+    private func offscreen(_ builds: [Game.ID: TileBuild], width: Double)
+        -> (game: Game, fraction: Double, toLeft: Bool)?
+    {
+        guard
+            let (index, game, fraction) = games.enumerated().lazy.compactMap({ index, game in
+                if case .running(let fraction) = builds[game.id] {
+                    (index, game, fraction)
+                } else {
+                    nil
+                }
+            }).first
+        else { return nil }
+        let left =
+            Self.margin + Double(index) * (ConsoleView.tile + Self.spacing) + offset(width: width)
+        // more than half the tile out of view
+        if left + ConsoleView.tile / 2 < 0 { return (game, fraction, true) }
+        if left + ConsoleView.tile / 2 > width { return (game, fraction, false) }
+        return nil
     }
 
     /// How many tiles fit between the margins.
@@ -79,6 +124,8 @@ struct Tile: View {
     let game: Game
     let icon: URL?
     let isSelected: Bool
+    /// Its game builds, or waits to: an arc runs round the border, a pill says how far.
+    var build: TileBuild? = nil
 
     var body: some View {
         RoundedRectangle(cornerRadius: 28)
@@ -96,6 +143,12 @@ struct Tile: View {
                 RoundedRectangle(cornerRadius: 28).strokeBorder(
                     .white.opacity(isSelected ? 0.95 : 0), lineWidth: 4)
             }
+            .overlay {
+                if case .running = build { BuildRing() }
+            }
+            .overlay(alignment: .bottom) {
+                if let build { TileBuildPill(build: build) }
+            }
             .frame(width: ConsoleView.tile, height: ConsoleView.tile)
             // the outline and the scale mark the selection; a white glow read as a lit, foreign band
             .shadow(
@@ -103,7 +156,8 @@ struct Tile: View {
                 y: isSelected ? 14 : 8
             )
             .scaleEffect(isSelected ? 1.18 : 0.88)
-            .opacity(isSelected ? 1 : 0.55)
+            // a building game stands out from the dimmed row too
+            .opacity(isSelected ? 1 : build != nil ? 0.85 : 0.55)
             .animation(.spring(duration: 0.35, bounce: 0.2), value: isSelected)
     }
 }
