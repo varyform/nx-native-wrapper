@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.10 — 2026-10-30
+
 ### Added
 
 - **Game settings, for all games and for each one:** the settings nxnative offers for each game, with the defaults it was tested with. Depending on the game: frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble, and performance switches such as frame buffering and Metal 4 pipelines.
