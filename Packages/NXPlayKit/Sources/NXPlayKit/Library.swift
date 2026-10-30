@@ -32,6 +32,7 @@ public final class Library {
         static let cloudSaves = "cloudSaves"
         static let consoleMode = "consoleMode"
         static let controllerPlayers = "controllerPlayers"
+        static let globalSettings = "globalSettings"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -74,19 +75,20 @@ public final class Library {
         gamepad.merged = controllerPlayers == .merged
         gamepad.keyboardOwnPlayer = controllerPlayers == .keyboardOwn
     }
-    /// Play with Apple's Metal performance HUD (nxplay --fps).
-    public var metalHUD: Bool { didSet { defaults.set(metalHUD, forKey: Keys.metalHUD) } }
-    /// Start games in full screen (nxplay --fullscreen); always from Console Mode.
-    public var fullScreenGames: Bool {
-        didSet { defaults.set(fullScreenGames, forKey: Keys.fullScreenGames) }
+    /// Settings › Games: the values every game gets unless it has its own, by variable (DM_LANG, DM_FULLSCREEN, …);
+    /// a missing one is each game's tested default (Library+GameSettings.swift).
+    public internal(set) var globalChoices: [String: String] {
+        didSet { defaults.set(globalChoices, forKey: Keys.globalSettings) }
     }
+    /// Each game's settings list (nxplay's nxplay-settings.json), read with the games.
+    public internal(set) var settingsLists: [Game.ID: LauncherSettings] = [:]
     /// Build shaders with this Mac's Metal compiler when nxnative tested another (its --allow-other-metal):
     /// off by default, as nxnative's; a newer Xcode than nxnative's tested one stops every build otherwise.
     public var allowOtherMetal: Bool {
         didSet { defaults.set(allowOtherMetal, forKey: Keys.allowOtherMetal) }
     }
-    /// Preferred game language (a DM_LANG code); empty keeps each game's build language.
-    public var language: String { didSet { defaults.set(language, forKey: Keys.language) } }
+    /// Preferred game language (a DM_LANG code), the global one; empty keeps each game's build language.
+    public var language: String { globalChoices["DM_LANG"] ?? "" }
     /// The Apple team that signs device installs; empty picks the first paid one Xcode knows.
     public var teamID: String { didSet { defaults.set(teamID, forKey: Keys.team) } }
     /// The log panel under the games; it opens by itself when a job fails.
@@ -217,10 +219,9 @@ public final class Library {
             defaults.string(forKey: Keys.controllerPlayers).flatMap(
                 ControllerPlayers.init(rawValue:))
             ?? .each
-        metalHUD = defaults.bool(forKey: Keys.metalHUD)
-        fullScreenGames = defaults.bool(forKey: Keys.fullScreenGames)
+        globalChoices = Self.loadGlobalChoices(defaults)
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
-        language = defaults.string(forKey: Keys.language) ?? ""
+
         teamID = defaults.string(forKey: Keys.team) ?? ""
         // hidden for a new player (the status bar shows builds; a failure opens it); someone who chose a games folder
         // before this default changed keeps the log they had
@@ -304,6 +305,8 @@ public final class Library {
                 || !fm.isExecutableFile(atPath: AppHome.venv.appending(path: "bin/python3").path)
                 || !AppHome.venvIsCurrent)
         games = root.map(GameScanner.scan(root:)) ?? []
+        readSettingsLists()
+        writeMissingSettingsLists()
         profiles = Self.profiles(repo: repo)
         let repoURL = URL(filePath: repo, directoryHint: .isDirectory)
         gameProfiles = GameProfile.read(
@@ -319,6 +322,18 @@ public final class Library {
 
     /// The game Game › Remove Game… asks about (Library+Removal.swift).
     public var removingGame: Game?
+
+    /// The game whose Game Settings are open (Library+GameSettings.swift).
+    public var settingsGame: Game?
+    /// Bumped by every change to a game's saved choices: they live in nxnative's preferences domains, which
+    /// Observation can't see, so the settings views read this to redraw.
+    public internal(set) var choicesRevision = 0
+    /// A game's choices store, by its domain (org.nxnative.<title ID>); tests give their own.
+    @ObservationIgnored var choicesStore: (String) -> UserDefaults? = {
+        UserDefaults(suiteName: $0)
+    }
+    /// The games whose missing settings list was asked of nxplay this launch: once each.
+    @ObservationIgnored var settingsListsTried: Set<Game.ID> = []
 
     /// What nxnative says about the games here that it has a profile for, by title ID.
     public private(set) var gameProfiles: [String: GameProfile] = [:]
@@ -798,7 +813,12 @@ public final class Library {
             problem = "No prod.keys at \(keys). Set the file in Settings."
             return nil
         }
-        let lang = GameLanguage.choose(language, for: game).map { ["--lang", $0] } ?? []
+        // the game's settings (its own, else the global ones): each a variable the game reads; the language goes
+        // through nxplay's --lang, which swaps it into the launcher's command
+        var choices = kind == .play ? playEnvironment(for: game) : [:]
+        let lang =
+            (choices.removeValue(forKey: "DM_LANG") ?? GameLanguage.choose(language, for: game))
+            .map { ["--lang", $0] } ?? []
         var environment = NXPlayCommand.environment(
             nxnative: repo, keys: keys, venv: AppHome.venv.path)
         var arguments: [String]
@@ -808,10 +828,13 @@ public final class Library {
         case .ipa: arguments = ["--ipa"] + lang + [game.folder.path]
         case .macApp: arguments = ["--mac-app"] + lang + [game.folder.path]
         case .play:
-            arguments =
-                (metalHUD ? ["--fps"] : [])
-                + (fullScreenGames || consoleMode ? ["--fullscreen"] : [])
-                + lang + [game.folder.path]
+            // Console Mode starts every game in full screen, whatever its setting (--fullscreen wins over the
+            // environment)
+            arguments = (consoleMode ? ["--fullscreen"] : []) + lang + [game.folder.path]
+            choices.forEach { environment[$0.key] = $0.value }
+            if !choices.isEmpty {
+                environment["NXPLAY_SETTINGS"] = choices.keys.sorted().joined(separator: " ")
+            }
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }

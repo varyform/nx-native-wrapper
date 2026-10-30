@@ -46,6 +46,12 @@ struct GameActions: View {
                     set: { kept in game.map { library.setKept(kept, $0) } })
             )
             .disabled(game?.canKeep != true)
+            // nxnative's settings for the game, as its Mac app's window shows them; they need a build to list them
+            Button("Game Settings…", systemImage: "slider.horizontal.3") {
+                library.settingsGame = game
+            }
+            .disabled(game?.state != .ready || game?.titleID == nil)
+            .shortcut(",", [.command, .option], if: inMenuBar)
             Menu("Install on Device", systemImage: "apps.iphone") {
                 if library.devices.isEmpty {
                     Text(

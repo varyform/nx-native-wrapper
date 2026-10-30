@@ -77,6 +77,7 @@ Right-click a game for more, or use the **Game** menu:
 
 - **Rebuild**: builds the game again with the current nxnative.
 - **Keep This Build**: for a game that plays well. nxnative updates no longer rebuild it, and a lock badge marks it. While it's kept, Install on Device, Build IPA and Make Mac App are off, since they'd rewrite files the kept build runs. Rebuild still replaces it.
+- **Game Settings…** (⌥⌘,): the settings nxnative offers for the game, with the defaults it was tested with. Depending on the game these include frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble and performance switches. The basic ones come first; the rest are under Advanced settings. Each one follows Settings › Games until you change it for the game. A changed value is tinted and has its own reset button, and **Use Global Settings** resets them all. They apply the next time the game starts, and the log lists them. The game's Mac app shares the game's own values: NX Play keeps them where nxnative's own settings window does.
 - **Install on Device**: builds the game with Xcode, signed with your team, then installs and starts it on a connected iPhone or iPad. The device must be paired with Xcode and in Developer Mode.
 - **Build IPA**: an unsigned IPA in the game folder, for AltStore, Sideloadly and the like.
 - **Make Mac App**: a standalone, double-clickable app of the game (nxnative's `--platform mac-app`) in the game folder, for the Dock or Launchpad. It's made of APFS clones of the extracted files, so it takes almost no space on the same volume. It keeps its own save in `~/Library/Application Support/nxnative/<title ID>`, separate from NX Play's.
@@ -102,9 +103,9 @@ Pick files one by one, a whole game, or a whole kind. Nothing is selected until 
 
 ![Free Up Space: game files, IPAs and Xcode builds per game, with their sizes](docs/free-up-space.webp)
 
-Settings has a tab for each subject: **General** (the games folder, the keys file, the nxnative folder, the Metal compiler check, Setup), **Playing** (the game language, full screen, Apple's Metal performance HUD), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+Settings has a tab for each subject: **General** (the games folder, the keys file, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
 
-**On the couch:** a game controller drives the library. The D-pad or left stick chooses a game, A plays it, and Menu switches to **Console Mode** (also ⇧⌘F): full screen. The selected game's eShop banner fills the top half, with its name and badges. Below it, the games ready to play sit in a row of their artwork, the one you played last first, with the clock and the controller's button hints. Games started from it open full screen; Settings can make every game start that way. B or Esc goes back. Any connected controller drives it. In a game each controller is a player of its own, in the order they connected (player 1 shares with the keyboard), up to 8; the top bar shows each one's player number. Settings › Playing › Controllers can make the keyboard player 1 on its own, or every controller player 1.
+**On the couch:** a game controller drives the library. The D-pad or left stick chooses a game, A plays it, and Menu switches to **Console Mode** (also ⇧⌘F): full screen. The selected game's eShop banner fills the top half, with its name and badges. Below it, the games ready to play sit in a row of their artwork, the one you played last first, with the clock and the controller's button hints. Games started from it open full screen; Settings › Games can make every game start that way. B or Esc goes back. Any connected controller drives it. In a game each controller is a player of its own, in the order they connected (player 1 shares with the keyboard), up to 8; the top bar shows each one's player number. Settings › Games › Controllers can make the keyboard player 1 on its own, or every controller player 1.
 
 ![Console Mode: the selected game's banner across the top with its name and badges, the playable games in a row below, and the controller's button hints](docs/console.webp)
 
@@ -128,6 +129,8 @@ Down (or a click on the game's name) opens the game's details: the banner and th
 ./nxplay --fps ~/Games/MetroidDread        # show the Metal performance HUD
 ./nxplay --fullscreen ~/Games/MetroidDread # start the game in full screen
 ./nxplay --lang ja ~/Games/MetroidDread    # play in another language (DM_LANG), no rebuild
+./nxplay --settings ~/Games/MetroidDread   # write the game's settings list (<title ID>_build/nxplay-settings.json)
+DM_FPS_TARGET=30 ./nxplay ~/Games/MetroidDread   # any of the game's settings, for one start
 ./nxplay --allow-other-metal ~/Games/MetroidDread   # build with a Metal compiler nxnative didn't test
 ./nxplay ~/Games/MetroidDread -l ja        # extra options go to build_ipa_from_nsp.py
 ```

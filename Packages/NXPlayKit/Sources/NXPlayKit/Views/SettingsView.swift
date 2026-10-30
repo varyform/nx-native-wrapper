@@ -13,9 +13,9 @@ public struct SettingsView: View {
             GeneralSettings()
                 .tabItem { Label("General", systemImage: "gearshape") }
                 .tag(SettingsTab.general)
-            PlayingSettings()
-                .tabItem { Label("Playing", systemImage: "gamecontroller") }
-                .tag(SettingsTab.playing)
+            GlobalGameSettings()
+                .tabItem { Label("Games", systemImage: "gamecontroller") }
+                .tag(SettingsTab.games)
             SaveSettings()
                 .tabItem { Label("Saves", systemImage: "externaldrive") }
                 .tag(SettingsTab.saves)
@@ -29,7 +29,7 @@ public struct SettingsView: View {
     }
 }
 
-public enum SettingsTab: Hashable, Sendable { case general, playing, saves, devices, updates }
+public enum SettingsTab: Hashable, Sendable { case general, games, saves, devices, updates }
 
 /// NX Play › Check for Updates…: checks now and shows the result in Settings › Updates.
 public struct CheckForUpdatesMenuItem: View {
@@ -118,37 +118,8 @@ private struct GeneralSettings: View {
     }
 }
 
-/// How games start.
-private struct PlayingSettings: View {
-    @Environment(Library.self) private var library
-
-    var body: some View {
-        @Bindable var library = library
-        SettingsPage {
-            Section {
-                Picker("Game language", selection: $library.language) {
-                    Text("As built").tag("")
-                    Divider()
-                    ForEach(GameLanguage.all) { language in
-                        Text(language.name).tag(language.code)
-                    }
-                }
-                Toggle(
-                    "Start games in full screen (always from Console Mode)",
-                    isOn: $library.fullScreenGames)
-                Toggle("Show the Metal performance HUD while playing", isOn: $library.metalHUD)
-            } footer: {
-                Footer(
-                    "Sets DM_LANG when a game starts. A game without the language gets the same language for another region, or keeps its build's."
-                )
-            }
-            ControllerSettings()
-        }
-    }
-}
-
-/// Local co-op: which player each controller is in a game, and the controllers connected now.
-private struct ControllerSettings: View {
+/// Local co-op: which player each controller is in a game, and the controllers connected now (in Settings › Games).
+struct ControllerSettings: View {
     @Environment(Library.self) private var library
 
     var body: some View {

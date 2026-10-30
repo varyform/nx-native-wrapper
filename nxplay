@@ -16,9 +16,13 @@
 #   --allow-other-metal  build shaders with this Mac's Metal compiler even when nxnative tested another one
 #                  (nxnative's own --allow-other-metal, passed to every build; issue #242)
 #   --lang <code>  game language for this run (DM_LANG: en-US, ja, fr, de, zh-Hans, ...); it must be one the game has
+#   --settings     write the game's settings list (<title ID>_build/nxplay-settings.json, nxnative's dm/games/settings.py)
+#                  for a game already built, without updating nxnative, and exit; a build and a play write it too.
+#                  Each setting is an environment variable (DM_FPS_TARGET=30, ...) the game reads when it starts
 # env:   NXNATIVE (repository; default ./nxnative in this checkout, as bin/setup clones it, else ../nxnative beside it),
 #        NXPLAY_VENV (Python environment; default .venv in this checkout, made by bin/setup), NX_KEYS (default ~/.switch/prod.keys),
-#        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is)
+#        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
+#        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts)
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,11 +40,12 @@ else
 fi
 launcher_name=start_mac.sh
 
-rebuild=0 explicit_rebuild=0 fps=0 fullscreen=0 other_metal=() build_only=0 ipa=0 mac_app=0 lang="" device=""
+rebuild=0 explicit_rebuild=0 fps=0 fullscreen=0 other_metal=() build_only=0 ipa=0 mac_app=0 lang="" device="" settings_only=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rebuild) rebuild=1 explicit_rebuild=1; shift ;;
     --build-only) build_only=1; shift ;;
+    --settings) settings_only=1; shift ;;
     --ipa) ipa=1; shift ;;
     --mac-app) mac_app=1; shift ;;
     --device) device="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
@@ -60,10 +65,56 @@ if [[ -n "$device" && ! "$device" =~ ^[0-9A-Fa-f-]+$ ]]; then
   exit 2
 fi
 if [[ $# -lt 1 ]]; then
-  echo "usage: $(basename "$0") [--rebuild] [--build-only] [--ipa | --mac-app | --device <udid>] [--fps] [--fullscreen] [--allow-other-metal] [--lang <code>] <game folder> [build_ipa_from_nsp.py options...]" >&2
+  echo "usage: $(basename "$0") [--rebuild] [--build-only] [--settings] [--ipa | --mac-app | --device <udid>] [--fps] [--fullscreen] [--allow-other-metal] [--lang <code>] <game folder> [build_ipa_from_nsp.py options...]" >&2
   exit 2
 fi
 game="$(cd "$1" && pwd)"; shift
+
+# The newest <title ID>_build/start_mac.sh whose Mac host is still there
+find_launcher() {
+  local best="" f
+  for f in "$game"/*_build/"$launcher_name"; do
+    [[ -f "$f" && -x "$(dirname "$f")/tools/dmhost" ]] || continue
+    [[ -z "$best" || "$f" -nt "$best" ]] && best="$f"
+  done
+  echo "$best"
+}
+
+# The game's settings as nxnative lists them for its Mac app (dm/games/settings.py, a Mac app's launcher.json), beside
+# the launcher, for NX Play's Game Settings: written again whenever the launcher is newer. The inputs are the build's
+# own: its rewritten modules (the launcher's last word), the control data of that version, the graphics API its
+# shaders were made for, a provisional profile in it. A list that can't be made only says so: the game plays as before.
+settings_name=nxplay-settings.json
+write_settings() {
+  local build out patched nacp gfx games f
+  build="$(dirname "$1")"; out="$build/$settings_name"
+  [[ -f "$out" && "$out" -nt "$1" ]] && return 0
+  [[ -f "$repo/dm/games/settings.py" ]] || return 0   # an nxnative from before per-game settings
+  patched="$build/$(basename "$(python3 -c 'import shlex, sys; print(next(shlex.split(l) for l in open(sys.argv[1]) if l.startswith("cd "))[-1])' "$1")")"
+  nacp="$build/extract/${patched##*/patched_}/control.nacp"
+  if [[ ! -f "$nacp" ]]; then
+    for f in "$build"/extract/*/control.nacp; do [[ -f "$f" && ( ! -f "$nacp" || "$f" -nt "$nacp" ) ]] && nacp="$f"; done
+  fi
+  if [[ -d "$build/shader/vk" ]]; then gfx=vulkan; elif [[ -d "$build/shader/gl" ]]; then gfx=gl; else gfx=nvn; fi
+  games="${DM_GAMES_DIR:-}"
+  [[ -d "$build/profile" ]] && games="$build/profile${games:+:$games}"
+  if (cd "$repo" && GFXAPI="$gfx" SETTINGS_PLATFORM=mac DM_LANG=en-US DM_GAMES_DIR="$games" \
+      python3 dm/games/settings.py "$(basename "$build" _build)" "$patched" "$nacp" "$out.tmp") > /dev/null; then
+    mv -f "$out.tmp" "$out"
+  else
+    rm -f "$out.tmp"
+    echo "nxplay: no settings list for this game (dm/games/settings.py failed); it plays with its tested settings" >&2
+  fi
+}
+
+if [[ $settings_only -eq 1 ]]; then
+  launcher="$(find_launcher)"
+  if [[ -z "$launcher" ]]; then echo "nxplay: $game has no Mac build yet" >&2; exit 1; fi
+  write_settings "$launcher"
+  [[ -f "$(dirname "$launcher")/$settings_name" ]] || exit 1
+  echo "settings: $(dirname "$launcher")/$settings_name"
+  exit 0
+fi
 
 # Latest nxnative first; new commits make the saved launcher stale, so they force a rebuild.
 # A checkout used through nxplay has no commits of its own, so a rewritten upstream (a force push) is followed too,
@@ -257,16 +308,6 @@ if [[ -n "$device" ]]; then
   exit 0
 fi
 
-# The newest <title ID>_build/start_mac.sh whose Mac host is still there
-find_launcher() {
-  local best="" f
-  for f in "$game"/*_build/"$launcher_name"; do
-    [[ -f "$f" && -x "$(dirname "$f")/tools/dmhost" ]] || continue
-    [[ -z "$best" || "$f" -nt "$best" ]] && best="$f"
-  done
-  echo "$best"
-}
-
 # The launcher holds absolute paths (the build printed them): after the game folder or nxnative moved,
 # point them at where they are now. The build folder is the launcher's own; it was the parent of `cd <build>/run`.
 relocate() {
@@ -306,6 +347,7 @@ PY
 }
 
 start() {
+  write_settings "$1"
   if [[ $build_only -eq 1 ]]; then exit 0; fi
   # NX Play shows the game as running from this line on, until then as preparing (Job.gameStarted)
   echo "nxplay: starting the game"
@@ -314,6 +356,12 @@ start() {
   # NX Play orders Console Mode by the last play: marked at the start and, through the EXIT trap, at the end,
   # however the game ends (quit, crash, NX Play's stop). Hence no exec: bash stays to run the trap.
   if [[ -n "${DM_SAVE_SYNC:-}" && "$DM_SAVE_SYNC" != 0 ]]; then echo "cloud saves: $DM_SAVE_SYNC"; fi
+  # the player's choices NX Play passes in the environment (Game Settings), named in NXPLAY_SETTINGS: said in the log
+  if [[ -n "${NXPLAY_SETTINGS:-}" ]]; then
+    printf 'game settings:'
+    for v in $NXPLAY_SETTINGS; do [[ "$v" =~ ^DM_[A-Z0-9_]+$ ]] && printf ' %s=%s' "$v" "${!v:-}"; done
+    echo
+  fi
   played="$(dirname "$1")/run/last_played"
   mkdir -p "$(dirname "$played")"
   touch "$played"

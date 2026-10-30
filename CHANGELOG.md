@@ -6,6 +6,14 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Game settings, for all games and for each one:** the settings nxnative offers for each game, with the defaults it was tested with. Depending on the game: frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble, and performance switches such as frame buffering and Metal 4 pipelines.
+  - **Settings › Games** sets the values every game gets unless it has its own. It replaces the Playing tab: its language, full screen and HUD settings carry over, and the controllers are there too.
+  - **Game › Game Settings…** (⌥⌘,) has one game's list, including settings only some games have, such as frame rate and render scale. Each one follows the global value until you change it.
+  - Both look like the game's own settings window: switches, sliders with their percentage, and menus. The basic settings come first, the rest under Advanced settings. A changed value is tinted and has its own reset button.
+  - A game that doesn't offer a global value keeps its tested default, and a game without the global language plays its regional twin. Settings apply at the game's next start, and the log lists the ones it used.
+  - The game's Mac app shares a game's own values, so its settings window shows the same choices.
+  - `nxplay` writes each game's list after a build, and NX Play asks it for any game still missing one. `nxplay --settings` writes the list for a game already built. A setting can also be given for one start: `DM_FPS_TARGET=30 nxplay <game folder>`.
+
 - **Updates in Console Mode:** when an update is ready, a small "Update 1.8 ready" pill sits beside the logo in the top bar, and the hints show which button opens it. It never takes the focus. Press Y (U on the keyboard) or click the pill to see what's new, then A for **Restart to Update** or B for later.
 
 ### Changed
