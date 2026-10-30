@@ -100,6 +100,7 @@ Right-click a game for more, or use the **Game** menu:
 - **Builds:** each game's `<title ID>_build` folder: the extracted game, its rewritten code and its shaders. The next Play builds it again from the game files, which takes as long as the first build. Its saves stay, and so does when you last played it. A game whose game files are gone keeps its build, since that's how it still plays; a kept build stays too. A game's build and its game files can't be deleted together.
 - **IPAs:** the ones built for sideloading. Build IPA makes them again.
 - **Xcode builds:** `<title ID>_build/xcode-derived-data`, which Install on Device keeps to make the next install fast. It's a full copy of the game. Without it the next install works, but compiles and copies everything again.
+- **Mac apps:** the ones Make Mac App packed into the game folder, with nxnative's `.app.key` beside each. An app is made of APFS clones of its build's files, so Finder may show it at several GB while deleting it frees only what the app alone takes, usually tens of MB. That's the size listed. Make Mac App makes it again, and the app's own save in `~/Library/Application Support/nxnative` stays.
 
 Pick files one by one, a whole game, or a whole kind. Nothing is selected until you pick it, and deleting needs you to type “yes, I'm sure”. Everything is deleted for good, not moved to the Trash.
 

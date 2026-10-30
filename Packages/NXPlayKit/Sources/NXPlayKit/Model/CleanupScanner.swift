@@ -21,8 +21,12 @@ public enum CleanupScanner {
             file.size = size
         } else {
             file.size =
-                file.role == .build
-                ? buildContents(file.url).reduce(0) { $0 + size(of: $1) } : size(of: file.url)
+                switch file.role {
+                case .build: buildContents(file.url).reduce(0) { $0 + size(of: $1) }
+                // a Mac app is APFS clones of its build's files: what deleting it frees is what isn't shared
+                case .macApp: size(of: file.url, ownOnly: true) + size(of: appKey(file.url))
+                default: size(of: file.url)
+                }
             if let cache, let stamp { cache.store(file.size, of: file.url, stamp: stamp) }
         }
         file.measuring = false
@@ -71,7 +75,27 @@ public enum CleanupScanner {
         {
             files.append(big(xcode, .xcodeBuild))
         }
+        files += macApps(in: game.folder).map { big($0, .macApp) }
         return files
+    }
+
+    /// nxnative's apps in a game folder: `<name>.app` with its Mac host inside, not any app that happens to be there.
+    static func macApps(in folder: URL) -> [URL] {
+        GameScanner.children(of: folder)
+            .filter {
+                $0.pathExtension == "app"
+                    && FileManager.default.isExecutableFile(
+                        atPath: $0.appending(path: "Contents/MacOS/dmhost").path)
+            }
+            .sorted {
+                $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent)
+                    == .orderedAscending
+            }
+    }
+
+    /// `<name>.app.key` beside an app: nxnative's record of what it packed.
+    static func appKey(_ app: URL) -> URL {
+        app.deletingLastPathComponent().appending(path: app.lastPathComponent + ".key")
     }
 
     /// Game files go only once the game is built for the Mac: it keeps playing from its build. A build goes only while
@@ -111,8 +135,10 @@ public enum CleanupScanner {
 
     /// Space on disk, a folder with everything in it. fts, as du walks: it reads each folder's entries with their
     /// sizes in one go, where a URL enumerator asks for each file's values on its own (Tears of the Kingdom's 514,000
-    /// shader files: 3.8 s against 6.1 s with the disk's cache warm). Hard links count once.
-    static func size(of url: URL) -> Int64 {
+    /// shader files: 3.8 s against 6.1 s with the disk's cache warm). Hard links count once. `ownOnly`: only what no
+    /// APFS clone shares, what deleting it would free (a Mac app's 4.9 GB of clones of its build free 30 MB); where
+    /// the volume can't tell, everything.
+    static func size(of url: URL, ownOnly: Bool = false) -> Int64 {
         let path = url.path(percentEncoded: false)
         return path.withCString { cPath -> Int64 in
             var paths: [UnsafeMutablePointer<CChar>?] = [strdup(cPath), nil]
@@ -129,9 +155,34 @@ public enum CleanupScanner {
                 if stat.st_nlink > 1, !seen.insert([UInt64(stat.st_dev), stat.st_ino]).inserted {
                     continue
                 }
-                total += Int64(stat.st_blocks) * 512
+                let own = ownOnly && info == FTS_F ? privateSize(entry.pointee.fts_accpath) : nil
+                total += own ?? Int64(stat.st_blocks) * 512
             }
             return total
+        }
+    }
+}
+
+extension CleanupScanner {
+    /// A file's bytes that no APFS clone shares (ATTR_CMNEXT_PRIVATESIZE); nil where the volume doesn't say.
+    static func privateSize(_ path: UnsafePointer<CChar>?) -> Int64? {
+        guard let path else { return nil }
+        var list = attrlist()
+        list.bitmapcount = u_short(ATTR_BIT_MAP_COUNT)
+        list.commonattr = attrgroup_t(ATTR_CMN_RETURNED_ATTRS)
+        list.forkattr = attrgroup_t(ATTR_CMNEXT_PRIVATESIZE)
+        // the length, the returned attributes, then the size
+        var buffer = [UInt8](repeating: 0, count: 64)
+        guard
+            getattrlist(
+                path, &list, &buffer, buffer.count,
+                UInt32(FSOPT_ATTR_CMN_EXTENDED | FSOPT_NOFOLLOW)) == 0
+        else { return nil }
+        return buffer.withUnsafeBytes { raw in
+            let returned = raw.load(fromByteOffset: 4, as: attribute_set_t.self)
+            guard returned.forkattr & attrgroup_t(ATTR_CMNEXT_PRIVATESIZE) != 0 else { return nil }
+            return raw.loadUnaligned(
+                fromByteOffset: 4 + MemoryLayout<attribute_set_t>.size, as: Int64.self)
         }
     }
 }
@@ -178,10 +229,17 @@ final class SizeCache: @unchecked Sendable {
         try? data?.write(to: file, options: .atomic)
     }
 
-    /// The folder's own modification time and its first level's (for a build, the parts its size counts).
+    /// The folder's own modification time and its first level's (for a build, the parts its size counts). A Mac app's
+    /// own share also changes when its build does (removed, its clones become the app's alone): the game folder's
+    /// build folders count too.
     static func stamp(of file: CleanupFile) -> Double? {
+        let builds =
+            file.role == .macApp
+            ? GameScanner.children(of: file.url.deletingLastPathComponent()).filter {
+                $0.lastPathComponent.hasSuffix("_build")
+            } : []
         let items =
-            [file.url]
+            [file.url] + builds
             + (file.role == .build
                 ? CleanupScanner.buildContents(file.url) : GameScanner.children(of: file.url))
         let dates = items.compactMap {

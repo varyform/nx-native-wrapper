@@ -132,6 +132,45 @@ import Testing
         #expect(after != ready.game)
     }
 
+    /// Make Mac App's app: clones of the build's files (nxnative packs it so), its own launcher, the .app.key beside it.
+    @Test func aMacAppCountsWhatOnlyItTakesAndGoesWithItsKey() async throws {
+        let app = root.appending(path: "Ready/Ready.app")
+        let macOS = app.appending(path: "Contents/MacOS")
+        try FileManager.default.createDirectory(
+            at: app.appending(path: "Contents/Resources"), withIntermediateDirectories: true)
+        try write("Ready/Ready.app/Contents/MacOS/dmhost", size: 300, executable: true)
+        try write("Ready/Ready.app/Contents/MacOS/nxnative", size: 300, executable: true)
+        try write("Ready/Ready.app.key", size: 10)
+        let big = root.appending(path: "Ready/0100000000010000_build/patched_v0/big")
+        try Data(repeating: 7, count: 4_000_000).write(to: big)
+        let clone = app.appending(path: "Contents/Resources/big")
+        // the temporary folder is on the startup disk, APFS: a clone shares the blocks
+        #expect(clonefile(big.path, clone.path, 0) == 0)
+        // not one of nxnative's: no Mac host inside
+        try write("Ready/Other.app/Contents/Info.plist")
+        #expect(
+            CleanupScanner.macApps(in: app.deletingLastPathComponent()).map(\.lastPathComponent)
+                == [
+                    "Ready.app"
+                ])
+
+        let cleanup = Cleanup()
+        await cleanup.scan(games: games, busy: [])
+        while cleanup.isMeasuring { try await Task.sleep(for: .milliseconds(20)) }
+        let listed = try #require(cleanup.files(.macApps).first)
+        #expect(listed.url.lastPathComponent == "Ready.app" && cleanup.files(.macApps).count == 1)
+        #expect(listed.size < 1_000_000)  // its own launcher and key, not the shared 4 MB
+        #expect(CleanupScanner.size(of: app) > 4_000_000)  // as du counts it
+
+        cleanup.toggle(listed)
+        cleanup.confirmation = Cleanup.phrase
+        await cleanup.delete()
+        #expect(cleanup.phase == .done(count: 1, size: listed.size))
+        #expect(!FileManager.default.fileExists(atPath: app.path))
+        #expect(!FileManager.default.fileExists(atPath: CleanupScanner.appKey(app).path))
+        #expect(FileManager.default.fileExists(atPath: big.path))  // the build's file stays
+    }
+
     @Test func removingABuildKeepsItsSaves() async throws {
         let cleanup = Cleanup()
         await cleanup.scan(games: games, busy: [])

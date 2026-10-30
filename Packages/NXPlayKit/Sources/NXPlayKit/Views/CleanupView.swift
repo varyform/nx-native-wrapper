@@ -189,6 +189,7 @@ extension CleanupKind {
         case .builds: "Builds"
         case .ipas: "IPAs"
         case .xcodeBuilds: "Xcode builds"
+        case .macApps: "Mac apps"
         }
     }
 
@@ -199,6 +200,8 @@ extension CleanupKind {
         case .builds: "Play builds them again from the game files; saves stay."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
+        case .macApps:
+            "Make Mac App makes them again. Their own saves, in ~/Library/Application Support/nxnative, stay."
         }
     }
 }

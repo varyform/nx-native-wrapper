@@ -105,6 +105,7 @@ struct FileRow: View {
         case .build: "The extracted and built game; its saves stay"
         case .xcodeBuild:
             "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
+        case .macApp: "Made of APFS clones of the build: the size is what only the app takes"
         default: nil
         }
     }

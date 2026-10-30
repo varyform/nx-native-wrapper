@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Free Up Space removes Mac apps:** the apps Make Mac App packed into game folders are listed under **Mac apps**, and removing one takes nxnative's `.app.key` beside it too. An app is made of APFS clones of its build, so Finder may show it at several GB while deleting it frees much less, such as 30 MB for a 4.9 GB app. The size listed is what deleting it actually frees. Make Mac App makes it again, and the app's own save stays.
+
 ## 1.7.12 — Stair Climber — 2026-10-31
 
 ### Changed

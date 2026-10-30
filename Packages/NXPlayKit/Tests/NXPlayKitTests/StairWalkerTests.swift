@@ -50,7 +50,8 @@ import Testing
         var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 2, metroid: true)
         var fired = false
         var aimedUp = false
-        now = run(walker, from: now, seconds: 12, goal: goal, step: 2, metroid: true) { walker in
+        // its aim is picked at random, two times in three upward: a minute gives it a dozen or so tries
+        now = run(walker, from: now, seconds: 60, goal: goal, step: 2, metroid: true) { walker in
             if !walker.shots.isEmpty { fired = true }
             if walker.pose.ball == nil, walker.aim > 0.5 { aimedUp = true }
         }

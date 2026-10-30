@@ -11,6 +11,8 @@ public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     case ipas
     /// `<id>_build/xcode-derived-data`: Install on Device's build, a full copy of the game.
     case xcodeBuilds
+    /// `<game name>.app` that Make Mac App packed into the game folder, with nxnative's `<name>.app.key` beside it.
+    case macApps
 
     public var id: String { rawValue }
 }
@@ -24,6 +26,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case build
         case ipa
         case xcodeBuild
+        case macApp
     }
 
     public let url: URL
@@ -43,6 +46,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case .build: .builds
         case .ipa: .ipas
         case .xcodeBuild: .xcodeBuilds
+        case .macApp: .macApps
         }
     }
 }
@@ -230,6 +234,13 @@ public final class Cleanup {
                     if file.role == .build {
                         for item in CleanupScanner.buildContents(file.url) {
                             try FileManager.default.removeItem(at: item)
+                        }
+                    } else if file.role == .macApp {
+                        try FileManager.default.removeItem(at: file.url)
+                        // nxnative's record of what it packed, for the next Make Mac App: no use without the app
+                        let key = CleanupScanner.appKey(file.url)
+                        if FileManager.default.fileExists(atPath: key.path) {
+                            try FileManager.default.removeItem(at: key)
                         }
                     } else {
                         try FileManager.default.removeItem(at: file.url)
