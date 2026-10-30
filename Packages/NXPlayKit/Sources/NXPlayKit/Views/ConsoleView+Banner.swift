@@ -87,6 +87,7 @@ struct Banner: View {
 
 struct TopBar: View {
     let gamepad: Gamepad
+    @Environment(Library.self) private var library
 
     var body: some View {
         HStack(spacing: 20) {
@@ -95,6 +96,9 @@ struct TopBar: View {
                 Text("NX Play")
             }
             .font(.title2.weight(.bold))
+            if case .ready(let version, _) = library.updater.state {
+                UpdatePill(version: version)
+            }
             Spacer()
             // each controller with the player it is in a game: one shows its name, several only their numbers and
             // batteries, to fit
@@ -129,6 +133,34 @@ struct TopBar: View {
             ? "battery.100percent"
             : level > 0.5
                 ? "battery.75percent" : level > 0.25 ? "battery.50percent" : "battery.25percent"
+    }
+}
+
+/// Beside the logo while an update waits: a quiet ask, never taking the focus. Y or a click opens its card.
+struct UpdatePill: View {
+    let version: String
+    @Environment(Library.self) private var library
+
+    var body: some View {
+        // looked at again hourly: one waiting for days says since when
+        TimelineView(.periodic(from: .now, by: 3600)) { context in
+            Button {
+                library.openUpdate()
+            } label: {
+                Pill(
+                    text: Self.text(version, library: library, now: context.date),
+                    symbol: "arrow.down.circle.fill", color: .blue)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    static func text(_ version: String, library: Library, now: Date) -> LocalizedStringKey {
+        if library.quitsWhenIdle { return "Restarting for \(version)" }
+        if let since = library.updater.waitingSince(now: now) {
+            return "Update \(version) waiting since \(since.formatted(.dateTime.weekday(.wide)))"
+        }
+        return "Update \(version) ready"
     }
 }
 

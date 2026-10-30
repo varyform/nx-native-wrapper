@@ -9,10 +9,9 @@ struct UpdateBanner: View {
     var body: some View {
         HStack {
             Image(systemName: "arrow.down.circle")
-            if library.quitsWhenIdle {
-                Text("NX Play restarts with \(version) once the running game or build ends.")
-            } else {
-                Text("NX Play \(version) is ready. It installs when you quit.")
+            // looked at again hourly: an update waiting for days gets the warmer reminder
+            TimelineView(.periodic(from: .now, by: 3600)) { context in
+                Text(Self.message(version, library: library, now: context.date))
             }
             Spacer()
             WhatsNewButton(version: version, notes: notes)
@@ -23,6 +22,39 @@ struct UpdateBanner: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .background(.blue.opacity(0.12))
+    }
+
+    /// What the banner says: ready, still waiting after a few days (kindly), or restarting.
+    static func message(_ version: String, library: Library, now: Date) -> String {
+        if library.quitsWhenIdle {
+            return "NX Play restarts with \(version) once the running game or build ends."
+        }
+        if let since = library.updater.waitingSince(now: now) {
+            return
+                "NX Play \(version) has been waiting since \(since.formatted(.dateTime.weekday(.wide))). Restart to Update takes a few seconds."
+        }
+        return "NX Play \(version) is ready. It installs when you quit."
+    }
+}
+
+/// Above the library when updates can't work for a reason the player can fix: once a launch, dismissable.
+struct UpdateProblemBanner: View {
+    let problem: String
+    let dismiss: () -> Void
+
+    var body: some View {
+        HStack {
+            Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+            Text("NX Play can't update itself from here. \(problem)")
+            Spacer()
+            Button("Show in Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL])
+            }
+            Button("Dismiss", action: dismiss)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.orange.opacity(0.12))
     }
 }
 

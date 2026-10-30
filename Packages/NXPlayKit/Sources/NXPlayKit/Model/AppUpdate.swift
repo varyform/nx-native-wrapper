@@ -23,6 +23,11 @@ public final class AppUpdater {
 
     public private(set) var state: State = .idle
     public private(set) var lastCheck: Date?
+    /// When the staged update became ready: after a few days still running, the reminder gets warmer.
+    public private(set) var readySince: Date?
+    /// A reason updates can't work that the player can fix (NX Play run from the DMG or Downloads): the library says
+    /// so. Passing problems (offline, GitHub busy) only show in Settings › Updates and are tried again the next day.
+    public private(set) var problem: String?
     public let currentVersion: String
     /// A released app (Developer ID, no checkout): only that one updates itself.
     public let isEnabled: Bool
@@ -35,6 +40,8 @@ public final class AppUpdater {
     @ObservationIgnored private let bundleID: String
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var relaunchAfterInstall = false
+    /// A faked state (tests, screenshots, -NXPlayPreviewUpdate): quitting installs nothing, whatever is staged.
+    @ObservationIgnored private var previewing = false
     @ObservationIgnored let folder: URL
 
     public init(bundle: Bundle = .main, folder: URL = AppHome.folder.appending(path: "Updates")) {
@@ -62,9 +69,11 @@ public final class AppUpdater {
         guard !bundle.path.contains("/AppTranslocation/"),
             FileManager.default.isWritableFile(atPath: bundle.deletingLastPathComponent().path)
         else {
-            state = .failed("Move NX Play into Applications to get updates.")
+            problem = Self.moveToApplications
+            state = .failed(Self.moveToApplications)
             return
         }
+        problem = nil
         switch state {
         case .checking, .downloading, .ready: return
         default: break
@@ -85,9 +94,31 @@ public final class AppUpdater {
             state = .downloading(version: release.version)
             try await fetch(release)
             state = .ready(version: release.version, notes: whatsNew(in: release))
+            readySince = .now
         } catch {
             state = .failed((error as? UpdateError)?.message ?? error.localizedDescription)
         }
+    }
+
+    static let moveToApplications = "Move NX Play into Applications to get updates."
+
+    /// Tests and screenshots: a state without GitHub.
+    func preview(_ state: State, readySince: Date? = nil, problem: String? = nil) {
+        previewing = true
+        self.state = state
+        self.readySince = readySince
+        self.problem = problem
+    }
+
+    /// How long an update may wait before the reminder says how long it has: 3 days.
+    static let patience: TimeInterval = 3 * 86_400
+
+    /// The day the update has waited since, once it has waited `patience`; nil before.
+    public func waitingSince(now: Date = .now) -> Date? {
+        guard case .ready = state, let readySince,
+            now.timeIntervalSince(readySince) >= Self.patience
+        else { return nil }
+        return readySince
     }
 
     /// The staged app opens once it has replaced this one (Restart to Update; a plain quit just installs it).
@@ -95,7 +126,7 @@ public final class AppUpdater {
 
     /// The app is quitting: a staged update takes its place once this process has ended.
     func installOnQuit() {
-        guard case .ready = state, let staged = stagedApp else { return }
+        guard !previewing, case .ready = state, let staged = stagedApp else { return }
         Self.swap(staged: staged, into: bundle, afterPID: getpid(), relaunch: relaunchAfterInstall)
     }
 

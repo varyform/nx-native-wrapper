@@ -6,6 +6,8 @@ public struct RootView: View {
     @Environment(Library.self) private var library
     @Environment(\.openWindow) private var openWindow
     @FocusState private var searchFocused: Bool
+    /// The update problem banner, dismissed for this launch.
+    @State private var problemDismissed = false
     #if DEBUG
         @Environment(\.openSettings) private var openSettings
     #endif
@@ -38,6 +40,9 @@ public struct RootView: View {
                         if library.needsSetup { SetupBanner() }
                         if case .ready(let version, let notes) = library.updater.state {
                             UpdateBanner(version: version, notes: notes)
+                        }
+                        if let problem = library.updater.problem, !problemDismissed {
+                            UpdateProblemBanner(problem: problem) { problemDismissed = true }
                         }
                     }
                 }

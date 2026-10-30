@@ -16,6 +16,9 @@ struct ConsoleView: View {
         let games = library.navigableGames  // the extracted ones
         let selected = games.first { $0.id == library.selection } ?? games.first
         let details = library.showsDetails && selected != nil
+        let update: (version: String, notes: Changelog)? =
+            if case .ready(let version, let notes) = library.updater.state { (version, notes) } else
+            { nil }
         VStack(spacing: 0) {
             GeometryReader { geometry in
                 // the banner takes what the carousel and the hints leave: about half of the screen
@@ -73,7 +76,8 @@ struct ConsoleView: View {
                     Hints(
                         game: selected, gamepad: library.gamepad,
                         mode: !details
-                            ? .row : library.detailsFocus == .screenshots ? .screenshots : .text
+                            ? .row : library.detailsFocus == .screenshots ? .screenshots : .text,
+                        update: update != nil
                     )
                     .fixedSize()
                 }
@@ -92,6 +96,13 @@ struct ConsoleView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: library.viewingShot)
+        .overlay {
+            if library.showsUpdate, let update {
+                UpdateCard(version: update.version, notes: update.notes, gamepad: library.gamepad)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: library.showsUpdate)
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
         .focusable()
@@ -116,6 +127,11 @@ struct ConsoleView: View {
         }
         .onKeyPress(.return) {
             library.handle(.confirm)
+            return .handled
+        }
+        // Y's key: the waiting update
+        .onKeyPress("u") {
+            library.handle(.info)
             return .handled
         }
         .onExitCommand { library.handle(.back) }

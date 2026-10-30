@@ -3,7 +3,7 @@ import GameController
 import Observation
 
 /// The game controllers as a remote for NX Play: the D-pad or left stick moves the selection (repeating while held),
-/// A plays, B backs out, Menu toggles Console Mode. Every connected controller drives it, each with its own held
+/// A plays, B backs out, Y shows a waiting update, Menu toggles Console Mode. Every connected controller drives it, each with its own held
 /// direction. Any controller GameController knows works: Joy-Con, Pro Controller, Xbox, DualShock / DualSense, 8BitDo.
 /// macOS gives controller input only to the frontmost app, so a running game's input never reaches NX Play.
 ///
@@ -15,6 +15,8 @@ import Observation
 public final class Gamepad {
     public enum Command: Sendable, Equatable {
         case left, right, up, down, confirm, back, menu
+        /// Y: Console Mode's update, when one is ready.
+        case info
     }
 
     /// A connected controller as the top bar and Settings show it.
@@ -133,6 +135,7 @@ public final class Gamepad {
             case .confirm: "a.circle"
             case .back: "b.circle"
             case .menu: "line.3.horizontal.circle"
+            case .info: "y.circle"
             default: "dpad"
             }
         }
@@ -141,6 +144,7 @@ public final class Gamepad {
         case .confirm: pad.buttonA.sfSymbolsName
         case .back: pad.buttonB.sfSymbolsName
         case .menu: pad.buttonMenu.sfSymbolsName
+        case .info: pad.buttonY.sfSymbolsName
         default: pad.dpad.sfSymbolsName
         }
     }
@@ -194,6 +198,7 @@ public final class Gamepad {
         pad.buttonA.pressedChangedHandler = press(.confirm)
         pad.buttonB.pressedChangedHandler = press(.back)
         pad.buttonMenu.pressedChangedHandler = press(.menu)
+        pad.buttonY.pressedChangedHandler = press(.info)
         pad.dpad.left.pressedChangedHandler = direction(.left)
         pad.dpad.right.pressedChangedHandler = direction(.right)
         pad.dpad.up.pressedChangedHandler = direction(.up)

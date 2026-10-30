@@ -69,6 +69,8 @@ struct Hints: View {
     let game: Game?
     let gamepad: Gamepad
     let mode: Mode
+    /// An update waits: the row says which button shows it.
+    var update = false
 
     /// What the buttons do where the focus is: the games' row, the details' text or screenshots, a screenshot shown.
     enum Mode { case row, text, screenshots, viewer }
@@ -78,6 +80,7 @@ struct Hints: View {
         let sideways = gamepad.symbol(for: .left) ?? "arrow.left.arrow.right"
         let confirm = gamepad.symbol(for: .confirm) ?? "return"
         let back = gamepad.symbol(for: .back) ?? "escape"
+        let info = gamepad.symbol(for: .info) ?? "u.square"
         HStack(spacing: 32) {
             switch mode {
             case .row:
@@ -86,6 +89,7 @@ struct Hints: View {
                     hint(pad ? "dpad.down.filled" : "arrow.down", "Details")
                     hint(confirm, "Play")
                 }
+                if update { hint(info, "Update") }
                 hint(back, "Exit")
             case .text:
                 hint(sideways, "Choose")
@@ -99,6 +103,7 @@ struct Hints: View {
             case .viewer:
                 hint(sideways, "Browse")
                 hint(back, "Close")
+
             }
         }
         .font(.title3.weight(.medium))

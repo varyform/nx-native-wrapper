@@ -118,9 +118,15 @@ public final class Library {
                 fetchBanners(retry: true)
                 NSCursor.setHiddenUntilMouseMoves(true)
             }
-            if !consoleMode { showsDetails = false }
+            if !consoleMode {
+                showsDetails = false
+                showsUpdate = false
+            }
         }
     }
+    /// Console Mode's update card: the waiting update's notes over the games, opened with Y or the top bar's pill,
+    /// never by itself.
+    public var showsUpdate = false
     /// Console Mode's details of the selected game (down opens them, up or back closes them): its store page's text,
     /// facts and screenshots under the banner, which slides up.
     public var showsDetails = false {
@@ -235,7 +241,11 @@ public final class Library {
         gamepad.onCommand = { [weak self] in self?.handle($0) }
         if !isScreenshot {
             observeInstall()
-            updater.start()
+            if let preview = AppUpdater.requestedPreview {
+                updater.preview(preview)
+            } else {
+                updater.start()
+            }
         }
         refresh()
         refreshDevices()
@@ -575,7 +585,7 @@ public final class Library {
             switch command {
             case .left: shotIndex = max(0, shotIndex - 1)
             case .right: shotIndex = min(max(0, shots - 1), shotIndex + 1)
-            case .menu: break
+            case .menu, .info: break
             default: viewingShot = false  // up, down, A and B all close it
             }
             return
@@ -594,7 +604,7 @@ public final class Library {
         case .confirm:
             if detailsFocus == .screenshots, shots > 0 { viewingShot = true } else { confirm() }
         case .back: showsDetails = false
-        case .menu: break
+        case .menu, .info: break
         }
     }
 
@@ -613,6 +623,14 @@ public final class Library {
         // the couch has no use for the pointer: hidden while the controller or the keys drive Console Mode, back as
         // soon as the mouse moves
         if consoleMode || command == .menu { NSCursor.setHiddenUntilMouseMoves(true) }
+        if consoleMode, showsUpdate, command != .menu {
+            handleUpdate(command)
+            return
+        }
+        if command == .info {
+            openUpdate()
+            return
+        }
         if consoleMode, showsDetails, command != .menu {
             handleDetails(command)
             return
@@ -635,6 +653,7 @@ public final class Library {
                 consoleMode = false
             }
         case .menu: consoleMode.toggle()
+        case .info: break
         }
     }
 

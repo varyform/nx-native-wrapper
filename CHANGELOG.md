@@ -4,6 +4,16 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Updates in Console Mode:** when an update is ready, a small "Update 1.8 ready" pill sits beside the logo in the top bar, and the hints show which button opens it. It never takes the focus. Press Y (U on the keyboard) or click the pill to see what's new, then A for **Restart to Update** or B for later.
+
+### Changed
+
+- **A gentler update reminder:** an update that has been waiting for three days or more says since when, and that Restart to Update takes only a few seconds. This shows in the library's banner and in Console Mode's pill.
+
+- **Updates that can't install say why:** NX Play run from the DMG or from Downloads can't replace itself. Until now it failed quietly in Settings › Updates. Now a banner above the library asks you to move it into Applications, with **Show in Finder** and **Dismiss**. Problems that pass on their own, such as being offline, still stay in Settings.
+
 ## 1.7.9 — 2026-10-30
 
 ### Added
