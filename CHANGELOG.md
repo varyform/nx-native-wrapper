@@ -12,6 +12,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Controllers use the Switch's buttons in NX Play too:** on an Xbox or PlayStation controller, the right button now plays and the bottom one goes back, as A and B do once the game starts (nxnative maps them by position). Before, Console Mode used them the other way round. The hints show the button to press, such as Ⓑ on an Xbox controller. Pro Controllers and Joy-Con work as before.
 
+- **Console Mode's build progress is a staircase:** one step per stage of the build. Finished steps are solid, and the current one fills as it goes, or pulses when its work can't be counted. A little figure walks up them and waves from the top when the build is done. The line under it uses a player's words, such as "Step 8 of 9 · Preparing the graphics · 12,339/18,503 shaders · 15:33 left", instead of "8/9 Mac shaders · compiling". The library's status bar and log keep the build script's own words.
+
 - **The Mac stays awake while a build runs,** so an overnight build no longer stops when the Mac goes to sleep. App Nap is off too, so a build in the background runs at full speed. The display can still sleep.
 
 - **An update build on a game that's already built says "Building",** not "Extracting".

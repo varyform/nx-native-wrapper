@@ -29,23 +29,18 @@ struct FooterBuild: View {
             }
             .font(.title3)
             .frame(width: Self.bar, alignment: .leading)
-            HStack(spacing: 14) {
-                // getting ready has no amount yet: a moving bar, no percentage (its room kept)
-                let preparing = job?.isPreparing == true
-                Group {
-                    if preparing {
-                        ProgressView().progressViewStyle(.linear)
-                    } else {
-                        ProgressView(value: job?.progressFraction ?? 0)
-                    }
-                }
-                .tint(.white)
-                .frame(width: Self.bar)
+            HStack(alignment: .bottom, spacing: 14) {
+                // getting ready has no amount yet: the figure waits at the foot, no percentage (its room kept)
+                let preparing = job?.isPreparing == true || job?.progress == nil
+                BuildStairs(progress: preparing ? nil : job?.progress)
+                    .frame(width: Self.bar)
                 Text("\(Int(((job?.progressFraction ?? 0) * 100).rounded()))%")
                     .font(.title3.weight(.semibold).monospacedDigit())
                     .opacity(preparing ? 0 : 1)
             }
-            Text(job?.progressText ?? " ")
+            // the stage in a player's words ("Step 8 of 9 · Preparing the graphics"); nxplay's own words while it gets
+            // ready
+            Text(job.map { $0.progress?.plainSummary ?? $0.progressText } ?? " ")
                 .font(.callout)
                 .foregroundStyle(.white.opacity(0.7))
                 .frame(width: Self.bar, alignment: .leading)

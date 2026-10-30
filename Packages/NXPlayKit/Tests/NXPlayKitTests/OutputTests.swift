@@ -34,6 +34,29 @@ import Testing
 }
 
 /// build_ipa_from_nsp.py's `--progress json` lines, as json.dumps writes them (the event first, ", " and ": ").
+/// Console Mode's words for the build's stages.
+@Suite struct PlainProgressTests {
+    @Test func stagesInAPlayersWords() {
+        #expect(BuildProgress.plainName("Mac shaders") == "Preparing the graphics")
+        #expect(BuildProgress.plainName("extract DLC") == "Unpacking the DLC")
+        #expect(BuildProgress.plainName("extract v655360") == "Unpacking the game")
+        #expect(BuildProgress.plainName("survey: code modules") == "Getting to know the game")
+        #expect(BuildProgress.plainName("Unity shader capture") == "Finding the graphics")
+        #expect(BuildProgress.plainName("something new") == "something new")  // a stage it doesn't know
+    }
+
+    @Test func theSummarySaysTheStepAndWhatsLeft() {
+        var progress = BuildProgress(
+            stage: 8, stages: 9, name: "Mac shaders", step: "compiling", stageFraction: 0.67,
+            eta: 933, finished: false)
+        progress.count = "12,339/18,503 shaders"
+        progress.note = "18,503 not cached"
+        #expect(
+            progress.plainSummary
+                == "Step 8 of 9 · Preparing the graphics · 12,339/18,503 shaders · 15:33 left")
+    }
+}
+
 @Suite struct BuildOutputTests {
     let t = 1_793_000_000.5
 
