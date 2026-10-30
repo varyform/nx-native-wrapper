@@ -7,6 +7,8 @@ struct StairGeometry {
     let gap: Double
 
     func start(_ index: Int) -> Double { Double(index) * (width + gap) }
+    /// The step under x (in a gap, the one before it).
+    func step(at x: Double) -> Int { min(max(Int(x / (width + gap)), 0), stages - 1) }
     func span(_ index: Int) -> ClosedRange<Double> { start(index)...(start(index) + width) }
     func height(_ index: Int) -> Double { BuildStairs.height(index, of: stages) }
     var end: Double { start(stages - 1) + width }
@@ -52,13 +54,34 @@ struct StairGeometry {
     /// Seconds without the goal moving before it paces.
     static let patience = 4.0
 
-    private(set) var x = 0.0, hipY = 0.0, facing = 1.0
+    private(set) var x = 0.0, facing = 1.0
+    /// The suit sets it too, rising out of the morph ball.
+    var hipY = 0.0
     private(set) var feet = [Foot(), Foot()]
     private(set) var clock = 0.0
     private(set) var moving = false
     /// Standing still while pacing: looking around, tapping a foot.
     private(set) var idling = false
     private(set) var waving = false
+
+    // The Metroid suit (StairWalker+Metroid.swift): an arm cannon aimed by IK, shots, the morph ball.
+    private(set) var metroid = false
+    /// 0 standing, 1 curled into the morph ball; the crouch on the way between.
+    var ball = 0.0
+    var ballY = 0.0
+    var ballAngle = 0.0
+    /// The cannon arm's aim, radians from +x, y up.
+    var aim = 0.0
+    var aimTarget = 0.0
+    var shots: [Shot] = []
+    var nextShot = 0.0
+    var fireAt: Double?
+    var lastPaceTarget: Double?
+    var rollsThisLeg = false
+
+    struct Shot {
+        var x, y, vx, vy, life: Double
+    }
 
     private var started = false
     private var speed = 0.0
@@ -74,12 +97,13 @@ struct StairGeometry {
     /// One frame: `goal` is where the build is along the stairs, `step` the stage it's in.
     func update(
         now: Date, stairs: StairGeometry, goal newGoal: Double, step: Int, countable: Bool,
-        finished: Bool, animate: Bool
+        finished: Bool, animate: Bool, metroid: Bool = false
     ) {
         let dt = min(max(last.map { now.timeIntervalSince($0) } ?? 0, 0), 1.0 / 20)
         last = now
         clock += dt
         waving = finished
+        self.metroid = metroid
         if !started || !animate {
             place(at: newGoal, on: stairs)
             started = true
@@ -95,10 +119,23 @@ struct StairGeometry {
         }
         if reachedGoal == nil, abs(x - newGoal) < 0.5 { reachedGoal = clock }
         let target = target(for: newGoal, step: step, on: stairs, countable: countable)
+        let before = x
         walk(toward: target, dt: dt, stairs: stairs)
-        stepFeet(dt: dt, stairs: stairs)
-        settleHip(dt: dt)
+        if metroid {
+            suit(dt: dt, stairs: stairs, target: target, rolled: x - before)
+        } else {
+            ball = 0
+            shots.removeAll()
+        }
+        if ball < 0.5 {
+            stepFeet(dt: dt, stairs: stairs)
+            settleHip(dt: dt)
+        }
     }
+
+    /// The spot it paces to, while it paces (the suit may roll there).
+    var pacingTo: Double? { paceTarget }
+    var currentSpeed: Double { speed }
 
     /// Where to head: the build's point, or while it stalls a spot on the current step, with pauses between.
     private func target(for goal: Double, step: Int, on stairs: StairGeometry, countable: Bool)
@@ -203,73 +240,17 @@ struct StairGeometry {
 
     private func place(at goal: Double, on stairs: StairGeometry) {
         x = min(max(goal, 1), stairs.end - 1)
-        for (index, offset) in [-1.6, 1.6].enumerated() {
-            let spot = stairs.landing(x + offset, facing: 1)
-            feet[index] = Foot(x: spot, y: stairs.ground(spot))
-        }
+        plantFeet(on: stairs)
         hipY = (feet[0].y + feet[1].y) / 2 + Self.leg * 0.92
         moving = false
+        ball = 0
     }
 
-    // MARK: - Pose
-
-    /// The joints to draw, y up.
-    struct Pose {
-        var hip, shoulder, head: CGPoint
-        /// Far side first: knee and foot of each leg, elbow and hand of each arm.
-        var knees: [CGPoint], feet: [CGPoint], elbows: [CGPoint], hands: [CGPoint]
-    }
-
-    var pose: Pose {
-        // a bob in the step, a breath when standing
-        let swinging = feet.first { !$0.planted }
-        let bob = swinging.map { 0.45 * sin(.pi * $0.t) } ?? 0.25 * sin(clock * 2.2)
-        let hip = CGPoint(x: x, y: hipY + bob)
-        let shoulder = CGPoint(x: x + facing * 0.4, y: hip.y + Self.torso)
-        let look = idling ? 0.9 * sin(clock * 1.6) : facing * 0.5
-        let head = CGPoint(x: shoulder.x + look, y: shoulder.y + Self.neck + Self.head)
-        var footPoints = feet.map { CGPoint(x: $0.x, y: $0.y) }
-        if idling {
-            // a tap of the front foot's toes
-            let front = (feet[0].x - x) * facing > (feet[1].x - x) * facing ? 0 : 1
-            footPoints[front].y += max(0, sin(clock * 7)) * 1.1
+    /// Both feet planted under the hip, a little apart: on a start, or out of the morph ball.
+    func plantFeet(on stairs: StairGeometry) {
+        for (index, offset) in [-facing * 1.6, facing * 1.6].enumerated() {
+            let spot = stairs.landing(x + offset, facing: facing)
+            feet[index] = Foot(x: spot, y: stairs.ground(spot))
         }
-        let knees = footPoints.map { Self.knee(hip: hip, foot: $0, forward: facing) }
-        var elbows: [CGPoint] = []
-        var hands: [CGPoint] = []
-        for arm in 0..<2 {
-            // an arm swings with the opposite leg
-            let lead = (feet[1 - arm].x - x) / Self.stride
-            var upper = -.pi / 2 + 0.55 * min(max(lead, -1), 1) + 0.04 * sin(clock * 1.5)
-            var lower = upper + facing * 0.35
-            if waving && arm == 1 {
-                upper = .pi / 2 - facing * 0.45
-                lower = upper - facing * (0.35 + 0.45 * sin(clock * 9))
-            }
-            let elbow = CGPoint(
-                x: shoulder.x + Self.upperArm * cos(upper),
-                y: shoulder.y + Self.upperArm * sin(upper))
-            elbows.append(elbow)
-            hands.append(
-                CGPoint(
-                    x: elbow.x + Self.forearm * cos(lower), y: elbow.y + Self.forearm * sin(lower)))
-        }
-        return Pose(
-            hip: hip, shoulder: shoulder, head: head, knees: knees, feet: footPoints,
-            elbows: elbows,
-            hands: hands)
-    }
-
-    /// Two-bone IK: the knee of a thigh and a shin from the hip to the foot, bent toward `forward` (the law of cosines);
-    /// a foot out of reach gets a straight leg pointing at it.
-    static func knee(hip: CGPoint, foot: CGPoint, forward: Double) -> CGPoint {
-        let dx = foot.x - hip.x
-        let dy = foot.y - hip.y
-        let reach = min(max(hypot(dx, dy), 0.001), thigh + shin - 0.001)
-        let base = atan2(dy, dx)
-        let cosine = (thigh * thigh + reach * reach - shin * shin) / (2 * thigh * reach)
-        let bend = acos(min(max(cosine, -1), 1))
-        let angle = base + forward * bend
-        return CGPoint(x: hip.x + thigh * cos(angle), y: hip.y + thigh * sin(angle))
     }
 }

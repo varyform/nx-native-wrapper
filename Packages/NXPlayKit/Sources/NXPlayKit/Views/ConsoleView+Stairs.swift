@@ -7,6 +7,8 @@ struct BuildStairs: View {
     let progress: BuildProgress?
     /// A build is on: the figure moves (it stands still, and costs nothing, while the footer is hidden).
     var active = true
+    /// A Metroid builds or is selected: the figure suits up (StairWalker+Metroid.swift).
+    var metroid = false
     @State private var walker = StairWalker()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -47,8 +49,8 @@ struct BuildStairs: View {
                             goal: stairs.start(current) + width
                                 * min(max(within ?? 0.5, 0.06), 0.94),
                             step: current, countable: progress != nil && within != nil,
-                            finished: finished, animate: active && !reduceMotion)
-                        Self.draw(walker.pose, in: context, height: size.height)
+                            finished: finished, animate: active && !reduceMotion, metroid: metroid)
+                        Self.draw(walker.pose, shots: walker.shots, in: context, height: size.height)
                     }
                 }
                 .frame(width: geometry.size.width, height: Self.height + Self.headroom)
@@ -83,27 +85,5 @@ struct BuildStairs: View {
     /// A step's height: the first low, the last high.
     static func height(_ index: Int, of stages: Int) -> Double {
         stages == 1 ? high : low + (high - low) * Double(index) / Double(stages - 1)
-    }
-
-    /// The stick figure: far limbs dimmer, then the torso and head, then the near limbs, round joints, white.
-    static func draw(_ pose: StairWalker.Pose, in context: GraphicsContext, height: Double) {
-        func point(_ p: CGPoint) -> CGPoint { CGPoint(x: p.x, y: height - p.y) }
-        func limb(_ points: [CGPoint], opacity: Double) {
-            var path = Path()
-            path.addLines(points.map(point))
-            context.stroke(
-                path, with: .color(.white.opacity(opacity)),
-                style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
-        }
-        limb([pose.shoulder, pose.elbows[0], pose.hands[0]], opacity: 0.55)
-        limb([pose.hip, pose.knees[0], pose.feet[0]], opacity: 0.55)
-        limb([pose.hip, pose.shoulder], opacity: 1)
-        let head = point(pose.head)
-        let r = StairWalker.head
-        context.fill(
-            Path(ellipseIn: CGRect(x: head.x - r, y: head.y - r, width: 2 * r, height: 2 * r)),
-            with: .color(.white))
-        limb([pose.hip, pose.knees[1], pose.feet[1]], opacity: 1)
-        limb([pose.shoulder, pose.elbows[1], pose.hands[1]], opacity: 1)
     }
 }

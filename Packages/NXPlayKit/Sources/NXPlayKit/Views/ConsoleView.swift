@@ -70,7 +70,7 @@ struct ConsoleView: View {
             }
             // the build beside the hints, in the layout: as an overlay of the one-line hints it rose over the tiles
             // the hints over the build's reserved room, at their own width: beside it they were squeezed letter by letter
-            FooterBuild(jobs: library.buildingJobs)
+            FooterBuild(jobs: library.buildingJobs, selected: selected)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .overlay(alignment: .bottomTrailing) {
                     Hints(

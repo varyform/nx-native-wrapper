@@ -4,6 +4,8 @@ import SwiftUI
 /// selected, so the banner's caption keeps its place. Several builds: the running one, with how many there are.
 struct FooterBuild: View {
     let jobs: [Job]
+    /// The game selected in Console Mode: a Metroid there suits up the figure too.
+    var selected: Game? = nil
 
     static let bar = 520.0
 
@@ -32,8 +34,11 @@ struct FooterBuild: View {
             HStack(alignment: .bottom, spacing: 14) {
                 // getting ready has no amount yet: the figure waits at the foot, no percentage (its room kept)
                 let preparing = job?.isPreparing == true || job?.progress == nil
-                BuildStairs(progress: preparing ? nil : job?.progress, active: job != nil)
-                    .frame(width: Self.bar)
+                BuildStairs(
+                    progress: preparing ? nil : job?.progress, active: job != nil,
+                    metroid: job?.game.isMetroid == true || selected?.isMetroid == true
+                )
+                .frame(width: Self.bar)
                 Text("\(Int(((job?.progressFraction ?? 0) * 100).rounded()))%")
                     .font(.title3.weight(.semibold).monospacedDigit())
                     .opacity(preparing ? 0 : 1)

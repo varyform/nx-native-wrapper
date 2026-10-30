@@ -10,18 +10,76 @@ import Testing
     /// Runs the walker for `seconds` at 60 frames a second toward `goal`.
     private func run(
         _ walker: StairWalker, from start: Date, seconds: Double, goal: Double, step: Int,
-        countable: Bool = true, every frame: ((StairWalker) -> Void)? = nil
+        countable: Bool = true, finished: Bool = false, metroid: Bool = false,
+        every frame: ((StairWalker) -> Void)? = nil
     ) -> Date {
         var now = start
         for _ in 0..<Int(seconds * 60) {
             now += 1.0 / 60
             walker.update(
                 now: now, stairs: stairs, goal: goal, step: step, countable: countable,
-                finished: false,
-                animate: true)
+                finished: finished, animate: true, metroid: metroid)
             frame?(walker)
         }
         return now
+    }
+
+    @Test func theSuitRollsUpAStepAsTheMorphBallAndStandsAgain() {
+        let walker = StairWalker()
+        var now = run(walker, from: .now, seconds: 0.1, goal: 20, step: 0, metroid: true)
+        var rolled = false
+        var ballThroughStep = false
+        let goal = stairs.start(1) + 26
+        now = run(walker, from: now, seconds: 5, goal: goal, step: 1, metroid: true) { walker in
+            if let ball = walker.pose.ball {
+                rolled = true
+                if ball.center.y - StairWalker.ballRadius < self.stairs.ground(ball.center.x) - 1.6
+                {
+                    ballThroughStep = true
+                }
+            }
+        }
+        #expect(rolled && !ballThroughStep)
+        #expect(walker.pose.ball == nil && abs(walker.x - goal) < 1)  // on its feet at the build's point
+        #expect(walker.feet.allSatisfy { $0.planted && abs($0.y - stairs.height(1)) < 0.01 })
+    }
+
+    @Test func waitingTheSuitTakesAimAndFires() {
+        let walker = StairWalker()
+        let goal = stairs.start(2) + 20
+        var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 2, metroid: true)
+        var fired = false
+        var aimedUp = false
+        now = run(walker, from: now, seconds: 12, goal: goal, step: 2, metroid: true) { walker in
+            if !walker.shots.isEmpty { fired = true }
+            if walker.pose.ball == nil, walker.aim > 0.5 { aimedUp = true }
+        }
+        #expect(fired && aimedUp)
+        // the cannon hand reaches along the aim
+        let pose = walker.pose
+        let reach = hypot(pose.hands[1].x - pose.shoulder.x, pose.hands[1].y - pose.shoulder.y)
+        #expect(abs(reach - StairWalker.cannonReach) < 0.01)
+    }
+
+    @Test func atTheTopTheSuitFiresUp() {
+        let walker = StairWalker()
+        let goal = stairs.start(8) + 40
+        var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 8, metroid: true)
+        now = run(walker, from: now, seconds: 2, goal: goal, step: 8, finished: true, metroid: true)
+        #expect(abs(walker.aim - .pi / 2) < 0.05 && !walker.shots.isEmpty)
+        #expect(walker.shots.allSatisfy { $0.vy > 100 })
+    }
+
+    @Test func onlyAMetroidSuitsUp() {
+        func game(_ name: String) -> Game {
+            Game(
+                folder: URL(filePath: "/games/\(name)"), name: name, titleID: nil, version: nil,
+                languages: [], iconURL: nil, buildFolder: nil, ipaURL: nil, xcodeBuildFolder: nil,
+                hasPackages: true, state: .ready)
+        }
+        #expect(game("Metroid Dread").isMetroid && game("MetroidDread").isMetroid)
+        #expect(game("Metroid Prime 4 Beyond").isMetroid)
+        #expect(!game("Super Mario Bros. Wonder").isMetroid)
     }
 
     @Test func theKneeKeepsItsBonesAndBendsForward() {

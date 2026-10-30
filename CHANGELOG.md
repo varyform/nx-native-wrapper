@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- Small text and animation tweaks in Console Mode.
+
 ## 1.7.11 — 2026-10-30
 
 ### Added
