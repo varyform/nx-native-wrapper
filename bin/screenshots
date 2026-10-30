@@ -4,7 +4,7 @@
 # Needs one extracted game in the folder, cwebp (brew install webp), and Screen Recording permission for the
 # terminal it runs in (System Settings > Privacy & Security), which screencapture asks for.
 #
-# usage: bin/screenshots [games folder] [scene...]   (default ~/Games/Switch; scenes: library list console free-up-space settings transfer-saves)
+# usage: bin/screenshots [games folder] [scene...]   (default ~/Games/Switch; scenes: library list console console-details free-up-space settings transfer-saves)
 # env:   NXPLAY_SCREENSHOT_GAME  the game Console Mode shows: a title ID or part of its name (default the middle one)
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 root="${1:-$HOME/Games/Switch}"
 shift || true
 scenes=("$@")
-(( ${#scenes[@]} )) || scenes=(library list console free-up-space settings transfer-saves)
+(( ${#scenes[@]} )) || scenes=(library list console console-details free-up-space settings transfer-saves)
 [[ -d "$root" ]] || { echo "bin/screenshots: no games folder at $root" >&2; exit 2; }
 command -v cwebp > /dev/null || { echo "bin/screenshots: cwebp is missing: brew install webp" >&2; exit 2; }
 

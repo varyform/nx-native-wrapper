@@ -3,7 +3,9 @@ import SwiftUI
 
 /// Console Mode: the window full screen. The selected game's eShop banner fills the upper part edge to edge, the clock
 /// and controller over its top and the game's name and badges over its foot; the games as a carousel of their artwork
-/// below it, button hints at the bottom. A controller, the arrow keys with Return and Esc, or the mouse drive it.
+/// below it, button hints at the bottom. Down opens the selected game's details: the banner and the name slide up and
+/// the store page's text, facts and screenshots take the row's place. A controller, the arrow keys with Return and
+/// Esc, or the mouse drive it.
 struct ConsoleView: View {
     @Environment(Library.self) private var library
     @FocusState private var focused: Bool
@@ -13,38 +15,77 @@ struct ConsoleView: View {
     var body: some View {
         let games = library.navigableGames  // the extracted ones
         let selected = games.first { $0.id == library.selection } ?? games.first
+        let details = library.showsDetails && selected != nil
         VStack(spacing: 0) {
-            // the banner takes what the carousel and the hints leave: about half of the screen
-            Banner(game: selected, banner: selected.flatMap(library.banner(for:)))
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .top) {
-                    TopBar(gamepad: library.gamepad)
-                        .padding(.horizontal, 56)
-                        .padding(.top, 40)
-                }
-                .overlay(alignment: .bottomLeading) {
-                    if let selected {
-                        Caption(game: selected, job: library.job(for: selected))
-                            .padding(.horizontal, 56)
+            GeometryReader { geometry in
+                // the banner takes what the carousel and the hints leave: about half of the screen
+                let height = geometry.size.height
+                let banner = max(0, height - Carousel.height)
+                // the details take about 55% of the screen; the name stays clear of the top bar
+                let lift =
+                    details ? min(max(0, height * 0.55 - Carousel.height), max(0, banner - 300)) : 0
+                VStack(spacing: 0) {
+                    Banner(game: selected, banner: selected.flatMap(library.banner(for:)))
+                        .frame(height: banner)
+                        .overlay(alignment: .bottomLeading) {
+                            if let selected {
+                                Caption(game: selected, job: library.job(for: selected))
+                                    .padding(.horizontal, 56)
+                                    .contentShape(.rect)
+                                    .onTapGesture { library.showsDetails.toggle() }
+                            }
+                        }
+                    if games.isEmpty {
+                        Text("No games ready to play yet").font(.largeTitle.bold())
+                            .foregroundStyle(.white.opacity(0.7))
+                            .frame(height: Carousel.height)
+                    } else {
+                        Carousel(games: games, selection: selected?.id)
+                            .opacity(details ? 0 : 1)
                     }
                 }
-            if games.isEmpty {
-                Text("No games ready to play yet").font(.largeTitle.bold())
-                    .foregroundStyle(.white.opacity(0.7))
-                    .frame(height: Carousel.height)
-            } else {
-                Carousel(games: games, selection: selected?.id)
+                .offset(y: -lift)
+                .overlay(alignment: .bottom) {
+                    if details, let selected {
+                        DetailsPanel(game: selected)
+                            .frame(height: Carousel.height + lift)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+            }
+            .animation(.spring(duration: 0.45, bounce: 0.1), value: details)
+            .overlay(alignment: .top) {
+                TopBar(gamepad: library.gamepad)
+                    .padding(.horizontal, 56)
+                    .padding(.top, 40)
             }
             // the build beside the hints, in the layout: as an overlay of the one-line hints it rose over the tiles
-            HStack(alignment: .bottom, spacing: 24) {
-                FooterBuild(jobs: library.buildingJobs)
-                Hints(game: selected, gamepad: library.gamepad)
-            }
-            .animation(.easeInOut(duration: 0.25), value: library.buildingJobs.isEmpty)
-            .padding(.horizontal, 56)
-            .padding(.bottom, 36)
+            // the hints over the build's reserved room, at their own width: beside it they were squeezed letter by letter
+            FooterBuild(jobs: library.buildingJobs)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .overlay(alignment: .bottomTrailing) {
+                    Hints(
+                        game: selected, gamepad: library.gamepad,
+                        mode: !details
+                            ? .row : library.detailsFocus == .screenshots ? .screenshots : .text
+                    )
+                    .fixedSize()
+                }
+                .animation(.easeInOut(duration: 0.25), value: library.buildingJobs.isEmpty)
+                .padding(.horizontal, 56)
+                .padding(.bottom, 36)
         }
         .background { Backdrop(game: selected) }
+        .overlay {
+            if library.viewingShot, let selected {
+                ShotViewer(
+                    shots: library.screenshots(for: selected), index: library.shotIndex,
+                    gamepad: library.gamepad
+                )
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: library.viewingShot)
         .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
         .focusable()
@@ -217,12 +258,15 @@ private struct Carousel: View {
             let width = geometry.size.width
             HStack(spacing: Self.spacing) {
                 ForEach(games) { game in
-                    Tile(game: game, isSelected: game.id == selection)
-                        .onTapGesture(count: 2) {
-                            library.selection = game.id
-                            library.handle(.confirm)
-                        }
-                        .onTapGesture { library.selection = game.id }
+                    Tile(
+                        game: game, icon: library.eshopIcon(for: game) ?? game.iconURL,
+                        isSelected: game.id == selection
+                    )
+                    .onTapGesture(count: 2) {
+                        library.selection = game.id
+                        library.handle(.confirm)
+                    }
+                    .onTapGesture { library.selection = game.id }
                 }
             }
             .padding(.horizontal, Self.margin)
@@ -266,15 +310,18 @@ private struct Carousel: View {
     static let height = ConsoleView.tile * 1.5
 }
 
+/// A game's square artwork: the eShop icon when there is one (sharper than the game's own 256-pixel icon at this
+/// size), else the game's own.
 private struct Tile: View {
     let game: Game
+    let icon: URL?
     let isSelected: Bool
 
     var body: some View {
         RoundedRectangle(cornerRadius: 28)
             .fill(.white.opacity(0.08))
             .overlay {
-                if let url = game.iconURL, let image = IconCache.image(at: url) {
+                if let url = icon, let image = IconCache.image(at: url) {
                     Image(nsImage: image).resizable().interpolation(.high).scaledToFill()
                 } else {
                     Image(systemName: "gamecontroller").font(.system(size: 64)).foregroundStyle(
@@ -305,13 +352,23 @@ private struct Caption: View {
     @Environment(Library.self) private var library
 
     var body: some View {
+        let info = library.info(for: game)
         VStack(alignment: .leading, spacing: 14) {
-            Text(game.name)
-                .font(.system(size: 64, weight: .bold))
-                .lineLimit(2)
-                .minimumScaleFactor(0.5)
-                .frame(maxWidth: 1000, alignment: .leading)
-                .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(game.name)
+                    .font(.system(size: 64, weight: .bold))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.5)
+                    .frame(maxWidth: 1000, alignment: .leading)
+                if let intro = info?.intro {
+                    Text(intro)
+                        .font(.title2.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .lineLimit(1)
+                        .frame(maxWidth: 1000, alignment: .leading)
+                }
+            }
+            .shadow(color: .black.opacity(0.5), radius: 8, y: 2)
             HStack(spacing: 10) {
                 GameBadge(game: game, job: job).scaleEffect(1.3).padding(.horizontal, 10)
                 if let profile = library.profile(game) {
@@ -329,18 +386,252 @@ private struct Caption: View {
                     Pill(text: "\(news) new from nxnative", symbol: "sparkles", color: .blue)
                 }
                 if game.isKept { Pill(text: "Kept", symbol: "lock.fill", color: .orange) }
-                if let version = game.version {
-                    Text("v\(version)").foregroundStyle(.white.opacity(0.75))
-                }
-                if let played = game.lastPlayed {
-                    Text("Played \(played, format: .relative(presentation: .named))")
-                        .foregroundStyle(.white.opacity(0.75))
-                }
+                Text(Self.facts(game, info)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
             }
             .font(.title3)
         }
         .foregroundStyle(.white)
         .animation(.easeInOut(duration: 0.2), value: game.id)
+    }
+
+    /// "v1.6.0 · Nintendo · 2017 · Played yesterday".
+    static func facts(_ game: Game, _ info: TitleInfo?) -> String {
+        [
+            game.version.map { "v\($0)" }, info?.publisher,
+            info?.released.map { $0.formatted(.dateTime.year()) },
+            game.lastPlayed.map { "Played \($0.formatted(.relative(presentation: .named)))" },
+        ].compactMap(\.self).joined(separator: " · ")
+    }
+}
+
+/// The selected game's store page under its name, when down opens it: the whole description beside the facts, then
+/// the screenshots across the window. Up and down scroll the text a page at a time, then move to the screenshots;
+/// up at the top closes the details. A trackpad or wheel scrolls it too.
+private struct DetailsPanel: View {
+    let game: Game
+    @Environment(Library.self) private var library
+    @State private var position = ScrollPosition(edge: .top)
+    @State private var scroll = Scroll()
+    /// The text block's bottom, in the scroll view's visible coordinates: on screen when within its height.
+    @State private var textBottom = 0.0
+
+    struct Scroll: Equatable {
+        var offset = 0.0
+        var visible = 0.0
+        var content = 0.0
+    }
+
+    var body: some View {
+        let info = library.info(for: game)
+        let shots = library.screenshots(for: game)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 32) {
+                HStack(alignment: .top, spacing: 56) {
+                    Text(info?.description ?? "The eShop has no description of this game.")
+                        .font(.title3)
+                        .lineSpacing(4)
+                        .foregroundStyle(.white.opacity(info?.description == nil ? 0.5 : 0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                    Facts(game: game, info: info)
+                        .frame(width: 400, alignment: .leading)
+                }
+                .padding(.horizontal, 56)
+                .onGeometryChange(for: Double.self) {
+                    $0.frame(in: .scrollView).maxY
+                } action: {
+                    textBottom = $0
+                }
+                if !shots.isEmpty {
+                    ShotRow(
+                        shots: shots, index: library.shotIndex,
+                        focused: library.detailsFocus == .screenshots
+                    ) { index in
+                        library.shotIndex = index
+                        library.viewingShot = true
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .padding(.top, 24)
+            .padding(.bottom, 32)
+            .animation(.easeInOut(duration: 0.3), value: shots)
+        }
+        .scrollPosition($position)
+        .onScrollGeometryChange(for: Scroll.self) {
+            Scroll(
+                offset: $0.contentOffset.y, visible: $0.containerSize.height,
+                content: $0.contentSize.height)
+        } action: { _, new in
+            scroll = new
+        }
+        // a soft edge where the text scrolls away under the name
+        .mask {
+            LinearGradient(
+                stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.06)],
+                startPoint: .top, endPoint: .bottom)
+        }
+        .foregroundStyle(.white)
+        .onChange(of: library.detailsScroll) { _, request in
+            step(down: request.down, hasShots: !shots.isEmpty)
+        }
+        .onChange(of: game.id) {
+            library.detailsFocus = .text
+            position.scrollTo(edge: .top)
+        }
+        .task(id: game.id) { library.loadScreenshots(game) }
+    }
+
+    /// Down: the next page of the text, then the screenshots. Up: back to the text, the page before, and at the top
+    /// the details close.
+    private func step(down: Bool, hasShots: Bool) {
+        let page = max(80, scroll.visible * 0.7)
+        let end = max(0, scroll.content - scroll.visible)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            if down {
+                guard library.detailsFocus == .text else { return }
+                if textBottom <= scroll.visible + 4 || scroll.offset >= end - 1 {
+                    if hasShots {
+                        library.detailsFocus = .screenshots
+                        position.scrollTo(edge: .bottom)
+                    }
+                } else {
+                    position.scrollTo(y: min(end, scroll.offset + page))
+                }
+            } else if library.detailsFocus == .screenshots {
+                library.detailsFocus = .text
+                position.scrollTo(y: max(0, min(end, textBottom + scroll.offset - scroll.visible)))
+            } else if scroll.offset <= 1 {
+                library.showsDetails = false
+            } else {
+                position.scrollTo(y: max(0, scroll.offset - page))
+            }
+        }
+    }
+}
+
+/// The screenshots across the window, the chosen one outlined while the row has the focus; a click shows one over the
+/// whole screen.
+private struct ShotRow: View {
+    let shots: [URL]
+    let index: Int
+    let focused: Bool
+    let open: (Int) -> Void
+
+    static let height = 230.0
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 22) {
+                    ForEach(Array(shots.enumerated()), id: \.offset) { i, file in
+                        let chosen = focused && i == index
+                        Group {
+                            if let image = IconCache.image(at: file) {
+                                Image(nsImage: image).resizable().interpolation(.high)
+                                    .scaledToFill()
+                            } else {
+                                Color.white.opacity(0.08)
+                            }
+                        }
+                        .frame(width: Self.height * 16 / 9, height: Self.height)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 16)
+                                .strokeBorder(.white.opacity(chosen ? 0.95 : 0), lineWidth: 4)
+                        }
+                        .shadow(
+                            color: .black.opacity(chosen ? 0.6 : 0.3), radius: chosen ? 18 : 8, y: 8
+                        )
+                        .scaleEffect(chosen ? 1.05 : 1)
+                        .opacity(focused && !chosen ? 0.7 : 1)
+                        .animation(.spring(duration: 0.3, bounce: 0.15), value: chosen)
+                        .id(i)
+                        .onTapGesture { open(i) }
+                    }
+                }
+                .padding(.horizontal, 56)
+                .padding(.vertical, 14)  // room for the chosen one's growth and shadow
+            }
+            .scrollClipDisabled()
+            .onChange(of: index) {
+                withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo(index, anchor: .center) }
+            }
+        }
+    }
+}
+
+/// A screenshot over the whole screen; left and right page through them, any other button closes it.
+private struct ShotViewer: View {
+    let shots: [URL]
+    let index: Int
+    let gamepad: Gamepad
+    @Environment(Library.self) private var library
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.94)
+            if shots.indices.contains(index), let image = IconCache.image(at: shots[index]) {
+                Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal, 56)
+                    .padding(.top, 48)
+                    .padding(.bottom, 110)
+                    .id(index)
+                    .transition(.opacity)
+            }
+            VStack {
+                Spacer()
+                HStack {
+                    Text("\(index + 1) of \(shots.count)")
+                        .font(.title3.weight(.medium).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.7))
+                    Spacer()
+                    Hints(game: nil, gamepad: gamepad, mode: .viewer)
+                }
+                .padding(.horizontal, 56)
+                .padding(.bottom, 36)
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.25), value: index)
+        .contentShape(.rect)
+        .onTapGesture { library.viewingShot = false }
+    }
+}
+
+/// The store page's facts, as a list of labels and values.
+private struct Facts: View {
+    let game: Game
+    let info: TitleInfo?
+
+    var body: some View {
+        let rating = info?.ratingLabel.map { label in
+            (["ESRB \(label)"]
+                + (info?.ratingContent.isEmpty == false
+                    ? [info!.ratingContent.joined(separator: ", ")] : []))
+                .joined(separator: " · ")
+        }
+        let rows: [(String, String?)] = [
+            ("Publisher", info?.publisher),
+            ("Released", info?.released?.formatted(date: .long, time: .omitted)),
+            ("Players", info?.playersLabel),
+            (
+                "Genre",
+                info.flatMap { $0.categories.isEmpty ? nil : $0.categories.joined(separator: ", ") }
+            ),
+            ("Rating", rating),
+            ("Version", game.version),
+        ]
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 18, verticalSpacing: 10) {
+            ForEach(rows.filter { $0.1 != nil }, id: \.0) { row in
+                GridRow {
+                    Text(row.0).foregroundStyle(.white.opacity(0.55))
+                    Text(row.1 ?? "").lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .font(.system(size: 17))
     }
 }
 
@@ -415,15 +706,38 @@ private struct FooterBuild: View {
 private struct Hints: View {
     let game: Game?
     let gamepad: Gamepad
+    let mode: Mode
+
+    /// What the buttons do where the focus is: the games' row, the details' text or screenshots, a screenshot shown.
+    enum Mode { case row, text, screenshots, viewer }
 
     var body: some View {
+        let pad = gamepad.symbol(for: .down) != nil
+        let sideways = gamepad.symbol(for: .left) ?? "arrow.left.arrow.right"
+        let confirm = gamepad.symbol(for: .confirm) ?? "return"
+        let back = gamepad.symbol(for: .back) ?? "escape"
         HStack(spacing: 32) {
-            Spacer()
-            hint(gamepad.symbol(for: .left) ?? "arrow.left.arrow.right", "Choose")
-            if game != nil {
-                hint(gamepad.symbol(for: .confirm) ?? "return", "Play")
+            switch mode {
+            case .row:
+                hint(sideways, "Choose")
+                if game != nil {
+                    hint(pad ? "dpad.down.filled" : "arrow.down", "Details")
+                    hint(confirm, "Play")
+                }
+                hint(back, "Exit")
+            case .text:
+                hint(sideways, "Choose")
+                hint(pad ? "dpad" : "arrow.up.arrow.down", "Scroll")
+                hint(confirm, "Play")
+                hint(back, "Close")
+            case .screenshots:
+                hint(sideways, "Browse")
+                hint(confirm, "View")
+                hint(back, "Close")
+            case .viewer:
+                hint(sideways, "Browse")
+                hint(back, "Close")
             }
-            hint(gamepad.symbol(for: .back) ?? "escape", "Exit")
         }
         .font(.title3.weight(.medium))
         .foregroundStyle(.white.opacity(0.85))

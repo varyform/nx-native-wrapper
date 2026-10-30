@@ -4,7 +4,13 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Game details in Console Mode:** press down (or click the game's name) and the banner and name slide up to show the game's eShop description, its facts (publisher, release date, players, genre, age rating, version) and its screenshots across the screen. Down scrolls the description, then moves to the screenshots: left and right choose one, and A (or a click) shows it full screen. Left and right on the description move to the next game. Up at the top, B or Esc close the details. Screenshots download the first time a game's details open.
+
 ### Changed
+
+- **Console Mode shows more of the eShop page:** the game's tagline under its name, and its publisher and release year next to its version. Its tiles use the eShop's own icon, which is sharper at that size than the one in the game's files.
 
 - **NX Play opens in the mode you left it in:** quit it in Console Mode and it opens in Console Mode next time, at the game you played last. Quit it in the library and it opens there.
 

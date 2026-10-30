@@ -254,6 +254,39 @@ import Testing
         #expect(Library(defaults: defaults, isScreenshot: true).showsLog)
     }
 
+    @Test func downOpensConsoleModesDetails() throws {
+        let root = FileManager.default.temporaryDirectory.appending(
+            path: "nxplay-details-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        for folder in ["A", "B"] {
+            let extract = root.appending(path: "\(folder)/0100000000010000_build/extract/v0")
+            try FileManager.default.createDirectory(at: extract, withIntermediateDirectories: true)
+            try Data([1]).write(to: root.appending(path: "\(folder)/\(folder).nsp"))
+        }
+        let library = library()
+        library.root = root
+        library.handle(.menu)
+        let first = library.selection
+
+        library.handle(.down)
+        #expect(library.showsDetails && library.detailsFocus == .text)
+        // up and down go to the panel, which scrolls (or closes, up at the top)
+        let serial = library.detailsScroll.serial
+        library.handle(.up)
+        #expect(library.detailsScroll == .init(down: false, serial: serial + 1))
+        #expect(library.showsDetails)
+        // left and right still choose the game while the text has the focus
+        library.handle(.right)
+        #expect(library.selection != first && library.showsDetails)
+        // no screenshots: A doesn't open the viewer
+        library.detailsFocus = .screenshots
+        library.handle(.confirm)
+        #expect(!library.viewingShot)
+        // B closes the details, not Console Mode, and the focus starts over
+        library.handle(.back)
+        #expect(!library.showsDetails && library.consoleMode && library.detailsFocus == .text)
+    }
+
     @Test func opensInTheModeItWasLeftIn() {
         let defaults = defaults()
         defaults.set("/games", forKey: Library.Keys.root)

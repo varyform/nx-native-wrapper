@@ -12,6 +12,7 @@
         case library
         case list
         case console
+        case consoleDetails = "console-details"
         case freeUpSpace = "free-up-space"
         case settings
         case transferSaves = "transfer-saves"
@@ -84,7 +85,7 @@
             case .list:
                 library.viewStyle = .list
                 library.jobs[game.id] = job(for: game, finished: false)
-            case .console:
+            case .console, .consoleDetails:
                 library.gamepad.sample = ("Pro Controller", 0.8)
                 library.consoleMode = true
                 // the game asked for, else the middle of the carousel, so games show on both sides
@@ -96,6 +97,10 @@
                     }
                 }
                 library.selection = (asked ?? carousel[carousel.count / 2]).id
+                if scene == .consoleDetails {
+                    library.showsDetails = true
+                    library.selectedGame.map(library.loadScreenshots)
+                }
             case .freeUpSpace, .settings:
                 break  // RootView opens their windows
             case .transferSaves:
@@ -257,7 +262,9 @@
             }
             // layout, icons, the sheet's animation; full screen and Free Up Space's measuring take longer
             try? await Task.sleep(
-                for: .seconds(scene == .console || scene == .freeUpSpace ? 4 : 1.5))
+                for: .seconds(
+                    scene == .console || scene == .consoleDetails || scene == .freeUpSpace ? 4 : 1.5
+                ))
             let target =
                 ownWindow
                 ? NSApp.windows.first {

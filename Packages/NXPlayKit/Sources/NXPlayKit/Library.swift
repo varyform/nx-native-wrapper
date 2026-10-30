@@ -99,10 +99,41 @@ public final class Library {
                 fetchBanners(retry: true)
                 NSCursor.setHiddenUntilMouseMoves(true)
             }
+            if !consoleMode { showsDetails = false }
         }
     }
+    /// Console Mode's details of the selected game (down opens them, up or back closes them): its store page's text,
+    /// facts and screenshots under the banner, which slides up.
+    public var showsDetails = false {
+        didSet {
+            if !showsDetails {
+                detailsFocus = .text
+                shotIndex = 0
+                viewingShot = false
+            }
+        }
+    }
+    /// What up and down move through in the details: the text (scrolled a page at a time), then the screenshots.
+    public enum DetailsFocus: Sendable { case text, screenshots }
+    public var detailsFocus = DetailsFocus.text
+    /// The screenshot chosen in the details' row, and whether it is shown over the whole screen.
+    public var shotIndex = 0
+    public var viewingShot = false
+    /// An up or down for the details panel to act on: it knows how much of the text is on screen, so it scrolls, moves
+    /// to the screenshots, or (up at the top) closes the details. A new serial for each press.
+    public struct DetailsScroll: Equatable, Sendable {
+        public let down: Bool
+        public let serial: Int
+    }
+    public private(set) var detailsScroll = DetailsScroll(down: false, serial: 0)
     /// The games' eShop banners on disk, by title ID: Console Mode's backdrop (ArtworkStore).
     public private(set) var banners: [String: URL] = [:]
+    /// The games' eShop icons on disk, by title ID: Console Mode's tiles, sharper than the game's own icon.
+    public private(set) var eshopIcons: [String: URL] = [:]
+    /// What the eShop says about the games, by title ID (titledb).
+    public private(set) var titleInfo: [String: TitleInfo] = [:]
+    /// The games' screenshots on disk, by title ID, fetched when their details open.
+    public private(set) var screenshots: [String: [URL]] = [:]
     /// The controller as a remote: moves the selection, plays, toggles Console Mode.
     public let gamepad = Gamepad()
     /// Updates from GitHub releases (a released app only).
@@ -121,8 +152,9 @@ public final class Library {
     @ObservationIgnored private var tasksInFlight = 0
     @ObservationIgnored let artwork: ArtworkStore
     @ObservationIgnored private var bannerFetch: Task<Void, Never>?
-    /// The title IDs a banner was looked for this launch: a refresh doesn't look again for one titledb lacks.
+    /// The title IDs artwork was looked for this launch: a refresh doesn't look again for one titledb lacks.
     @ObservationIgnored private var bannersTried: Set<String> = []
+    @ObservationIgnored private var screenshotFetches: Set<String> = []
     /// Screenshot mode (Screenshots.swift): sample teams and devices that Xcode and devicectl must not replace.
     @ObservationIgnored let isScreenshot: Bool
     #if DEBUG
@@ -147,6 +179,8 @@ public final class Library {
         self.isScreenshot = isScreenshot
         self.artwork = artwork
         banners = artwork.cachedBanners()
+        eshopIcons = artwork.cachedIcons()
+        titleInfo = artwork.cachedInfo()
         root = defaults.string(forKey: Keys.root).map {
             URL(filePath: $0, directoryHint: .isDirectory)
         }
@@ -333,22 +367,53 @@ public final class Library {
         game.titleID.flatMap { banners[$0.uppercased()] }
     }
 
-    /// Downloads the banners of the games Console Mode shows that have none yet, ahead of it: at each refresh (launch,
-    /// a new game), in Console Mode's order, so the game it opens on comes first, each shown as it lands. A title
-    /// looked for once this launch is left alone until Console Mode opens (`retry`), which tries the missing ones
-    /// again. Screenshots use what is on disk.
+    public func eshopIcon(for game: Game) -> URL? {
+        game.titleID.flatMap { eshopIcons[$0.uppercased()] }
+    }
+
+    public func info(for game: Game) -> TitleInfo? {
+        game.titleID.flatMap { titleInfo[$0.uppercased()] }
+    }
+
+    public func screenshots(for game: Game) -> [URL] {
+        game.titleID.flatMap { screenshots[$0.uppercased()] } ?? []
+    }
+
+    /// Downloads the eShop artwork and details of the games Console Mode shows that lack any, ahead of it: at each
+    /// refresh (launch, a new game), in Console Mode's order, so the game it opens on comes first, each shown as it
+    /// lands. A title looked for once this launch is left alone until Console Mode opens (`retry`), which tries the
+    /// missing ones again. Screenshots use what is on disk.
     func fetchBanners(retry: Bool = false) {
         guard !isScreenshot, bannerFetch == nil else { return }
         let wanted = Self.consoleOrder(games).compactMap { $0.titleID?.uppercased() }.filter {
-            banners[$0] == nil && (retry || !bannersTried.contains($0))
+            (banners[$0] == nil || eshopIcons[$0] == nil || titleInfo[$0] == nil)
+                && (retry || !bannersTried.contains($0))
         }
         guard !wanted.isEmpty else { return }
         bannersTried.formUnion(wanted)
         bannerFetch = Task { [weak self, artwork] in
-            _ = await artwork.fetch(wanted) { id, file in
-                await MainActor.run { self?.banners[id] = file }
+            await artwork.fetch(wanted) { id, found in
+                await MainActor.run {
+                    guard let self else { return }
+                    if let banner = found.banner { self.banners[id] = banner }
+                    if let icon = found.icon { self.eshopIcons[id] = icon }
+                    if let info = found.info { self.titleInfo[id] = info }
+                }
             }
             self?.bannerFetch = nil
+        }
+    }
+
+    /// A game's screenshots, downloaded the first time its details open.
+    func loadScreenshots(_ game: Game) {
+        guard let id = game.titleID?.uppercased(), screenshots[id] == nil,
+            screenshotFetches.insert(id).inserted
+        else { return }
+        Task { [weak self, artwork] in
+            let files = await artwork.screenshots(for: id)
+            // none yet (the details not fetched): asked again next time
+            if !files.isEmpty { self?.screenshots[id] = files }
+            self?.screenshotFetches.remove(id)
         }
     }
 
@@ -462,6 +527,46 @@ public final class Library {
             + extracted.filter { $0.lastPlayed == nil }
     }
 
+    /// Play, or Extract when it can; nothing while the game is busy or still copying.
+    private func confirm() {
+        guard let game = selectedGame, !isBusy(game), game.isExtracted || game.canExtract else {
+            return
+        }
+        primaryAction(for: game)
+    }
+
+    /// The details open: up and down go to the panel; left and right choose the game, or the screenshot once the
+    /// screenshots have the focus; A plays, or shows the chosen screenshot over the whole screen; B closes, the
+    /// screenshot first.
+    private func handleDetails(_ command: Gamepad.Command) {
+        let shots = selectedGame.map(screenshots(for:))?.count ?? 0
+        if viewingShot {
+            switch command {
+            case .left: shotIndex = max(0, shotIndex - 1)
+            case .right: shotIndex = min(max(0, shots - 1), shotIndex + 1)
+            case .menu: break
+            default: viewingShot = false  // up, down, A and B all close it
+            }
+            return
+        }
+        switch command {
+        case .up, .down:
+            detailsScroll = DetailsScroll(down: command == .down, serial: detailsScroll.serial + 1)
+        case .left, .right:
+            if detailsFocus == .screenshots {
+                shotIndex = min(max(0, shotIndex + (command == .left ? -1 : 1)), max(0, shots - 1))
+            } else {
+                move(command == .left ? -1 : 1)
+                shotIndex = 0
+                selectedGame.map(loadScreenshots)
+            }
+        case .confirm:
+            if detailsFocus == .screenshots, shots > 0 { viewingShot = true } else { confirm() }
+        case .back: showsDetails = false
+        case .menu: break
+        }
+    }
+
     /// One step through the games; with nothing selected, the first one.
     func move(_ step: Int) {
         let games = navigableGames
@@ -477,17 +582,27 @@ public final class Library {
         // the couch has no use for the pointer: hidden while the controller or the keys drive Console Mode, back as
         // soon as the mouse moves
         if consoleMode || command == .menu { NSCursor.setHiddenUntilMouseMoves(true) }
+        if consoleMode, showsDetails, command != .menu {
+            handleDetails(command)
+            return
+        }
         switch command {
+        // Console Mode's row is horizontal: down opens the selected game's details
+        case .down where consoleMode:
+            showsDetails = true
+            selectedGame.map(loadScreenshots)
+        case .up where consoleMode: break
         case .left, .up: move(-1)
         case .right, .down: move(1)
-        case .confirm:
-            // Play, or Extract when it can; nothing while the game is busy or still copying
-            guard let game = selectedGame, !isBusy(game), game.isExtracted || game.canExtract else {
-                return
-            }
-            primaryAction(for: game)
+        case .confirm: confirm()
         case .back:
-            if transfer != nil { transfer = nil } else if consoleMode { consoleMode = false }
+            if transfer != nil {
+                transfer = nil
+            } else if showsDetails {
+                showsDetails = false
+            } else if consoleMode {
+                consoleMode = false
+            }
         case .menu: consoleMode.toggle()
         }
     }

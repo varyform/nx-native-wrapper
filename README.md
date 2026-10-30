@@ -106,6 +106,10 @@ Settings has a tab for each subject: **General** (the games folder, the keys fil
 
 ![Console Mode: the selected game's banner across the top with its name and badges, the playable games in a row below, and the controller's button hints](docs/console.webp)
 
+Down (or a click on the game's name) opens the game's details: the banner and the name slide up, and the eShop's description, facts (publisher, release date, players, genre, age rating) and screenshots take the row's place. Down scrolls the description, then moves to the screenshots, where left and right choose one and A shows it full screen. Left and right on the description move to the next game. Up at the top, B or Esc close the details. A trackpad or mouse scrolls and clicks too. The artwork and details come from [blawar/titledb](https://github.com/blawar/titledb), the community list NX2Apple uses too; the images only from Nintendo's image server.
+
+![Console Mode's details: the eShop description, facts and screenshots under the game's name](docs/console-details.webp)
+
 <img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 
 ## Command line
@@ -189,7 +193,7 @@ To work in Xcode, run `xcodegen generate` (or `mise run generate`) and open `NXP
 
 `Package.swift` in the root exists only so SourceKit-LSP (Zed, VS Code, …) understands the app's sources; build and test with the Xcode project and `Packages/NXPlayKit`.
 
-`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, free-up-space, settings, transfer-saves). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
+`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, console-details, free-up-space, settings, transfer-saves). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
 
 ## License
 
