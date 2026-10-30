@@ -3,14 +3,20 @@
 # in a notarized DMG, then (after you confirm) the release commit, the tag and the GitHub release with the DMG and the
 # changelog's notes. Nothing is pushed or published before the confirmation; a failure before it restores the files.
 #
-# usage: bin/release <version>          e.g. bin/release 1.7
+# usage: bin/release <version> [name]   e.g. bin/release 1.7.12 "Stair Climber"
+#        the name, when given, follows the version in the GitHub release's title and the changelog's heading
 # once:  xcrun notarytool store-credentials nxplay-notary --apple-id <you@example.com> --team-id <team ID>
 #        (an app-specific password from account.apple.com); NOTARY_PROFILE names another profile
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 version="${1:-}"
-[[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "usage: bin/release <version>  (e.g. 1.7)" >&2; exit 2; }
+name="${2:-}"
+[[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "usage: bin/release <version> [name]  (e.g. 1.7.12 \"Stair Climber\")" >&2; exit 2; }
+# letters, digits, spaces and a little punctuation: it goes into a sed replacement and a markdown heading
+[[ -z "$name" || "$name" =~ ^[[:alnum:]][[:alnum:]\ \'.-]{0,40}$ ]] || { echo "bin/release: a release name is letters, digits, spaces, ' . or -, up to 41 characters" >&2; exit 2; }
+# "1.7.12 — Stair Climber", or just "1.7.12"
+label="$version${name:+ — $name}"
 profile="${NOTARY_PROFILE:-nxplay-notary}"
 app_name="NX Play"
 out="build/release"
@@ -34,7 +40,7 @@ identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer 
 team="$(sed -n 's/.*(\([A-Z0-9]*\))$/\1/p' <<< "$identity")"
 xcrun notarytool history --keychain-profile "$profile" > /dev/null 2>&1 \
   || die "no notarytool profile '$profile': xcrun notarytool store-credentials $profile --apple-id <Apple ID> --team-id $team"
-echo "  version $version, signed by $identity, notarized with profile $profile"
+echo "  version $label, signed by $identity, notarized with profile $profile"
 
 # from here on, any exit before publishing (a failed step, die, Ctrl-C) puts project.yml and CHANGELOG.md back
 restore() { git checkout -q -- project.yml CHANGELOG.md; }
@@ -50,8 +56,8 @@ build_number=$(( $(sed -n 's/^ *CURRENT_PROJECT_VERSION: "\([0-9]*\)"/\1/p' proj
 sed -i '' -E "s/^( *MARKETING_VERSION: )\"[^\"]*\"/\1\"$version\"/; s/^( *CURRENT_PROJECT_VERSION: )\"[0-9]*\"/\1\"$build_number\"/" project.yml
 sed -i '' "s/^## Unreleased$/## Unreleased\\
 \\
-## $version — $(date +%Y-%m-%d)/" CHANGELOG.md
-echo "  $version ($build_number)"
+## $label — $(date +%Y-%m-%d)/" CHANGELOG.md
+echo "  $label ($build_number)"
 
 say "Build"
 rm -rf "$out"
@@ -102,7 +108,7 @@ echo "  $dmg ($(du -h "$dmg" | cut -f1))"
 
 say "Publish"
 printf '  %s\n' "${notes//$'\n'/$'\n  '}"
-read -r -p $'\nCommit, tag and publish NX Play '"$version"$' to GitHub? [y/N] ' answer
+read -r -p $'\nCommit, tag and publish NX Play '"$label"$' to GitHub? [y/N] ' answer
 if [[ "$answer" != [yY] ]]; then
   restore
   finished=1
@@ -111,8 +117,8 @@ if [[ "$answer" != [yY] ]]; then
 fi
 finished=1
 git add project.yml CHANGELOG.md
-git commit -q -m "Release $version [skip ci]"
-git tag -a "v$version" -m "NX Play $version"
+git commit -q -m "Release $label [skip ci]"
+git tag -a "v$version" -m "NX Play $label"
 git push -q origin main "v$version"
-gh release create "v$version" "$dmg" --title "NX Play $version" --notes "$notes"
-echo "released: v$version"
+gh release create "v$version" "$dmg" --title "NX Play $label" --notes "$notes"
+echo "released: v$version${name:+ ($name)}"

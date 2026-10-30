@@ -63,6 +63,17 @@ struct ChangelogTests {
         #expect(log.releases(after: "1.8.0").isEmpty)
     }
 
+    /// bin/release <version> <name>: the name sits between the version and the date.
+    @Test func aNamedReleaseKeepsItsVersion() {
+        let log = Changelog(
+            markdown:
+                "## 1.7.12 — Stair Climber — 2026-10-31\n\n### Added\n\n- One.\n\n## 1.7.11 — 2026-10-30\n\n- Two.\n"
+        )
+        #expect(log.sections.map(\.version) == ["1.7.12", "1.7.11"])
+        #expect(log.sections[0].title == "1.7.12 — Stair Climber — 2026-10-31")
+        #expect(log.releases(after: "1.7.11").sections.map(\.version) == ["1.7.12"])
+    }
+
     @Test func releaseNotesAreOneUntitledSection() {
         let log = Changelog(markdown: "### Added\n\n- One.\n- Two.\n")
         #expect(log.sections.count == 1 && log.sections[0].title.isEmpty)
