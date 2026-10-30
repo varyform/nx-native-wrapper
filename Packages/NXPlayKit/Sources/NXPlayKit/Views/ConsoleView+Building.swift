@@ -32,6 +32,10 @@ struct BuildRing: View {
                         ],
                         center: .center, angle: .degrees(reduceMotion ? 0 : turn * 360)),
                     lineWidth: lineWidth)
+                // set every frame: an animation from around it (a phase animator, a selection's spring) would start
+                // one more per frame, and SwiftUI keeps a retargeted animation's whole history until it settles, which
+                // it never does here; the list grew until the main thread did nothing else (a hang while moving round)
+                .transaction { $0.animation = nil }
         }
         .allowsHitTesting(false)
     }
@@ -95,11 +99,6 @@ struct OffscreenBuild: View {
         .foregroundStyle(.white)
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 22).fill(.black.opacity(0.6)))
-        .phaseAnimator(reduceMotion ? [0.0] : [0.0, 6.0]) { marker, nudge in
-            marker.offset(x: toLeft ? -nudge : nudge)
-        } animation: { _ in
-            .easeInOut(duration: 0.7)
-        }
         .contentShape(.rect)
         .onTapGesture { library.selection = game.id }
         .help("\(game.name): show it")
@@ -107,7 +106,13 @@ struct OffscreenBuild: View {
         .accessibilityAddTraits(.isButton)
     }
 
+    /// The arrow alone nudges toward the game, by the clock: a phase animator round the marker animated the ring inside
+    /// it every frame (see BuildRing).
     private var arrow: some View {
-        Image(systemName: toLeft ? "chevron.left" : "chevron.right").font(.title.weight(.bold))
+        TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let nudge = reduceMotion ? 0 : 3 + 3 * sin(timeline.date.timeIntervalSinceReferenceDate * 4.5)
+            Image(systemName: toLeft ? "chevron.left" : "chevron.right").font(.title.weight(.bold))
+                .offset(x: toLeft ? -nudge : nudge)
+        }
     }
 }
