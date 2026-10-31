@@ -157,7 +157,7 @@ public struct CleanupView: View {
         }
         if kinds.contains(.builds) {
             text +=
-                " A game without its build is built again from its game files the next time you play it, which takes as long as its first build. Its saves stay."
+                " A game without its build is built again from its game files the next time you play it, which takes as long as its first build. Its saves and cheats stay."
         }
         return text
     }
@@ -197,7 +197,7 @@ extension CleanupKind {
         switch self {
         case .gameFiles:
             "NSP, NSZ, XCI, XCZ, NUP of games built for the Mac: they keep playing, but can't be rebuilt."
-        case .builds: "Play builds them again from the game files; saves stay."
+        case .builds: "Play builds them again from the game files; saves and cheats stay."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
         case .macApps:

@@ -121,11 +121,12 @@ public enum CleanupScanner {
     }
 
     /// What removing a build deletes: everything in `<id>_build` but the saves (`run/save*`: the save, the device
-    /// save, their cloud sync record and backups), which nothing can make again, when it was last played (Console
-    /// Mode's order), and what Free Up Space lists on its own: the NSPs converted from NSZ (`nsp/`) and the Xcode
+    /// save, their cloud sync record and backups) and the cheats (`cheats/`), which nothing can make again, when it was
+    /// last played (Console Mode's order), and what Free Up Space lists on its own: the NSPs converted from NSZ (`nsp/`) and the Xcode
     /// build.
     static func buildContents(_ build: URL) -> [URL] {
-        let kept: Set<String> = ["run", "nsp", "xcode-derived-data"]
+        // the cheats (nxnative's cheat files and the player's toggles) stay with the saves
+        let kept = GameScanner.playerData.union(["nsp", "xcode-derived-data"])
         let run = build.appending(path: "run", directoryHint: .isDirectory)
         return GameScanner.children(of: build).filter { !kept.contains($0.lastPathComponent) }
             + GameScanner.children(of: run).filter {

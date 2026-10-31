@@ -68,6 +68,12 @@ public struct Game: Identifiable, Hashable, Sendable {
     /// The Mac host's save (DM_SAVE in the launcher), kept from run to run.
     public var saveFolder: URL? { existingFolder("run/save") }
 
+    /// nxnative's cheats folder (DM_CHEATS, which nxplay points here): cheat files by build ID and the player's
+    /// toggles. Nil until there is a build; it may not exist yet, as only the game window's Cheats panel makes it.
+    public var cheatsFolder: URL? {
+        buildFolder?.appending(path: "cheats", directoryHint: .isDirectory)
+    }
+
     private func existingFolder(_ path: String) -> URL? {
         guard let folder = buildFolder?.appending(path: path, directoryHint: .isDirectory),
             FileManager.default.fileExists(atPath: folder.path)

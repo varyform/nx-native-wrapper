@@ -21,6 +21,7 @@ import Testing
         try write("Ready/0100000000010000_build/run/save_device/system.bin", size: 50)
         try write("Ready/0100000000010000_build/run/temp/cache.bin", size: 900)
         try write("Ready/0100000000010000_build/run/pso_user.tsv", size: 10)
+        try write("Ready/0100000000010000_build/cheats/0123456789ABCDEF.txt", size: 20)
         try write(
             "Ready/0100000000010000_build/xcode-derived-data/Build/Products/DmIOS.app/romfs/a.bin",
             size: 6000)
@@ -184,6 +185,7 @@ import Testing
         #expect(cleanup.phase == .done(count: 1, size: build.size))
         for kept in [
             "run/save/progress.bin", "run/save_device/system.bin", "nsp", "xcode-derived-data",
+            "cheats/0123456789ABCDEF.txt",
         ] {
             #expect(
                 FileManager.default.fileExists(atPath: folder.appending(path: kept).path), "\(kept)"

@@ -5,7 +5,8 @@ import Foundation
 /// app; anything else the player keeps there (a mod, notes) stays, and the folder goes only once it is empty.
 ///
 /// The saves stay unless the player asks otherwise: in the build's `run/` (the save, the device save, their backups
-/// and cloud-sync record, and when it was last played), which the library doesn't count as a game on its own. Put the
+/// and cloud-sync record, and when it was last played), with the build's `cheats/` (cheat files the player imported
+/// and their toggles), which the library doesn't count as a game on its own. Put the
 /// game files back in the folder and the game plays on from them.
 public struct GameRemoval: Sendable {
     public let game: Game
@@ -48,6 +49,7 @@ public struct GameRemoval: Sendable {
                 .filter {
                     $0.lastPathComponent.hasPrefix("save") || $0.lastPathComponent == "last_played"
                 }
+                + GameScanner.children(of: build).filter { $0.lastPathComponent == "cheats" }
         }
         self.saves = saves
         // what's ours goes whole, but a build whose saves stay: everything in it except them
@@ -56,7 +58,9 @@ public struct GameRemoval: Sendable {
             removesSaves
             ? []
             : builds.flatMap { build in
-                GameScanner.children(of: build).filter { $0.lastPathComponent != "run" }
+                GameScanner.children(of: build).filter {
+                    !GameScanner.playerData.contains($0.lastPathComponent)
+                }
                     + GameScanner.children(
                         of: build.appending(path: "run", directoryHint: .isDirectory)
                     ).filter { !saves.contains($0) }

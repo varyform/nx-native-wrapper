@@ -121,6 +121,15 @@ struct GameActions: View {
                     NSWorkspace.shared.open(save)
                 }
             }
+            // nxnative's cheat files (<build ID>.txt) and toggles; a file dropped in loads at the next start. Made here
+            // when missing: a first cheat file needs somewhere to go before the game has run with any
+            if let cheats = game?.cheatsFolder {
+                Button("Open Cheats Folder", systemImage: "wand.and.stars") {
+                    try? FileManager.default.createDirectory(
+                        at: cheats, withIntermediateDirectories: true)
+                    NSWorkspace.shared.open(cheats)
+                }
+            }
             if let logs = game?.logsFolder {
                 Button("Open Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
             }

@@ -20,6 +20,8 @@ import Testing
             "Fake/\(id)_build/extract/v0/icon.jpg", "Fake/\(id)_build/start_mac.sh",
             "Fake/\(id)_build/run/save/progress.bin", "Fake/\(id)_build/run/save_device/sys.bin",
             "Fake/\(id)_build/run/last_played", "Fake/\(id)_build/run/temp/cache.bin",
+            "Fake/\(id)_build/cheats/0123456789ABCDEF.txt",
+            "Fake/\(id)_build/cheats/0123456789ABCDEF.enabled",
             "Fake/Notes.txt",
         ] {
             try write(root.appending(path: path))
@@ -47,7 +49,8 @@ import Testing
         let build = "Fake/\(Self.id)_build"
         for kept in [
             "Fake/Notes.txt", "\(build)/run/save/progress.bin", "\(build)/run/save_device/sys.bin",
-            "\(build)/run/last_played",
+            "\(build)/run/last_played", "\(build)/cheats/0123456789ABCDEF.txt",
+            "\(build)/cheats/0123456789ABCDEF.enabled",
         ] {
             #expect(exists(kept), "\(kept)")
         }
@@ -60,7 +63,7 @@ import Testing
         }
         // the Mac app's save stays too
         #expect(FileManager.default.fileExists(atPath: removal.appData!.path))
-        // the saves left behind aren't a game in the library
+        // the saves and cheats left behind aren't a game in the library
         #expect(GameScanner.scan(root: root).isEmpty)
     }
 
@@ -70,6 +73,8 @@ import Testing
         let back = try #require(GameScanner.scan(root: root).first)
         #expect(back.titleID == Self.id && back.state == .notExtracted)
         #expect(exists("Fake/\(Self.id)_build/run/save/progress.bin"))
+        // its cheats wait for it too
+        #expect(exists("Fake/\(Self.id)_build/cheats/0123456789ABCDEF.txt"))
     }
 
     @Test func removingTheSavesTooEmptiesTheFolder() throws {

@@ -4,6 +4,14 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Game › Open Cheats Folder** opens a built game's cheats folder (`<title ID>_build/cheats`), so you can put a downloaded `<build ID>.txt` there. It loads the next time the game starts.
+
+### Fixed
+
+- **Removing a build no longer deletes a game's cheats:** Free Up Space keeps the cheat files and your choices of which are on, like the saves, and so does Remove Game unless you also remove the saves.
+
 ## 1.8.3 — 2026-11-05
 
 ### Added

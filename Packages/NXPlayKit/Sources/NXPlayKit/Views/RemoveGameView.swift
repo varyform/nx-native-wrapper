@@ -102,6 +102,11 @@ struct RemoveGameView: View {
         .font(.callout)
     }
 
+    /// The game has a cheats folder, which goes or stays with the saves.
+    private func cheats(_ removal: GameRemoval) -> Bool {
+        removal.saves.contains { $0.lastPathComponent == "cheats" }
+    }
+
     private func saves(_ removal: GameRemoval) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Also remove its saves", isOn: $removesSaves)
@@ -114,14 +119,14 @@ struct RemoveGameView: View {
                 .labelsHidden()
                 Text(
                     removal.appData == nil
-                        ? "The saves are deleted with the rest."
-                        : "The saves are deleted with the rest, and so is the Mac app's own save."
+                        ? "The saves are deleted with the rest\(cheats(removal) ? ", and so are its cheats" : "")."
+                        : "The saves are deleted with the rest, and so is the Mac app's own save\(cheats(removal) ? ", and its cheats" : "")."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
             } else {
                 Text(
-                    "Its saves stay in the folder (\(game.buildFolder?.lastPathComponent ?? "the build")/run). Put the game files back in it and the game plays on from them."
+                    "Its saves stay in the folder (\(game.buildFolder?.lastPathComponent ?? "the build")/run)\(cheats(removal) ? ", and so do its cheats" : ""). Put the game files back in it and the game plays on from them."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

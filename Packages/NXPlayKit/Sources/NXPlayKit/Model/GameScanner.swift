@@ -97,7 +97,7 @@ public enum GameScanner {
         let nacpURL: URL?
         let isReady: Bool
         let modified: Date
-        /// More than the run folder (saves and caches): something extracted or built.
+        /// More than the player's data (the run folder's saves and caches, the cheats): something extracted or built.
         let hasContent: Bool
 
         var rank: Int { isReady ? 2 : extract != nil ? 1 : 0 }
@@ -121,9 +121,16 @@ public enum GameScanner {
             modified =
                 (try? folder.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
-            hasContent = GameScanner.children(of: folder).contains { $0.lastPathComponent != "run" }
+            hasContent = GameScanner.children(of: folder).contains {
+                !GameScanner.playerData.contains($0.lastPathComponent)
+            }
         }
     }
+
+    /// What a build folder holds of the player's own, which removing the build keeps: `run` (the saves) and `cheats`
+    /// (nxnative's cheat files and the player's toggles, at `<DM_ROOT>/cheats`: the build folder is `DM_ROOT` in
+    /// start_mac.sh).
+    static let playerData: Set<String> = ["run", "cheats"]
 
     /// nxnative's app: `<game name>.app` with its Mac host inside, not any app that happens to be there.
     static func isMacApp(_ url: URL) -> Bool {
