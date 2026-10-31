@@ -6,6 +6,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Play opens the game's Mac app** when it has one ([#6](https://github.com/varyform/nx-native-wrapper/issues/6)), so the Dock shows the game's name and icon instead of "dmhost". The app plays with the game's save and cheats from its folder, so your progress carries over, and with NX Play's game settings. An app packed with older nxnative code than the game's current build isn't used until Make Mac App packs it again; Play uses the build meanwhile. Games without an app play as before.
+
+- **The Mac app shares the save when opened from Finder too:** NX Play points it at the game's save through the app's `env.txt`. An app that already has a save of its own keeps it, and the log says so. Turn on cloud saves in NX Play and in the app's settings window to keep the two in step.
+
 - **Free Up Space removes Mac apps:** the apps Make Mac App packed into game folders are listed under **Mac apps**, and removing one takes nxnative's `.app.key` beside it too. An app is made of APFS clones of its build, so Finder may show it at several GB while deleting it frees much less, such as 30 MB for a 4.9 GB app. The size listed is what deleting it actually frees. Make Mac App makes it again, and the app's own save stays.
 
 ## 1.7.12 — Stair Climber — 2026-10-31

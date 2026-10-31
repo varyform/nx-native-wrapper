@@ -80,6 +80,59 @@ find_launcher() {
   echo "$best"
 }
 
+# The game's Mac app (Make Mac App): <game name>.app in the game folder with the Mac host inside, not any app that
+# happens to be there. The newest one.
+find_app() {
+  local best="" a
+  for a in "$game"/*.app; do
+    [[ -x "$a/Contents/MacOS/dmhost" && -x "$a/Contents/MacOS/nxnative" ]] || continue
+    [[ -z "$best" || "$a" -nt "$best" ]] && best="$a"
+  done
+  echo "$best"
+}
+
+plist() { /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist" 2> /dev/null; }
+
+# Whether Play may start the app instead of the launcher: the app runs the same nxnative code as the build or newer.
+# --mac-app records the code it packed with in <title ID>_build/app.tree; an app packed before that is current when
+# it is newer than the launcher. After an nxnative update the build is rebuilt and the app, still on the old code,
+# is not current until Make Mac App packs it again.
+app_is_current() {
+  local app="$1" launcher="$2" tree built
+  tree="$(cat "$(dirname "$launcher")/app.tree" 2> /dev/null || true)"
+  built="$(sed -n 's/^# nxnative tree //p' "$launcher")"
+  if [[ -n "$tree" ]]; then
+    [[ "$tree" == "$built" || "$tree" == "$(git -C "$repo" rev-parse 'HEAD^{tree}' 2> /dev/null)" ]]
+  else
+    [[ "$app/Contents/Info.plist" -nt "$launcher" ]]
+  fi
+}
+
+# The app opened from Finder or the Dock keeps its save in ~/Library/Application Support/nxnative/<title ID>/save,
+# until nxnative's dataFolder (seedds/nxnative#460). Its launcher reads that folder's env.txt, and a variable there
+# that the launch environment leaves unset wins over its own folder: pointed at the game's save and cheats, a start
+# from Finder plays on from the same save as NX Play. Not when the app already has a save of its own (two saves with
+# their own progress: cloud saves keep them in step) or the player set DM_SAVE there; the player's other lines stay.
+# Written again at each play, so a moved library is followed at its next play.
+share_save() {
+  local app="$1" build="$2" id sup env mark="# nxplay: the save NX Play plays this game with"
+  id="$(plist "$app" DMTitleID)"
+  [[ -n "$id" ]] || return 0
+  sup="$HOME/Library/Application Support/nxnative/$id"
+  env="$sup/env.txt"
+  if ! grep -qF "$mark" "$env" 2> /dev/null; then
+    if grep -q '^DM_SAVE=' "$env" 2> /dev/null; then return 0; fi
+    if [[ -n "$(find "$sup/save" "$sup/save_device" -type f 2> /dev/null | head -1)" ]]; then
+      echo "nxplay: $(basename "$app") opened from Finder keeps its own save ($sup/save); turn on cloud saves in NX Play and in the app's settings window to keep the two in step"
+      return 0
+    fi
+  fi
+  mkdir -p "$sup"
+  { grep -vF "$mark" "$env" 2> /dev/null | grep -v -e '^DM_SAVE=' -e '^DM_CHEATS=' || true
+    printf '%s\nDM_SAVE=%s\nDM_CHEATS=%s\n' "$mark" "$build/run/save" "$build/cheats"; } > "$env.tmp"
+  mv -f "$env.tmp" "$env"
+}
+
 # The game's settings as nxnative lists them for its Mac app (dm/games/settings.py, a Mac app's launcher.json), beside
 # the launcher, for NX Play's Game Settings: written again whenever the launcher is newer. The inputs are the build's
 # own: its rewritten modules (the launcher's last word), the control data of that version, the graphics API its
@@ -242,13 +295,24 @@ if [[ $mac_app -eq 1 ]]; then
   out="$(mktemp -t nxplay-macapp)"
   trap 'rm -f "$out"' EXIT
   pack() { python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@" 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
-  if pack "$@"; then exit 0; fi
+  # the code it was packed with, for Play (app_is_current), and the save a Finder start plays with
+  packed() {
+    local app build
+    app="$(find_app)"
+    [[ -n "$app" ]] || return 0
+    build="$game/$(plist "$app" DMTitleID)_build"
+    [[ -d "$build" ]] || return 0
+    git -C "$repo" rev-parse 'HEAD^{tree}' > "$build/app.tree" 2> /dev/null || true
+    share_save "$app" "$build"
+  }
+  if pack "$@"; then packed; exit 0; fi
   # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
   # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
   if grep -q 'pso_offline: no base to build' "$out"; then
     echo "nxplay: no pipeline bases to prepare for this game; packing the app without a pipeline archive"
-    pack --gpu none "$@"
-    exit
+    pack --gpu none "$@" || exit 1
+    packed
+    exit 0
   fi
   exit 1
 fi
@@ -353,8 +417,6 @@ start() {
   echo "nxplay: starting the game"
   if [[ $fps -eq 1 ]]; then export DM_METAL_HUD=1; fi
   if [[ $fullscreen -eq 1 ]]; then export DM_FULLSCREEN=1; fi
-  # NX Play orders Console Mode by the last play: marked at the start and, through the EXIT trap, at the end,
-  # however the game ends (quit, crash, NX Play's stop). Hence no exec: bash stays to run the trap.
   if [[ -n "${DM_SAVE_SYNC:-}" && "$DM_SAVE_SYNC" != 0 ]]; then echo "cloud saves: $DM_SAVE_SYNC"; fi
   # the player's choices NX Play passes in the environment (Game Settings), named in NXPLAY_SETTINGS: said in the log
   if [[ -n "${NXPLAY_SETTINGS:-}" ]]; then
@@ -362,10 +424,18 @@ start() {
     for v in $NXPLAY_SETTINGS; do [[ "$v" =~ ^DM_[A-Z0-9_]+$ ]] && printf ' %s=%s' "$v" "${!v:-}"; done
     echo
   fi
+  # NX Play orders Console Mode by the last play: marked at the start and, through the EXIT trap, at the end,
+  # however the game ends (quit, crash, NX Play's stop). Hence no exec: bash stays to run the trap.
   played="$(dirname "$1")/run/last_played"
   mkdir -p "$(dirname "$played")"
   touch "$played"
-  trap 'touch "$played"' EXIT
+  trap 'touch "$played"; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2> /dev/null; true' EXIT
+  local app
+  app="$(find_app)"
+  if [[ -n "$app" ]]; then
+    if app_is_current "$app" "$1"; then start_app "$app" "$1"; fi
+    echo "nxplay: $(basename "$app") was packed with older nxnative code than this build: playing the build (Make Mac App packs it again)"
+  fi
   if [[ -n "$lang" ]]; then
     # the launcher sets DM_LANG inline, which beats the environment: swap the value in its command
     echo "game language: $lang"
@@ -375,6 +445,28 @@ start() {
     bash "$1"
   fi
   exit
+}
+
+# Plays the game through its Mac app, so the Dock shows the game's own name and icon: its launcher
+# (Contents/MacOS/nxnative) started the way nxnative's front-end docs describe (docs/frontends.md, Starting a game),
+# without its settings window (DM_LAUNCHER=0: NX Play's settings come in the environment, over the app's saved
+# choices), with the game's save and cheats rather than the app's own: the launcher sets DM_SAVE only when the launch
+# environment hasn't. The launcher writes the game's output to its log, which is followed here for NX Play's log.
+start_app() {
+  local app="$1" build id log code=0
+  build="$(dirname "$2")"
+  id="$(plist "$app" DMTitleID)"
+  mkdir -p "$build/run/save"
+  share_save "$app" "$build"
+  export DM_LAUNCHER=0 DM_SAVE="$build/run/save" DM_CHEATS="$build/cheats"
+  if [[ -n "$lang" ]]; then echo "game language: $lang"; export DM_LANG="$lang"; fi
+  echo "playing through $(basename "$app")"
+  log="$HOME/Library/Logs/nxnative/$id.log"
+  tail -q -n 0 -F "$log" 2> /dev/null &
+  tail_pid=$!
+  "$app/Contents/MacOS/nxnative" || code=$?
+  sleep 0.3   # the last lines
+  exit "$code"
 }
 
 # The launcher records the nxnative code it was built with: when that is not the checkout's, rebuild, whichever run
