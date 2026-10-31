@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.13 — 2026-11-01
+
 ### Added
 
 - **Play opens the game's Mac app** when it has one ([#6](https://github.com/varyform/nx-native-wrapper/issues/6)), so the Dock shows the game's name and icon instead of "dmhost". The app plays with the game's save and cheats from its folder, so your progress carries over, and with NX Play's game settings. An app packed with older nxnative code than the game's current build isn't used until Make Mac App packs it again; Play uses the build meanwhile. Games without an app play as before.
