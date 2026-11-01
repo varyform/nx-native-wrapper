@@ -96,13 +96,16 @@ plist() { /usr/libexec/PlistBuddy -c "Print :$2" "$1/Contents/Info.plist" 2> /de
 # Whether Play may start the app instead of the launcher: the app runs the same nxnative code as the build or newer.
 # --mac-app records the code it packed with in <title ID>_build/app.tree; an app packed before that is current when
 # it is newer than the launcher. After an nxnative update the build is rebuilt and the app, still on the old code,
-# is not current until Make Mac App packs it again.
+# is packed again with it (the end of this script); until then it isn't current.
 app_is_current() {
-  local app="$1" launcher="$2" tree built
-  tree="$(cat "$(dirname "$launcher")/app.tree" 2> /dev/null || true)"
+  local app="$1" launcher="$2" record tree built
+  record="$(dirname "$launcher")/app.tree"
+  tree="$(cat "$record" 2> /dev/null || true)"
   built="$(sed -n 's/^# nxnative tree //p' "$launcher")"
   if [[ -n "$tree" ]]; then
-    [[ "$tree" == "$built" || "$tree" == "$(git -C "$repo" rev-parse 'HEAD^{tree}' 2> /dev/null)" ]]
+    # the same code, or newer: packed after the build (Make Mac App after an nxnative update), as the checkout only
+    # moves forward. NX Play's out-of-date badge decides the same way (GameScanner.isOutdated)
+    [[ "$tree" == "$built" || "$record" -nt "$launcher" ]]
   else
     [[ "$app/Contents/Info.plist" -nt "$launcher" ]]
   fi

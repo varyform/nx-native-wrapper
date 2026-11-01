@@ -100,8 +100,16 @@ import Testing
 
         try Data("aaa\n".utf8).write(to: build.appending(path: "app.tree"))
         #expect(!outdated())
-        try Data("bbb\n".utf8).write(to: build.appending(path: "app.tree"))
+        // other code, packed before the build: the build is newer
+        let tree = build.appending(path: "app.tree")
+        try Data("bbb\n".utf8).write(to: tree)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(-3600)], ofItemAtPath: tree.path)
         #expect(outdated())
+        // packed after the build (Make Mac App after an nxnative update, before the rebuild): the app is newer
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(3600)], ofItemAtPath: tree.path)
+        #expect(!outdated())
         // from before app.tree: older than the launcher
         try FileManager.default.removeItem(at: build.appending(path: "app.tree"))
         try FileManager.default.setAttributes(

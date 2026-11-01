@@ -124,14 +124,21 @@ public enum GameScanner {
     static func isOutdated(app: URL, build: URL) -> Bool {
         let launcher = build.appending(path: launcherName)
         guard FileManager.default.fileExists(atPath: launcher.path) else { return false }
-        if let packed = try? String(contentsOf: build.appending(path: "app.tree"), encoding: .utf8)
-            .trimmingCharacters(in: .whitespacesAndNewlines), !packed.isEmpty
-        {
-            return ProfileNews.builtTree(build).map { $0 != packed } ?? false
-        }
         func modified(_ url: URL) -> Date? {
             (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate
+        }
+        let tree = build.appending(path: "app.tree")
+        if let packed = try? String(contentsOf: tree, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !packed.isEmpty
+        {
+            guard let built = ProfileNews.builtTree(build), built != packed else { return false }
+            // other code: the older of the two has it, as the checkout only moves forward. An app packed after the build
+            // (Make Mac App after an nxnative update) runs newer code, and nxplay plays it (the checkout's code too)
+            guard let packedAt = modified(tree), let builtAt = modified(launcher) else {
+                return true
+            }
+            return packedAt < builtAt
         }
         guard let packed = modified(app.appending(path: "Contents/Info.plist")),
             let built = modified(launcher)
