@@ -4,6 +4,14 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **NX Play's own lines in the log are blue**, so they stand apart from nxnative's output: which save a play uses, the game settings it passes, nxnative updates, rebuilds and the like. `nxplay` in a terminal does the same; set `NO_COLOR` to turn it off.
+
+### Fixed
+
+- **Play asks which save to use when the Mac app has its own** ([#8](https://github.com/varyform/nx-native-wrapper/issues/8)): a Mac app opened from Finder before NX Play shared its save keeps a save of its own. Play used to start the app with NX Play's save without saying so, so progress made in the app looked gone. While the two saves differ, Play now asks: **NX Play's save**, **the Mac app's save**, or **the newer one**. Nothing is copied or deleted; the other save stays as it is. Tick **Don't ask again** to keep the answer for the game, and use **Ask Again** in Game Settings to undo it. In Console Mode the controller answers. The log now names the save each play uses.
+
 ## 1.7.15 — 2026-11-01
 
 ### Fixed

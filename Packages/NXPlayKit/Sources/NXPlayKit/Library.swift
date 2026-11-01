@@ -33,6 +33,7 @@ public final class Library {
         static let consoleMode = "consoleMode"
         static let controllerPlayers = "controllerPlayers"
         static let globalSettings = "globalSettings"
+        static let saveChoices = "appSaveChoices"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -109,6 +110,12 @@ public final class Library {
     public var problem: String?
     /// The save transfer sheet, when open.
     public var transfer: SaveTransfer?
+    /// A play waiting for the player to choose between NX Play's save and the Mac app's own (Library+AppSave.swift).
+    public var saveQuestion: SaveQuestion?
+    /// The save choices kept with "Don't ask again", by title ID; Game Settings asks again.
+    public internal(set) var saveChoices: [String: SaveChoice] {
+        didSet { defaults.set(saveChoices.mapValues(\.rawValue), forKey: Keys.saveChoices) }
+    }
     /// Console Mode: the window full screen, the games as a carousel for the couch and a controller.
     public var consoleMode = false {
         // the carousel starts at the game played last
@@ -220,6 +227,9 @@ public final class Library {
                 ControllerPlayers.init(rawValue:))
             ?? .each
         globalChoices = Self.loadGlobalChoices(defaults)
+        saveChoices =
+            (defaults.dictionary(forKey: Keys.saveChoices) as? [String: String] ?? [:])
+            .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
 
         teamID = defaults.string(forKey: Keys.team) ?? ""
@@ -517,7 +527,6 @@ public final class Library {
 
     // MARK: - Jobs
 
-    public func play(_ game: Game) { run(.play, game) }
     public func extract(_ game: Game) { run(.extract, game) }
     public func rebuild(_ game: Game) { run(.rebuild, game) }
     public func buildIPA(_ game: Game) { run(.ipa, game) }
@@ -648,6 +657,10 @@ public final class Library {
         // the couch has no use for the pointer: hidden while the controller or the keys drive Console Mode, back as
         // soon as the mouse moves
         if consoleMode || command == .menu { NSCursor.setHiddenUntilMouseMoves(true) }
+        if saveQuestion != nil {
+            handleSaveQuestion(command)
+            return
+        }
         if consoleMode, showsUpdate, command != .menu {
             handleUpdate(command)
             return
@@ -690,20 +703,23 @@ public final class Library {
         game.isExtracted ? play(game) : extract(game)
     }
 
-    func run(_ kind: Job.Kind, _ game: Game, select: Bool = true) {
+    /// `appSave`: a play with the Mac app's own save (NXPLAY_SAVE=app), the folder its backup follows.
+    func run(_ kind: Job.Kind, _ game: Game, select: Bool = true, appSave: URL? = nil) {
         guard !isBusy(game) else { return }
         if game.isKept, kind.rewritesTheMacBuild {
             problem = Self.keptBuildProblem
             return
         }
-        guard let command = command(kind, game) else { return }
+        guard var command = command(kind, game) else { return }
+        // spelled out either way, so the shell's environment can't decide
+        if kind == .play { command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app" }
         let job = Job(kind: kind, game: game, command: command)
         job.onFinish = { [weak self] job in self?.finished(job) }
         jobs[game.id] = job
         if select { selection = game.id }
         if kind == .play {
             job.start()
-            if let repo = saveBackupRepository { saveBackup.watch(job, into: repo) }
+            if let repo = saveBackupRepository { saveBackup.watch(job, into: repo, save: appSave) }
         } else {
             queue.append(job)
             startNextExtraction()

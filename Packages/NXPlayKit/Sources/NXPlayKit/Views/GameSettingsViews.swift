@@ -84,6 +84,9 @@ struct GameSettingsSheet: View {
                 )
                 .frame(maxHeight: .infinity)
             }
+            if let choice = library.saveChoice(for: game) {
+                SaveChoiceRow(choice: choice) { library.forgetSaveChoice(for: game) }
+            }
             Divider()
             HStack {
                 Button("Use Global Settings") { list.map { library.clearOwn($0, for: game) } }
@@ -105,6 +108,30 @@ struct GameSettingsSheet: View {
         .task {
             _ = await library.loadGameSettings(for: game)
             loading = false
+        }
+    }
+}
+
+/// The save Play uses, kept with "Don't ask again" when the game's Mac app has a save of its own (SaveChoiceView).
+private struct SaveChoiceRow: View {
+    let choice: SaveChoice
+    let askAgain: () -> Void
+
+    var body: some View {
+        HStack {
+            Label(text, systemImage: "externaldrive")
+            Spacer()
+            Button("Ask Again", action: askAgain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var text: String {
+        switch choice {
+        case .nxplay: "Play uses NX Play\u{2019}s save, not the Mac app\u{2019}s own."
+        case .app: "Play uses the Mac app\u{2019}s own save, not NX Play\u{2019}s."
+        case .newer: "Play uses whichever save is newer: NX Play\u{2019}s or the Mac app\u{2019}s own."
         }
     }
 }

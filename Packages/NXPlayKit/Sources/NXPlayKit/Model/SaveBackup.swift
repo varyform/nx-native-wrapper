@@ -13,14 +13,16 @@ final class SaveBackup {
 
     /// Follows a play until it ends. Polling rather than file events: the save folder may not exist yet (a first play
     /// builds the game, then the game makes it), and a write in progress has to settle before it is copied anyway.
-    func watch(_ job: Job, into repo: URL, interval: Duration = SaveBackup.interval) {
+    /// `save`: the folder the play uses instead of the build's (the Mac app's own save, Library+AppSave.swift).
+    func watch(_ job: Job, into repo: URL, save: URL? = nil, interval: Duration = SaveBackup.interval) {
         let game = job.game
+        let saveFolder: @Sendable () -> URL? = { save ?? Self.saveFolder(of: game) }
         guard watches[game.id] == nil, let folder = Self.folderName(for: game) else { return }
         watches[game.id] = Task { [weak self, repository] in
             var settle = SaveSettle()
             while job.status.isActive {
                 try? await Task.sleep(for: interval)
-                let save = Self.saveFolder(of: game)
+                let save = saveFolder()
                 let print = await Task.detached { save.map(SaveSettle.fingerprint) }.value
                 guard settle.changed(print), let save else { continue }
                 let note = await repository.backUp(
@@ -28,7 +30,7 @@ final class SaveBackup {
                 if let note { job.note(note) }
             }
             // the game has quit: its last writes are complete
-            if let save = Self.saveFolder(of: game),
+            if let save = saveFolder(),
                 let note = await repository.backUp(
                     save, into: repo, folder: folder, game: game.name)
             {

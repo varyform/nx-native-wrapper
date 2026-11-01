@@ -22,7 +22,9 @@
 # env:   NXNATIVE (repository; default ./nxnative in this checkout, as bin/setup clones it, else ../nxnative beside it),
 #        NXPLAY_VENV (Python environment; default .venv in this checkout, made by bin/setup), NX_KEYS (default ~/.switch/prod.keys),
 #        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
-#        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts)
+#        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
+#        NXPLAY_SAVE (app: play on from the Mac app's own save, ~/Library/Application Support/nxnative/<title ID>/save,
+#        instead of the build's run/save; NX Play asks which when the two differ)
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,12 +33,22 @@ elif [[ -d "$here/nxnative" ]]; then repo="$here/nxnative"
 else repo="$here/../nxnative"; fi
 keys="${NX_KEYS:-$HOME/.switch/prod.keys}"
 
+# nxplay's own lines in blue, set apart from nxnative's output around them: in a terminal and in NX Play's log
+# (NXPLAY_PROGRESS=json), not in a file or a pipe; NO_COLOR turns it off
+if [[ -z "${NO_COLOR:-}" && ( -t 1 || "${NXPLAY_PROGRESS:-}" == json ) ]]; then
+  blue=$'\e[34m' plain=$'\e[0m'
+else
+  blue="" plain=""
+fi
+say() { printf '%s%s%s\n' "$blue" "$*" "$plain"; }
+warn() { say "$@" >&2; }
+
 # nxnative's Python packages live in this checkout's .venv: first on PATH, since its shell tools call a bare python3 too
 venv="${NXPLAY_VENV:-$here/.venv}"
 if [[ -x "$venv/bin/python3" ]]; then
   export VIRTUAL_ENV="$venv" PATH="$venv/bin:$PATH"
 else
-  echo "nxplay: no Python environment at $venv (run bin/setup); using $(command -v python3 || echo 'no python3')" >&2
+  warn "nxplay: no Python environment at $venv (run bin/setup); using $(command -v python3 || echo 'no python3')"
 fi
 launcher_name=start_mac.sh
 
@@ -57,11 +69,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 if [[ -n "$lang" && ! "$lang" =~ ^[A-Za-z]{2}(-[A-Za-z0-9]+)?$ ]]; then
-  echo "nxplay: --lang wants a language code such as en-US, ja or zh-Hans, not '$lang'" >&2
+  warn "nxplay: --lang wants a language code such as en-US, ja or zh-Hans, not '$lang'"
   exit 2
 fi
 if [[ -n "$device" && ! "$device" =~ ^[0-9A-Fa-f-]+$ ]]; then
-  echo "nxplay: --device wants a device UDID (xcrun devicectl list devices), not '$device'" >&2
+  warn "nxplay: --device wants a device UDID (xcrun devicectl list devices), not '$device'"
   exit 2
 fi
 if [[ $# -lt 1 ]]; then
@@ -115,10 +127,13 @@ app_is_current() {
 # until nxnative's dataFolder (seedds/nxnative#460). Its launcher reads that folder's env.txt, and a variable there
 # that the launch environment leaves unset wins over its own folder: pointed at the game's save and cheats, a start
 # from Finder plays on from the same save as NX Play. Not when the app already has a save of its own (two saves with
-# their own progress: cloud saves keep them in step) or the player set DM_SAVE there; the player's other lines stay.
-# Written again at each play, so a moved library is followed at its next play.
+# their own progress: NX Play asks which one Play uses, NXPLAY_SAVE) or the player set DM_SAVE there; the player's
+# other lines stay. Written again at each play, so a moved library is followed at its next play.
+# own_save: the app's own save, when it keeps one.
+own_save=""
 share_save() {
   local app="$1" build="$2" id sup env mark="# nxplay: the save NX Play plays this game with"
+  own_save=""
   id="$(plist "$app" DMTitleID)"
   [[ -n "$id" ]] || return 0
   sup="$HOME/Library/Application Support/nxnative/$id"
@@ -126,7 +141,7 @@ share_save() {
   if ! grep -qF "$mark" "$env" 2> /dev/null; then
     if grep -q '^DM_SAVE=' "$env" 2> /dev/null; then return 0; fi
     if [[ -n "$(find "$sup/save" "$sup/save_device" -type f 2> /dev/null | head -1)" ]]; then
-      echo "nxplay: $(basename "$app") opened from Finder keeps its own save ($sup/save); turn on cloud saves in NX Play and in the app's settings window to keep the two in step"
+      own_save="$sup/save"
       return 0
     fi
   fi
@@ -159,16 +174,16 @@ write_settings() {
     mv -f "$out.tmp" "$out"
   else
     rm -f "$out.tmp"
-    echo "nxplay: no settings list for this game (dm/games/settings.py failed); it plays with its tested settings" >&2
+    warn "nxplay: no settings list for this game (dm/games/settings.py failed); it plays with its tested settings"
   fi
 }
 
 if [[ $settings_only -eq 1 ]]; then
   launcher="$(find_launcher)"
-  if [[ -z "$launcher" ]]; then echo "nxplay: $game has no Mac build yet" >&2; exit 1; fi
+  if [[ -z "$launcher" ]]; then warn "nxplay: $game has no Mac build yet"; exit 1; fi
   write_settings "$launcher"
   [[ -f "$(dirname "$launcher")/$settings_name" ]] || exit 1
-  echo "settings: $(dirname "$launcher")/$settings_name"
+  say "settings: $(dirname "$launcher")/$settings_name"
   exit 0
 fi
 
@@ -192,17 +207,17 @@ update_nxnative() {
   git -C "$repo" fetch --quiet || return 1
   local upstream tip
   upstream="$(git -C "$repo" rev-parse '@{u}')" || return 1
-  if [[ "$upstream" == "$before" ]]; then echo "nxnative: up to date"; return 0; fi
+  if [[ "$upstream" == "$before" ]]; then say "nxnative: up to date"; return 0; fi
   if git -C "$repo" merge-base --is-ancestor HEAD '@{u}'; then
     git -C "$repo" merge --ff-only --quiet '@{u}'
     return
   fi
   if no_local_commits; then
-    echo "nxnative: upstream rewrote its history (force push); following it, no local commits to keep"
+    say "nxnative: upstream rewrote its history (force push); following it, no local commits to keep"
     git -C "$repo" reset --keep '@{u}'   # keeps uncommitted edits, refuses when the new history touches them
     return
   fi
-  echo "nxplay: $repo has commits upstream does not; merge or rebase them by hand" >&2
+  warn "nxplay: $repo has commits upstream does not; merge or rebase them by hand"
   return 1
 }
 
@@ -212,23 +227,23 @@ if update_nxnative; then
     count="$(git -C "$repo" rev-list --count "$before..HEAD")"
     # a rewrite can re-create the same code under new commit ids: nothing to rebuild then
     if [[ "$(git -C "$repo" rev-parse "$before^{tree}")" == "$(git -C "$repo" rev-parse 'HEAD^{tree}')" ]]; then
-      echo "nxnative updated: $count new commit$([[ $count == 1 ]] || echo s), same files as before, no rebuild"
+      say "nxnative updated: $count new commit$([[ $count == 1 ]] || echo s), same files as before, no rebuild"
     else
-      echo "nxnative updated: $count new commit$([[ $count == 1 ]] || echo s), rebuilding"
+      say "nxnative updated: $count new commit$([[ $count == 1 ]] || echo s), rebuilding"
       rebuild=1
     fi
     git -C "$repo" --no-pager log --no-decorate --format='  %C(yellow)%h%C(reset) %s %C(dim)(%an, %ar)%C(reset)' -n 30 "$before..HEAD"
-    if (( count > 30 )); then echo "  … and $(( count - 30 )) older"; fi
+    if (( count > 30 )); then say "  … and $(( count - 30 )) older"; fi
     # the ones for this game's profile, which a long list can bury
     for b in "$game"/*_build; do
       [[ -d "$b" ]] || continue
       ours="$(git -C "$repo" --no-pager log --no-decorate --no-merges --format='  %C(yellow)%h%C(reset) %s' "$before..HEAD" -- "dm/games/$(basename "$b" _build)")"
-      if [[ -n "$ours" ]]; then echo "for this game:"; echo "$ours"; fi
+      if [[ -n "$ours" ]]; then say "for this game:"; echo "$ours"; fi
       break
     done
   fi
 else
-  echo "nxplay: could not update $repo, going on with the current code" >&2
+  warn "nxplay: could not update $repo, going on with the current code"
 fi
 
 # nxnative's README names the Python packages its scripts import (step 1's pip install line). One added there that this
@@ -259,7 +274,7 @@ PY
 }
 missing="$(missing_packages 2>/dev/null | tr '\n' ' ' || true)"
 if [[ -n "${missing// /}" ]]; then
-  echo "nxplay: nxnative now uses Python packages this environment lacks: ${missing% }. A game whose build needs them stops there; add them with: uv pip install --python '${VIRTUAL_ENV:-$venv}' ${missing% }" >&2
+  warn "nxplay: nxnative now uses Python packages this environment lacks: ${missing% }. A game whose build needs them stops there; add them with: uv pip install --python '${VIRTUAL_ENV:-$venv}' ${missing% }"
 fi
 
 # How the build script reports its stages: NX Play reads JSON events (NXPLAY_PROGRESS=json; nxnative's
@@ -280,7 +295,7 @@ fi
 if [[ $ipa -eq 1 || $mac_app -eq 1 || -n "$device" ]]; then
   for f in "$game"/*_build/keep; do
     if [[ -f "$f" ]]; then
-      echo "nxplay: this game's build is kept (NX Play's Keep This Build), and this build would rewrite files it runs; unkeep it first (rm '$f')" >&2
+      warn "nxplay: this game's build is kept (NX Play's Keep This Build), and this build would rewrite files it runs; unkeep it first (rm '$f')"
       exit 1
     fi
   done
@@ -304,7 +319,7 @@ pack_app() {
     # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
     # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
     if grep -q 'pso_offline: no base to build' "$out"; then
-      echo "nxplay: no pipeline bases to prepare for this game; packing the app without a pipeline archive"
+      say "nxplay: no pipeline bases to prepare for this game; packing the app without a pipeline archive"
       pack --gpu none "$@" || status=1
     else
       status=1
@@ -318,6 +333,9 @@ pack_app() {
   [[ -d "$build" ]] || return 0
   git -C "$repo" rev-parse 'HEAD^{tree}' > "$build/app.tree" 2> /dev/null || true
   share_save "$app" "$build"
+  if [[ -n "$own_save" ]]; then
+    say "nxplay: $(basename "$app") keeps its own save ($own_save) when opened from Finder; NX Play asks which save Play uses while the two differ"
+  fi
 }
 
 if [[ $mac_app -eq 1 ]]; then
@@ -332,12 +350,12 @@ quote() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_asc
 stage() {
   stage_t0=$SECONDS
   if (( json )); then event "{\"ev\": \"stage\", \"k\": $1, \"n\": 3, \"name\": $(quote "$2"), \"step\": \"\"}"
-  else echo "[$(date +%T)] [$1/3] $2 …"; fi
+  else say "[$(date +%T)] [$1/3] $2 …"; fi
 }
 stage_done() {
   local s=$(( SECONDS - stage_t0 ))
   if (( json )); then event "{\"ev\": \"stage_end\", \"k\": $1, \"name\": $(quote "$2"), \"ok\": true, \"summary\": \"\", \"elapsed\": $s}"
-  else printf '[%s] ✓ [%s/3] %s (%d:%02d)\n' "$(date +%T)" "$1" "$2" $(( s / 60 )) $(( s % 60 )); fi
+  else say "$(printf '[%s] ✓ [%s/3] %s (%d:%02d)' "$(date +%T)" "$1" "$2" $(( s / 60 )) $(( s % 60 )))"; fi
 }
 
 if [[ -n "$device" ]]; then
@@ -347,7 +365,7 @@ if [[ -n "$device" ]]; then
   for p in "$game"/*_build/xcode/DmIOS.xcodeproj; do
     [[ -d "$p" ]] && [[ -z "$project" || "$p" -nt "$project" ]] && project="$p"
   done
-  if [[ -z "$project" ]]; then echo "nxplay: --prepare-xcode left no Xcode project in $game" >&2; exit 1; fi
+  if [[ -z "$project" ]]; then warn "nxplay: --prepare-xcode left no Xcode project in $game"; exit 1; fi
   build="$(dirname "$(dirname "$project")")"
   schemes=("$project"/xcshareddata/xcschemes/*.xcscheme)   # one per game project: "<game name> (<title ID>)"
   scheme="$(basename "${schemes[0]}" .xcscheme)"
@@ -361,7 +379,7 @@ if [[ -n "$device" ]]; then
       -derivedDataPath "$build/xcode-derived-data" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
       build > "$xlog" 2>&1; then
     grep -E "error:|BUILD FAILED|requires a provisioning|No Account" "$xlog" | tail -20 || true
-    echo "nxplay: xcodebuild failed; full log: $xlog" >&2
+    warn "nxplay: xcodebuild failed; full log: $xlog"
     exit 1
   fi
   stage_done 1 "Xcode build"
@@ -375,7 +393,7 @@ if [[ -n "$device" ]]; then
   if xcrun devicectl device process launch --device "$device" --terminate-existing "$bundle"; then
     stage_done 3 "launch"
   else
-    echo "nxplay: installed; unlock the device and open the app (it could not be started from here)"
+    say "nxplay: installed; unlock the device and open the app (it could not be started from here)"
   fi
   exit 0
 fi
@@ -422,15 +440,15 @@ start() {
   write_settings "$1"
   if [[ $build_only -eq 1 ]]; then exit 0; fi
   # NX Play shows the game as running from this line on, until then as preparing (Job.gameStarted)
-  echo "nxplay: starting the game"
+  say "nxplay: starting the game"
   if [[ $fps -eq 1 ]]; then export DM_METAL_HUD=1; fi
   if [[ $fullscreen -eq 1 ]]; then export DM_FULLSCREEN=1; fi
-  if [[ -n "${DM_SAVE_SYNC:-}" && "$DM_SAVE_SYNC" != 0 ]]; then echo "cloud saves: $DM_SAVE_SYNC"; fi
+  if [[ -n "${DM_SAVE_SYNC:-}" && "$DM_SAVE_SYNC" != 0 ]]; then say "cloud saves: $DM_SAVE_SYNC"; fi
   # the player's choices NX Play passes in the environment (Game Settings), named in NXPLAY_SETTINGS: said in the log
   if [[ -n "${NXPLAY_SETTINGS:-}" ]]; then
-    printf 'game settings:'
-    for v in $NXPLAY_SETTINGS; do [[ "$v" =~ ^DM_[A-Z0-9_]+$ ]] && printf ' %s=%s' "$v" "${!v:-}"; done
-    echo
+    local said="game settings:"
+    for v in $NXPLAY_SETTINGS; do [[ "$v" =~ ^DM_[A-Z0-9_]+$ ]] && said+=" $v=${!v:-}"; done
+    say "$said"
   fi
   # NX Play orders Console Mode by the last play: marked at the start and, through the EXIT trap, at the end,
   # however the game ends (quit, crash, NX Play's stop). Hence no exec: bash stays to run the trap.
@@ -438,37 +456,64 @@ start() {
   mkdir -p "$(dirname "$played")"
   touch "$played"
   trap 'touch "$played"; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2> /dev/null; true' EXIT
-  local app
+  local app save
+  save="$(play_save "$1")"
   app="$(find_app)"
   if [[ -n "$app" ]]; then
-    if app_is_current "$app" "$1"; then start_app "$app" "$1"; fi
-    echo "nxplay: $(basename "$app") was packed with older nxnative code than this build: playing the build (Make Mac App packs it again)"
+    if app_is_current "$app" "$1"; then start_app "$app" "$1" "$save"; fi
+    say "nxplay: $(basename "$app") was packed with older nxnative code than this build: playing the build (Make Mac App packs it again)"
   fi
+  # the launcher sets DM_LANG and DM_SAVE inline, which beats the environment: swap the language in its command, and
+  # take its save out for another one, given in the environment
+  local cmd
+  cmd="$(cat "$1")"
   if [[ -n "$lang" ]]; then
-    # the launcher sets DM_LANG inline, which beats the environment: swap the value in its command
-    echo "game language: $lang"
+    say "game language: $lang"
     export DM_LANG="$lang"
-    bash -c "$(sed -E "s/(^| )DM_LANG=[^ ]*/\1DM_LANG=$lang/" "$1")"
-  else
-    bash "$1"
+    cmd="$(sed -E "s/(^| )DM_LANG=[^ ]*/\1DM_LANG=$lang/" <<< "$cmd")"
   fi
+  if [[ "$save" != "$(dirname "$1")/run/save" ]]; then
+    export DM_SAVE="$save"
+    cmd="$(sed -E "s/ DM_SAVE=('[^']*'|[^ ]*)//" <<< "$cmd")"
+  fi
+  bash -c "$cmd"
   exit
+}
+
+# The save this play uses, said in the log: the build's (DM_SAVE in the launcher), or with NXPLAY_SAVE=app the Mac
+# app's own, which NX Play chose when the two differ.
+play_save() {
+  local build id app_save
+  build="$(dirname "$1")"
+  if [[ "${NXPLAY_SAVE:-}" == app ]]; then
+    id="$(basename "$build")"
+    app_save="$HOME/Library/Application Support/nxnative/${id%_build}/save"
+    if [[ -d "$app_save" ]]; then
+      warn "save: $app_save (the Mac app's own)"
+      echo "$app_save"
+      return
+    fi
+    warn "nxplay: the Mac app has no save of its own ($app_save): playing NX Play's"
+  fi
+  warn "save: $build/run/save"
+  echo "$build/run/save"
 }
 
 # Plays the game through its Mac app, so the Dock shows the game's own name and icon: its launcher
 # (Contents/MacOS/nxnative) started the way nxnative's front-end docs describe (docs/frontends.md, Starting a game),
 # without its settings window (DM_LAUNCHER=0: NX Play's settings come in the environment, over the app's saved
-# choices), with the game's save and cheats rather than the app's own: the launcher sets DM_SAVE only when the launch
-# environment hasn't. The launcher writes the game's output to its log, which is followed here for NX Play's log.
+# choices), with the save play_save chose (the game's, unless NX Play picked the app's own) and the game's cheats: the
+# launcher sets DM_SAVE only when the launch environment hasn't. The launcher writes the game's output to its log,
+# which is followed here for NX Play's log.
 start_app() {
-  local app="$1" build id log code=0
+  local app="$1" save="$3" build id log code=0
   build="$(dirname "$2")"
   id="$(plist "$app" DMTitleID)"
-  mkdir -p "$build/run/save"
+  mkdir -p "$save"
   share_save "$app" "$build"
-  export DM_LAUNCHER=0 DM_SAVE="$build/run/save" DM_CHEATS="$build/cheats"
-  if [[ -n "$lang" ]]; then echo "game language: $lang"; export DM_LANG="$lang"; fi
-  echo "playing through $(basename "$app")"
+  export DM_LAUNCHER=0 DM_SAVE="$save" DM_CHEATS="$build/cheats"
+  if [[ -n "$lang" ]]; then say "game language: $lang"; export DM_LANG="$lang"; fi
+  say "playing through $(basename "$app")"
   log="$HOME/Library/Logs/nxnative/$id.log"
   tail -q -n 0 -F "$log" 2> /dev/null &
   tail_pid=$!
@@ -487,7 +532,7 @@ if [[ $rebuild -eq 0 ]]; then
   if [[ -n "$launcher" ]]; then built="$(sed -n 's/^# nxnative tree //p' "$launcher")"; fi
   if [[ -n "$built" && -n "$current_tree" && "$built" != "$current_tree" ]]; then
     # a kept build says so below instead
-    [[ -f "$(dirname "$launcher")/keep" ]] || echo "nxplay: this build was made with other nxnative code than the checkout has now: rebuilding"
+    [[ -f "$(dirname "$launcher")/keep" ]] || say "nxplay: this build was made with other nxnative code than the checkout has now: rebuilding"
     rebuild=1
   fi
 fi
@@ -497,7 +542,7 @@ fi
 if [[ $rebuild -eq 1 && $explicit_rebuild -eq 0 ]]; then
   launcher="$(find_launcher)"
   if [[ -n "$launcher" && -f "$(dirname "$launcher")/keep" ]]; then
-    echo "nxplay: this build is kept (NX Play's Keep This Build): playing it without these nxnative changes"
+    say "nxplay: this build is kept (NX Play's Keep This Build): playing it without these nxnative changes"
     rebuild=0
   fi
 fi
@@ -514,10 +559,10 @@ has_game_files() {
 }
 if [[ $rebuild -eq 1 ]] && ! has_game_files; then
   if [[ $explicit_rebuild -eq 0 && -n "$(find_launcher)" ]]; then
-    echo "nxplay: no game files (NSP, NSZ, XCI, XCZ) to rebuild from: playing the current build, without these nxnative changes"
+    say "nxplay: no game files (NSP, NSZ, XCI, XCZ) to rebuild from: playing the current build, without these nxnative changes"
     rebuild=0
   else
-    echo "nxplay: no game files (NSP, NSZ, XCI, XCZ) in $game to build from; put them back to rebuild" >&2
+    warn "nxplay: no game files (NSP, NSZ, XCI, XCZ) in $game to build from; put them back to rebuild"
     exit 1
   fi
 fi
@@ -525,7 +570,7 @@ fi
 if [[ $rebuild -eq 0 ]]; then
   launcher="$(find_launcher)"
   if [[ -n "$launcher" ]]; then
-    echo "already built: $launcher (--rebuild to build again)"
+    say "already built: $launcher (--rebuild to build again)"
     relocate "$launcher"
     start "$launcher"
   fi
@@ -554,7 +599,7 @@ for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
 PY
 )"
 if [[ "$cmd" != cd\ * ]]; then
-  echo "nxplay: no run command in the build output" >&2
+  warn "nxplay: no run command in the build output"
   exit 1
 fi
 
@@ -564,7 +609,7 @@ launcher="$(dirname "$run_dir")/$launcher_name"
 printf '#!/bin/sh\n# written by nxplay from the build output\n# nxnative tree %s\n%s\n' "$current_tree" "$cmd" > "$launcher"
 chmod +x "$launcher"
 
-echo "saved: $launcher"
+say "saved: $launcher"
 rm -f "$log"   # start replaces the EXIT trap
 
 # The game's Mac app, packed with the code before this rebuild, is packed again with it, so Play keeps starting the app
@@ -574,7 +619,7 @@ rm -f "$log"   # start replaces the EXIT trap
 app="$(find_app)"
 if [[ -n "$app" && ! -f "$(dirname "$launcher")/keep" ]] \
     && [[ "$(cat "$(dirname "$launcher")/app.tree" 2> /dev/null || true)" != "$current_tree" ]]; then
-  echo "nxplay: updating $(basename "$app") to this build"
-  pack_app "$@" || echo "nxplay: $(basename "$app") could not be updated (the log above says why): playing the build" >&2
+  say "nxplay: updating $(basename "$app") to this build"
+  pack_app "$@" || warn "nxplay: $(basename "$app") could not be updated (the log above says why): playing the build"
 fi
 start "$launcher"

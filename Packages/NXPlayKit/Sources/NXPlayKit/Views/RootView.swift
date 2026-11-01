@@ -62,6 +62,9 @@ public struct RootView: View {
                 GameSettingsSheet(game: game)
             }
             .sheet(isPresented: Bindable(library).showsUpdateAll) { UpdateAllView() }
+            .sheet(item: Bindable(library).saveQuestion) { question in
+                SaveChoiceView(question: question)
+            }
             .alert("Can't run nxplay", isPresented: problemShown) {
                 Button("OK") {}
             } message: {
