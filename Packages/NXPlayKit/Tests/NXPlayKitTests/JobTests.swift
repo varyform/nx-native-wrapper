@@ -90,6 +90,49 @@ import Testing
         try await finished(building)
     }
 
+    /// NXPLAY_UPDATE=ask: nxplay's question shows on the job, and the answer reaches nxplay's stdin.
+    @Test func aPlayAsksAndHearsTheAnswer() async throws {
+        let job = try job(
+            running: """
+                echo '{"ev": "ask", "about": "update", "commits": 9, "game": [{"hash": "abc1234", "subject": "Fix the intro"}], "shaders": "recompile", "estimate": 600, "app": true}'
+                read -r answer
+                echo "answer: $answer"
+                """, kind: .play)
+        var asked = 0
+        job.onAsk = { _ in asked += 1 }
+
+        job.start()
+        try await until { job.ask != nil }
+        #expect(asked == 1)
+        #expect(job.ask?.commits == 9 && job.ask?.shaders == .recompile)
+        #expect(job.ask?.gameCommits.map(\.subject) == ["Fix the intro"])
+        #expect(job.ask?.estimateText == "About 10 min, as last time (the Mac app included)")
+        job.answer(.current)
+        try await finished(job)
+
+        #expect(job.ask == nil)
+        #expect(job.status == .succeeded)
+        #expect(job.log.lines.map(\.text).contains("answer: current"))
+    }
+
+    @Test func notPlayingEndsThePlayAsCancelled() async throws {
+        let job = try job(
+            running: """
+                echo '{"ev": "ask", "about": "update", "commits": -1, "game": [], "shaders": "odd"}'
+                read -r answer
+                [[ "$answer" == cancel ]] && exit 0
+                exit 1
+                """, kind: .play)
+
+        job.start()
+        try await until { job.ask != nil }
+        #expect(job.ask?.commits == nil && job.ask?.shaders == .unknown)
+        #expect(job.ask?.headline == "New nxnative code, none of it for this game")
+        job.answer(.cancel)
+        try await finished(job)
+        #expect(job.status == .cancelled)
+    }
+
     private func job(running body: String, arguments: [String] = [], kind: Job.Kind = .extract)
         throws -> Job
     {

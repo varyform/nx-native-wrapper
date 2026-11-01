@@ -104,6 +104,11 @@ private struct GeneralSettings: View {
                     directory: true,
                     isValid: exists(library.nxnativePath, "scripts/build_ipa_from_nsp.py")
                 )
+                Picker("When nxnative has new code", selection: $library.updateBeforePlay) {
+                    Text("Ask before playing").tag(UpdateBeforePlay.ask)
+                    Text("Update, then play").tag(UpdateBeforePlay.update)
+                    Text("Play the current build").tag(UpdateBeforePlay.current)
+                }
                 Toggle(
                     "Allow a Metal compiler nxnative didn't test", isOn: $library.allowOtherMetal)
                 LabeledContent("Tools") {
@@ -111,7 +116,7 @@ private struct GeneralSettings: View {
                 }
             } footer: {
                 Footer(
-                    "nxplay pulls nxnative before each run and rebuilds a game when new commits arrive. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242)."
+                    "Before a play, nxplay looks for new nxnative commits. A game built with older code can update first (a rebuild, and the Mac app packed again) or play as it is; Ask says what the update brings and how long it took last time. Rebuild and Update All Builds always take the latest code. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242)."
                 )
             }
         }

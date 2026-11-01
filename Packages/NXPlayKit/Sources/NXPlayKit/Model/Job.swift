@@ -62,6 +62,11 @@ public final class Job: Identifiable {
     public private(set) var gameStarted = false
     /// What nxplay last said about getting ready ("nxnative updated: 3 new commits, rebuilding").
     public private(set) var note: String?
+    /// nxplay asks whether to update nxnative before the play (NXPLAY_UPDATE=ask), until answered.
+    public private(set) var ask: UpdateAsk?
+    @ObservationIgnored var onAsk: ((Job) -> Void)?
+    /// A play's stdin, for the answer.
+    @ObservationIgnored private var input: FileHandle?
 
     /// A play still getting ready: nxplay updating nxnative and working out whether the game needs a rebuild,
     /// before any build stage or the game itself. A few seconds that otherwise looked like nothing happening.
@@ -81,6 +86,7 @@ public final class Job: Identifiable {
     /// "4/6 shader split · splitting · 69% · 0:04 left"
     public var progressText: String {
         if status == .queued { return "Waiting for the current build" }
+        if ask != nil { return "Waiting for your answer: update first?" }
         if isPreparing { return note ?? "Checking for nxnative updates…" }
         return progress?.summary ?? "Starting…"
     }
@@ -99,7 +105,15 @@ public final class Job: Identifiable {
         process.executableURL = URL(filePath: "/bin/bash")
         process.arguments = [command.script.path] + command.arguments
         process.environment = command.environment
-        process.standardInput = FileHandle.nullDevice
+        if kind == .play {
+            let answers = Pipe()
+            // an answer after nxplay has gone fails instead of raising SIGPIPE in NX Play
+            _ = fcntl(answers.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1)
+            process.standardInput = answers
+            input = answers.fileHandleForWriting
+        } else {
+            process.standardInput = FileHandle.nullDevice
+        }
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = pipe
@@ -132,6 +146,14 @@ public final class Job: Identifiable {
             ])
             finish(.failed(-1))
         }
+    }
+
+    /// The answer to nxplay's question; cancel ends the play as cancelled.
+    func answer(_ answer: UpdateAnswer) {
+        guard ask != nil else { return }
+        ask = nil
+        if answer == .cancel { cancelRequested = true }
+        try? input?.write(contentsOf: Data((answer.rawValue + "\n").utf8))
     }
 
     /// Stops the whole process tree: Process puts the child in a process group of its own, so the
@@ -191,6 +213,10 @@ public final class Job: Identifiable {
                 }
             }
             if output.progress != progress { progress = output.progress }
+            if let question = output.takeAsk() {
+                ask = question
+                onAsk?(self)
+            }
         }
         if closed {
             outputClosed = true
@@ -220,6 +246,9 @@ public final class Job: Identifiable {
 
     private func finish(_ status: Status) {
         self.status = status
+        ask = nil
+        try? input?.close()
+        input = nil
         switch status {
         case .succeeded: log.append(["nxplay: done"])
         case .failed(let code): log.append(["nxplay: failed (exit \(code))"])

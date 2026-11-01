@@ -58,6 +58,8 @@ public struct BuildProgress: Equatable, Sendable {
 /// left out when missing or odd (a later version may drop or change one), so a change shows less, never garbage.
 struct BuildOutputReader {
     private(set) var progress: BuildProgress?
+    /// nxplay's question before a play, until the job takes it (takeAsk).
+    private var ask: UpdateAsk?
     private var stage = 0, stages = 0
     private var name = "", step = ""
     private var stageFraction: Double?, eta: Double?
@@ -113,6 +115,10 @@ struct BuildOutputReader {
             restartStep()
             publish(finished: ok)
             return ["\(clock)\(ok ? "✓" : "✗") [\(k)/\(stages)] \(ended)\(elapsed)\(summary)"]
+        case "ask":
+            guard let question = UpdateAsk(event: event) else { return [] }
+            ask = question
+            return [question.logLine]
         case "say":
             guard let message = event["msg"] as? String else { return [] }
             return message.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -122,6 +128,11 @@ struct BuildOutputReader {
     }
 
     private var title: String { step.isEmpty ? name : "\(name) · \(step)" }
+
+    mutating func takeAsk() -> UpdateAsk? {
+        defer { ask = nil }
+        return ask
+    }
 
     /// A new step starts with no count and its own beat.
     private mutating func restartStep() {

@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Play asks before updating a game** ([#7](https://github.com/varyform/nx-native-wrapper/issues/7)): when nxnative has new code for a game's build, Play no longer rebuilds right away. It says what the update brings: how many new commits, which ones are for this game, whether every shader is translated again, and how long the last update took, the Mac app included. Then it asks: **Update Now**, or **Play Current Build** to play straight away. Playing the current build leaves nxnative where it was, so the other games don't fall behind. In Console Mode the controller answers. Settings › General can always update first, as before, or always play the current build. Rebuild and Update All Builds still take the latest code.
+
 ### Changed
 
 - **NX Play's own lines in the log are blue**, so they stand apart from nxnative's output: which save a play uses, the game settings it passes, nxnative updates, rebuilds and the like. `nxplay` in a terminal does the same; set `NO_COLOR` to turn it off.

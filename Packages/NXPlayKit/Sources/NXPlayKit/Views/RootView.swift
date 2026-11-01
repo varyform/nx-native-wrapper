@@ -65,6 +65,9 @@ public struct RootView: View {
             .sheet(item: Bindable(library).saveQuestion) { question in
                 SaveChoiceView(question: question)
             }
+            .sheet(item: updatePromptShown) { prompt in
+                UpdateAskView(prompt: prompt)
+            }
             .alert("Can't run nxplay", isPresented: problemShown) {
                 Button("OK") {}
             } message: {
@@ -148,6 +151,13 @@ public struct RootView: View {
                 .keyboardShortcut("f")
                 .disabled(library.root == nil || library.consoleMode)
         }
+    }
+
+    /// nxplay waits for an answer: a sheet closed any other way than its buttons doesn't play.
+    private var updatePromptShown: Binding<UpdatePrompt?> {
+        Binding(
+            get: { library.updatePrompt },
+            set: { if $0 == nil, library.updatePrompt != nil { library.answerUpdate(.cancel) } })
     }
 
     private var problemShown: Binding<Bool> {

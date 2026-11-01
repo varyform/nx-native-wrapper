@@ -34,6 +34,7 @@ public final class Library {
         static let controllerPlayers = "controllerPlayers"
         static let globalSettings = "globalSettings"
         static let saveChoices = "appSaveChoices"
+        static let updateBeforePlay = "updateBeforePlay"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -112,6 +113,12 @@ public final class Library {
     public var transfer: SaveTransfer?
     /// A play waiting for the player to choose between NX Play's save and the Mac app's own (Library+AppSave.swift).
     public var saveQuestion: SaveQuestion?
+    /// A play whose nxplay asks whether to update nxnative first (Library+UpdateAsk.swift).
+    public var updatePrompt: UpdatePrompt?
+    /// What Play does when nxnative has new code for a game built with older code (Settings › General).
+    public var updateBeforePlay: UpdateBeforePlay {
+        didSet { defaults.set(updateBeforePlay.rawValue, forKey: Keys.updateBeforePlay) }
+    }
     /// The save choices kept with "Don't ask again", by title ID; Game Settings asks again.
     public internal(set) var saveChoices: [String: SaveChoice] {
         didSet { defaults.set(saveChoices.mapValues(\.rawValue), forKey: Keys.saveChoices) }
@@ -227,6 +234,9 @@ public final class Library {
                 ControllerPlayers.init(rawValue:))
             ?? .each
         globalChoices = Self.loadGlobalChoices(defaults)
+        updateBeforePlay =
+            defaults.string(forKey: Keys.updateBeforePlay).flatMap(UpdateBeforePlay.init(rawValue:))
+            ?? .ask
         saveChoices =
             (defaults.dictionary(forKey: Keys.saveChoices) as? [String: String] ?? [:])
             .compactMapValues(SaveChoice.init(rawValue:))
@@ -661,6 +671,10 @@ public final class Library {
             handleSaveQuestion(command)
             return
         }
+        if updatePrompt != nil {
+            handleUpdatePrompt(command)
+            return
+        }
         if consoleMode, showsUpdate, command != .menu {
             handleUpdate(command)
             return
@@ -715,6 +729,7 @@ public final class Library {
         if kind == .play { command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app" }
         let job = Job(kind: kind, game: game, command: command)
         job.onFinish = { [weak self] job in self?.finished(job) }
+        job.onAsk = { [weak self] _ in self?.presentNextAsk() }
         jobs[game.id] = job
         if select { selection = game.id }
         if kind == .play {
@@ -727,6 +742,10 @@ public final class Library {
     }
 
     func finished(_ job: Job) {
+        if updatePrompt?.job === job {
+            updatePrompt = nil
+            presentNextAsk()
+        }
         refresh()
         // what was made, in Finder
         let made = games.first { $0.id == job.game.id }
@@ -876,6 +895,7 @@ public final class Library {
             }
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
+            environment["NXPLAY_UPDATE"] = updateBeforePlay.rawValue
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):
             guard let team, let titleID = game.titleID else {

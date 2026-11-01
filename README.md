@@ -6,7 +6,7 @@
 - Console Mode for the couch: full screen, driven by a game controller.
 - Install a game on your iPhone or iPad through Xcode, or build an IPA to sideload.
 - Copy saves between the Mac and a device, after seeing which one is newer, and back them up to your own private Git repository while you play.
-- Pull nxnative's latest fixes before each run and rebuild when they change something, or keep a build that works as it is.
+- Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
 > You need your own games (NSP, NSZ, XCI or XCZ files) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
 
@@ -140,7 +140,7 @@ DM_FPS_TARGET=30 ./nxplay ~/Games/MetroidDread   # any of the game's settings, f
 
 `xcrun devicectl list devices` lists the device UDIDs.
 
-Each run starts by updating nxnative and lists any new commits. A game is rebuilt when its Mac build was made with other nxnative code than the checkout has now, whichever run pulled the update. A kept build is the exception: NX Play's Keep This Build puts a `keep` file in `<title ID>_build`, and that build then plays as it is until an explicit `--rebuild`, while `--ipa`, `--mac-app` and `--device` refuse to run for it. The `./nxnative` clone is only for following upstream: when upstream rewrites its history, nxplay follows it, so keep your own nxnative changes in another clone (`NXNATIVE=/path/to/it`).
+Each run starts by updating nxnative and lists any new commits. A game is rebuilt when its Mac build was made with other nxnative code than the checkout has now, whichever run pulled the update. A kept build is the exception: NX Play's Keep This Build puts a `keep` file in `<title ID>_build`, and that build then plays as it is until an explicit `--rebuild`, while `--ipa`, `--mac-app` and `--device` refuse to run for it. Before a play, `NXPLAY_UPDATE` decides what happens to a game built with older code: `update` (the default) pulls and rebuilds, `current` plays the build as it is and leaves the checkout alone, and `ask` first shows what the update brings (the commit count, the game's own commits, whether every shader is translated again, how long the last update took) and asks. NX Play asks by default; Settings › General changes it. The `./nxnative` clone is only for following upstream: when upstream rewrites its history, nxplay follows it, so keep your own nxnative changes in another clone (`NXNATIVE=/path/to/it`).
 
 The run command is saved in `<game folder>/<title ID>_build/start_mac.sh`. It holds absolute paths, so after you move a game folder (or nxnative), the next run rewrites them to the new location.
 

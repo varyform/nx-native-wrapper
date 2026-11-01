@@ -24,7 +24,10 @@
 #        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
 #        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
 #        NXPLAY_SAVE (app: play on from the Mac app's own save, ~/Library/Application Support/nxnative/<title ID>/save,
-#        instead of the build's run/save; NX Play asks which when the two differ)
+#        instead of the build's run/save; NX Play asks which when the two differ),
+#        NXPLAY_UPDATE (what a play does when nxnative has new code for a game built with older code: update, the
+#        default, pulls it and rebuilds first; current plays the build as it is and leaves the checkout; ask says what
+#        the update brings and asks: in a terminal, or for NX Play as a JSON "ask" event answered on stdin)
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -221,8 +224,130 @@ update_nxnative() {
   return 1
 }
 
+# A game whose original files were removed to free space (NX Play's Remove Game Files) cannot be rebuilt:
+# after an nxnative update it keeps playing the build it has, rather than failing to rebuild and not starting
+has_game_files() {
+  local f
+  shopt -s nocasematch
+  for f in "$game"/*; do
+    case "$f" in *.nsp | *.nsz | *.xci | *.xcz) [[ -s "$f" ]] && return 0 ;; esac
+  done
+  return 1
+}
+
+# The shader chain version nxnative's code at a tree or commit holds (dm/gfx/nvn/dmsh_chain.h): when it changes,
+# every shader is translated again (build_ipa_from_nsp.py's chain_of)
+chain_at() { git -C "$repo" show "$1:dm/gfx/nvn/dmsh_chain.h" 2> /dev/null | sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p'; }
+
+# How long the game's last update rebuilds took, <title ID>_build/nxplay-times: "rebuild <seconds>" (shaders
+# reused or partly compiled), "recompile <seconds>" (the shader chain changed), "repack <seconds>" (the Mac app)
+times_name=nxplay-times
+record_time() {
+  local f="$1/$times_name"
+  { grep -v "^$2 " "$f" 2> /dev/null || true; echo "$2 $3"; } > "$f.tmp" && mv -f "$f.tmp" "$f"
+}
+time_of() { [[ -f "$1/$times_name" ]] || return 0; sed -n "s/^$2 //p" "$1/$times_name" | tail -1; }
+
+# NXPLAY_UPDATE=ask before a play (issue #7): what new nxnative code would mean for this game's build, then the
+# player's answer in update_mode (update, current or cancel). Nothing to ask without a build to play (the first
+# build is the update), for a kept build or one without game files (they play as they are anyway), or when the
+# build already has the code an update would bring.
+ask_update() {
+  local launcher build built id target target_tree base="" count=-1 ours="" shaders est="" repack app answer
+  update_mode=update
+  launcher="$(find_launcher)"
+  [[ -n "$launcher" ]] || return 0
+  build="$(dirname "$launcher")"
+  [[ ! -f "$build/keep" ]] && has_game_files || return 0
+  built="$(sed -n 's/^# nxnative tree //p' "$launcher")"
+  [[ -n "$built" ]] || return 0
+  git -C "$repo" fetch --quiet 2> /dev/null || true
+  # what an update plays: upstream's tip when the checkout can move there (update_nxnative), else the checkout
+  target=HEAD
+  if git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null \
+      && { git -C "$repo" merge-base --is-ancestor HEAD '@{u}' || no_local_commits; }; then
+    target='@{u}'
+  fi
+  target_tree="$(git -C "$repo" rev-parse "$target^{tree}")"
+  [[ "$built" != "$target_tree" ]] || return 0
+  id="$(basename "$build")"
+  id="${id%_build}"
+  # the commit the build was made from: the newest one with its tree
+  base="$(git -C "$repo" log --format='%H %T' -n 5000 "$target" | awk -v t="$built" '$2 == t && !found { print $1; found = 1 }')"
+  if [[ -n "$base" ]]; then
+    count="$(git -C "$repo" rev-list --count "$base..$target")"
+    ours="$(git -C "$repo" log --no-merges --format='%h%x09%s' "$base..$target" -- "dm/games/$id")"
+  fi
+  # the shaders: all translated again, checked again (the split's and translator's tools, the game's profile), or
+  # reused; unknown when the build's code is no longer in the checkout
+  if ! git -C "$repo" cat-file -e "$built" 2> /dev/null; then
+    shaders=unknown
+  elif [[ "$(chain_at "$built")" != "$(chain_at "$target_tree")" ]]; then
+    shaders=recompile
+  elif git -C "$repo" diff --quiet "$built" "$target_tree" -- dm/gfx/tools dm/ios/tools dm/games/game.py \
+      dm/tools/romfs.py dm/tools/nso.py "dm/games/$id"; then
+    shaders=reused
+  else
+    shaders=check
+  fi
+  est="$(time_of "$build" rebuild)"
+  if [[ "$shaders" == recompile && -n "$(time_of "$build" recompile)" ]]; then est="$(time_of "$build" recompile)"; fi
+  app="$(find_app)"
+  repack="$(time_of "$build" repack)"
+  if [[ -n "$est" && -n "$app" && -n "$repack" ]]; then est=$(( est + repack )); fi
+
+  if [[ "${NXPLAY_PROGRESS:-}" == json ]]; then
+    python3 -c 'import json, sys, time
+count, shaders, est, app = sys.argv[1:5]
+game = [dict(zip(("hash", "subject"), l.split("\t", 1))) for l in sys.stdin.read().splitlines() if "\t" in l]
+print(json.dumps({"ev": "ask", "about": "update", "commits": int(count), "game": game, "shaders": shaders,
+                  "estimate": int(est) if est else None, "app": app == "1", "t": round(time.time(), 3)}, ensure_ascii=False))' \
+      "$count" "$shaders" "$est" "${app:+1}" <<< "$ours"
+    read -r answer || answer=update
+  elif [[ -t 0 && -t 1 ]]; then
+    if (( count >= 0 )); then
+      local mine=none
+      if [[ -n "$ours" ]]; then mine="$(grep -c . <<< "$ours")"; fi
+      say "nxnative has $count new commit$([[ $count == 1 ]] || echo s) for this build, $mine for this game"
+    else
+      say "nxnative has new code for this build"
+    fi
+    [[ -z "$ours" ]] || echo "  ${ours//$'\n'/$'\n'  }"
+    case "$shaders" in
+      recompile) say "shaders: every one translated again (the shader chain changed)" ;;
+      check) say "shaders: checked again, some may be translated again" ;;
+      reused) say "shaders: reused" ;;
+    esac
+    if [[ -n "$est" ]]; then say "updating took $(( (est + 59) / 60 )) min last time"; fi
+    read -r -p "${blue}Update now (u), play the current build (p) or cancel (c)? [u] ${plain}" answer || answer=update
+    case "$answer" in [pP]*) answer=current ;; [cC]*) answer=cancel ;; *) answer=update ;; esac
+  else
+    answer=update
+  fi
+  case "$answer" in current | cancel) update_mode="$answer" ;; esac
+}
+
+# Only a play chooses: an extraction, a rebuild, an IPA, an app or an install takes the latest code
+update_mode="${NXPLAY_UPDATE:-update}"
+case "$update_mode" in
+  update | ask | current) ;;
+  *) warn "nxplay: NXPLAY_UPDATE is update, ask or current, not '$update_mode'"; exit 2 ;;
+esac
+if (( build_only || ipa || mac_app || explicit_rebuild )) || [[ -n "$device" ]]; then update_mode=update; fi
+if [[ "$update_mode" == ask ]]; then ask_update; fi
+# NX Play's answers come on stdin; the build and the game get none, as before there was a question
+if [[ "${NXPLAY_PROGRESS:-}" == json ]]; then exec < /dev/null; fi
+# a game not built yet builds with the latest code
+if [[ "$update_mode" == current && -z "$(find_launcher)" ]]; then update_mode=update; fi
+if [[ "$update_mode" == cancel ]]; then
+  say "nxplay: not played"
+  exit 0
+fi
+
 before="$(git -C "$repo" rev-parse HEAD)"
-if update_nxnative; then
+if [[ "$update_mode" == current ]]; then
+  :   # Play Current Build: the checkout stays where it is, so other games keep matching it
+elif update_nxnative; then
   if [[ "$(git -C "$repo" rev-parse HEAD)" != "$before" ]]; then
     count="$(git -C "$repo" rev-list --count "$before..HEAD")"
     # a rewrite can re-create the same code under new commit ids: nothing to rebuild then
@@ -531,9 +656,13 @@ if [[ $rebuild -eq 0 ]]; then
   built=""
   if [[ -n "$launcher" ]]; then built="$(sed -n 's/^# nxnative tree //p' "$launcher")"; fi
   if [[ -n "$built" && -n "$current_tree" && "$built" != "$current_tree" ]]; then
-    # a kept build says so below instead
-    [[ -f "$(dirname "$launcher")/keep" ]] || say "nxplay: this build was made with other nxnative code than the checkout has now: rebuilding"
-    rebuild=1
+    if [[ "$update_mode" == current ]]; then
+      say "nxplay: playing the current build, without the new nxnative code (Play Current Build)"
+    else
+      # a kept build says so below instead
+      [[ -f "$(dirname "$launcher")/keep" ]] || say "nxplay: this build was made with other nxnative code than the checkout has now: rebuilding"
+      rebuild=1
+    fi
   fi
 fi
 
@@ -547,16 +676,6 @@ if [[ $rebuild -eq 1 && $explicit_rebuild -eq 0 ]]; then
   fi
 fi
 
-# A game whose original files were removed to free space (NX Play's Remove Game Files) cannot be rebuilt:
-# after an nxnative update it keeps playing the build it has, rather than failing to rebuild and not starting
-has_game_files() {
-  local f
-  shopt -s nocasematch
-  for f in "$game"/*; do
-    case "$f" in *.nsp | *.nsz | *.xci | *.xcz) [[ -s "$f" ]] && return 0 ;; esac
-  done
-  return 1
-}
 if [[ $rebuild -eq 1 ]] && ! has_game_files; then
   if [[ $explicit_rebuild -eq 0 && -n "$(find_launcher)" ]]; then
     say "nxplay: no game files (NSP, NSZ, XCI, XCZ) to rebuild from: playing the current build, without these nxnative changes"
@@ -578,6 +697,12 @@ fi
 
 log="$(mktemp -t nxplay)"
 trap 'rm -f "$log"' EXIT
+
+# an update rebuild (a build made with other code than this) is timed for the next question (ask_update)
+old_launcher="$(find_launcher)"
+old_tree=""
+if [[ -n "$old_launcher" ]]; then old_tree="$(sed -n 's/^# nxnative tree //p' "$old_launcher")"; fi
+build_t0=$SECONDS
 
 (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@") | tee "$log"
 
@@ -611,6 +736,10 @@ chmod +x "$launcher"
 
 say "saved: $launcher"
 rm -f "$log"   # start replaces the EXIT trap
+if [[ -n "$old_tree" && -n "$current_tree" && "$old_tree" != "$current_tree" ]]; then
+  if [[ "$(chain_at "$old_tree")" != "$(chain_at "$current_tree")" ]]; then kind=recompile; else kind=rebuild; fi
+  record_time "$(dirname "$launcher")" "$kind" $(( SECONDS - build_t0 ))
+fi
 
 # The game's Mac app, packed with the code before this rebuild, is packed again with it, so Play keeps starting the app
 # (it plays only an app as current as the build): a player who made one wants it, and after a rebuild it takes a couple
@@ -620,6 +749,11 @@ app="$(find_app)"
 if [[ -n "$app" && ! -f "$(dirname "$launcher")/keep" ]] \
     && [[ "$(cat "$(dirname "$launcher")/app.tree" 2> /dev/null || true)" != "$current_tree" ]]; then
   say "nxplay: updating $(basename "$app") to this build"
-  pack_app "$@" || warn "nxplay: $(basename "$app") could not be updated (the log above says why): playing the build"
+  pack_t0=$SECONDS
+  if pack_app "$@"; then
+    record_time "$(dirname "$launcher")" repack $(( SECONDS - pack_t0 ))
+  else
+    warn "nxplay: $(basename "$app") could not be updated (the log above says why): playing the build"
+  fi
 fi
 start "$launcher"
