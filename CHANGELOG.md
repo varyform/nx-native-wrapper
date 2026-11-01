@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.7.15 — 2026-11-01
+
 ### Fixed
 
 - **"App out of date" right after Update Mac App:** an app packed after nxnative updated, but before the game was rebuilt, runs newer code than the build, yet NX Play called it out of date. It now counts as up to date, and Play opens it.
