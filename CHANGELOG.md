@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **NX Play's own log lines are blue too**, like nxplay's since 1.7.16: the save backup's commits and pushes, the command each run starts with, and how it ended (done, failed, cancelled).
+
 ## 1.7.16 — 2026-11-01
 
 ### Added

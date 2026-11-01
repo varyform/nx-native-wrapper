@@ -93,13 +93,13 @@ public final class Job: Identifiable {
 
     /// A line from NX Play itself in the run's log (the save backup's).
     func note(_ line: String) {
-        log.append([line])
+        log.append([.own(line)])
     }
 
     func start() {
         guard status == .queued else { return }
         status = .running
-        log.append(["$ " + command.displayLine])
+        log.append([.own("$ " + command.displayLine)])
 
         let process = Process()
         process.executableURL = URL(filePath: "/bin/bash")
@@ -142,7 +142,7 @@ public final class Job: Identifiable {
         } catch {
             pipe.fileHandleForReading.readabilityHandler = nil
             log.append([
-                "nxplay: cannot start \(command.script.path): \(error.localizedDescription)"
+                .own("nxplay: cannot start \(command.script.path): \(error.localizedDescription)")
             ])
             finish(.failed(-1))
         }
@@ -167,7 +167,7 @@ public final class Job: Identifiable {
         case .running:
             guard let process, process.isRunning, !cancelRequested else { return }
             cancelRequested = true
-            log.append(["nxplay: stopping…"])
+            log.append([.own("nxplay: stopping…")])
             let group = process.processIdentifier
             if kill(-group, SIGINT) != 0 { process.interrupt() }
             for (step, signal) in [SIGTERM, SIGKILL].enumerated() {
@@ -192,7 +192,7 @@ public final class Job: Identifiable {
         /// Screenshot mode: output as if nxplay had printed it, in the given state, without a process.
         func showScreenshot(_ lines: [String], status: Status) {
             self.status = .running
-            log.append(["$ " + command.displayLine])
+            log.append([.own("$ " + command.displayLine)])
             received(lines, closed: false)
             self.status = status
         }
@@ -250,9 +250,9 @@ public final class Job: Identifiable {
         try? input?.close()
         input = nil
         switch status {
-        case .succeeded: log.append(["nxplay: done"])
-        case .failed(let code): log.append(["nxplay: failed (exit \(code))"])
-        case .cancelled: log.append(["nxplay: cancelled"])
+        case .succeeded: log.append([.own("nxplay: done")])
+        case .failed(let code): log.append([.own("nxplay: failed (exit \(code))")])
+        case .cancelled: log.append([.own("nxplay: cancelled")])
         default: break
         }
         onFinish?(self)

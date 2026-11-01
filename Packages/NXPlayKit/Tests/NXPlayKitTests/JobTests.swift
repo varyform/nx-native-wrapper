@@ -34,6 +34,9 @@ import Testing
         #expect(!shown.contains { $0.hasPrefix("{") })  // events become lines, never raw JSON
         #expect(shown.contains("Traceback (most recent call last):"))
         #expect(job.log.lines.last?.text == "nxplay: failed (exit 3)")
+        // NX Play's own lines are blue, as nxplay's are
+        #expect(job.log.lines.last?.segments.first?.style.foreground == .standard(4))
+        #expect(job.log.lines.first?.segments.first?.style.foreground == .standard(4))
     }
 
     @Test func cancelStopsTheWholeProcessTree() async throws {

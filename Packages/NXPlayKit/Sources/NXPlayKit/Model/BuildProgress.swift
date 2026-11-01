@@ -118,7 +118,7 @@ struct BuildOutputReader {
         case "ask":
             guard let question = UpdateAsk(event: event) else { return [] }
             ask = question
-            return [question.logLine]
+            return ["\u{1B}[34m\(question.logLine)\u{1B}[0m"]  // nxplay's own line, blue as its say
         case "say":
             guard let message = event["msg"] as? String else { return [] }
             return message.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
