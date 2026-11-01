@@ -15,7 +15,7 @@ struct BuildStairs: View {
     static let height = 56.0
     /// Room above the top step for the figure.
     static let headroom = 34.0
-    private static let low = 8.0, high = 36.0, gap = 6.0
+    nonisolated private static let low = 8.0, high = 36.0, gap = 6.0
 
     var body: some View {
         // before the first stage: the steps of a typical build, the figure pacing the first
@@ -83,7 +83,7 @@ struct BuildStairs: View {
     }
 
     /// A step's height: the first low, the last high.
-    static func height(_ index: Int, of stages: Int) -> Double {
+    nonisolated static func height(_ index: Int, of stages: Int) -> Double {
         stages == 1 ? high : low + (high - low) * Double(index) / Double(stages - 1)
     }
 }
