@@ -205,6 +205,11 @@ struct Caption: View {
                     Pill(text: "\(news) new from nxnative", symbol: "sparkles", color: .blue)
                 }
                 if game.isKept { Pill(text: "Kept", symbol: "lock.fill", color: .orange) }
+                if game.macAppURL != nil, game.macAppOutdated {
+                    Pill(
+                        text: "App out of date", symbol: "arrow.triangle.2.circlepath",
+                        color: .orange)
+                }
                 Text(Self.facts(game, info)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
             }
             .font(.title3)

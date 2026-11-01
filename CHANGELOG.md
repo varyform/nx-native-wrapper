@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **A rebuild keeps the Mac app up to date** ([#6](https://github.com/varyform/nx-native-wrapper/issues/6)): when an nxnative update rebuilds a game that has a Mac app, the app is packed again with the new code. That adds a couple of minutes to the rebuild, and Play keeps opening the app instead of falling back to the build. This covers Rebuild, Update All Builds and a rebuild before Play, but not kept builds. When an app is out of date anyway, for example because the game files were removed or the packing failed, an orange **App** badge and a pill in Console Mode say so, and the Game menu's **Update Mac App** packs it again.
+
 ## 1.7.13 — 2026-11-01
 
 ### Added

@@ -289,32 +289,37 @@ if [[ $ipa -eq 1 ]]; then
   exec python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@"
 fi
 
-if [[ $mac_app -eq 1 ]]; then
-  # <game name>.app in the game folder, its files APFS clones of the extracted ones; reuses every step a Mac build made
-  cd "$repo"
+# Packs <game name>.app into the game folder, its files APFS clones of the extracted ones; it reuses every step a Mac
+# build made, so after one it takes a couple of minutes (mostly the pipeline archive). Then records the code it was
+# packed with (app_is_current) and points a Finder start at the game's save (share_save). Make Mac App, and the
+# update of an existing app after a rebuild.
+pack_app() {
+  local out status=0 app build
   out="$(mktemp -t nxplay-macapp)"
-  trap 'rm -f "$out"' EXIT
-  pack() { python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@" 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
-  # the code it was packed with, for Play (app_is_current), and the save a Finder start plays with
-  packed() {
-    local app build
-    app="$(find_app)"
-    [[ -n "$app" ]] || return 0
-    build="$game/$(plist "$app" DMTitleID)_build"
-    [[ -d "$build" ]] || return 0
-    git -C "$repo" rev-parse 'HEAD^{tree}' > "$build/app.tree" 2> /dev/null || true
-    share_save "$app" "$build"
-  }
-  if pack "$@"; then packed; exit 0; fi
-  # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
-  # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
-  if grep -q 'pso_offline: no base to build' "$out"; then
-    echo "nxplay: no pipeline bases to prepare for this game; packing the app without a pipeline archive"
-    pack --gpu none "$@" || exit 1
-    packed
-    exit 0
+  pack() { (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@") 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
+  if ! pack "$@"; then
+    # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
+    # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
+    if grep -q 'pso_offline: no base to build' "$out"; then
+      echo "nxplay: no pipeline bases to prepare for this game; packing the app without a pipeline archive"
+      pack --gpu none "$@" || status=1
+    else
+      status=1
+    fi
   fi
-  exit 1
+  rm -f "$out"
+  (( status == 0 )) || return 1
+  app="$(find_app)"
+  [[ -n "$app" ]] || return 0
+  build="$game/$(plist "$app" DMTitleID)_build"
+  [[ -d "$build" ]] || return 0
+  git -C "$repo" rev-parse 'HEAD^{tree}' > "$build/app.tree" 2> /dev/null || true
+  share_save "$app" "$build"
+}
+
+if [[ $mac_app -eq 1 ]]; then
+  pack_app "$@"
+  exit
 fi
 
 # This install's own stages, as build_ipa_from_nsp.py reports its own (JSON events for NX Play, plain lines otherwise),
@@ -558,4 +563,15 @@ chmod +x "$launcher"
 
 echo "saved: $launcher"
 rm -f "$log"   # start replaces the EXIT trap
+
+# The game's Mac app, packed with the code before this rebuild, is packed again with it, so Play keeps starting the app
+# (it plays only an app as current as the build): a player who made one wants it, and after a rebuild it takes a couple
+# of minutes. Not for a kept build (Make Mac App is off for one), nor an app already packed with this code. A failed
+# pack plays the build.
+app="$(find_app)"
+if [[ -n "$app" && ! -f "$(dirname "$launcher")/keep" ]] \
+    && [[ "$(cat "$(dirname "$launcher")/app.tree" 2> /dev/null || true)" != "$current_tree" ]]; then
+  echo "nxplay: updating $(basename "$app") to this build"
+  pack_app "$@" || echo "nxplay: $(basename "$app") could not be updated (the log above says why): playing the build" >&2
+fi
 start "$launcher"

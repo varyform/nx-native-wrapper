@@ -77,7 +77,9 @@ struct GameActions: View {
             .disabled(busy || kept || game?.canBuildIPA != true)
             // a standalone app for the Dock and Launchpad; NX Play keeps playing from the folder
             Button(
-                game?.macAppURL == nil ? "Make Mac App" : "Remake Mac App",
+                game?.macAppURL == nil
+                    ? "Make Mac App"
+                    : game?.macAppOutdated == true ? "Update Mac App" : "Remake Mac App",
                 systemImage: "macwindow.badge.plus"
             ) {
                 game.map(library.makeMacApp)

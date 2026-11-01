@@ -14,11 +14,19 @@ struct IconBadges: View {
                 )
             }
             if let app = game.macAppURL {
-                IconBadge(
-                    text: "App", color: .teal,
-                    help:
-                        "\(app.lastPathComponent): a standalone Mac app of the game, with its own save in ~/Library/Application Support/nxnative."
-                )
+                if game.macAppOutdated {
+                    IconBadge(
+                        text: "App", symbol: "arrow.triangle.2.circlepath", color: .orange,
+                        help:
+                            "\(app.lastPathComponent) was packed with older nxnative code than the game's build, so Play starts the build. Update Mac App packs it again; a rebuild does it by itself when the game files are there."
+                    )
+                } else {
+                    IconBadge(
+                        text: "App", color: .teal,
+                        help:
+                            "\(app.lastPathComponent): Play starts this app, with the game's save and NX Play's settings. A rebuild packs it again."
+                    )
+                }
             }
             if let xcode = game.xcodeBuildFolder {
                 IconBadge(

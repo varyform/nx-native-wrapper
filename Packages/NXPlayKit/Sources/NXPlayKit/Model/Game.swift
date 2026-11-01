@@ -35,6 +35,9 @@ public struct Game: Identifiable, Hashable, Sendable {
     /// Keep This Build: a `keep` file in the build folder, so nxplay plays the build as it is after an nxnative
     /// update instead of rebuilding it; only Rebuild replaces it.
     public var isKept = false
+    /// The Mac app runs older nxnative code than the build, so Play starts the build instead (nxplay's app_is_current):
+    /// a rebuild packs it again, or Make Mac App when that couldn't (no game files, a failed pack).
+    public var macAppOutdated = false
     public let state: State
 
     public var id: String { folder.path }

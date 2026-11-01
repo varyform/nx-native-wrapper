@@ -44,12 +44,7 @@ public enum GameScanner {
             }
             .flatMap { isDirectory($0) ? $0 : nil },
             // nxnative's app: <game name>.app with its Mac host inside (not any app that happens to be there)
-            macAppURL: newest(
-                entries.filter {
-                    $0.pathExtension == "app"
-                        && FileManager.default.isExecutableFile(
-                            atPath: $0.appending(path: "Contents/MacOS/dmhost").path)
-                }),
+            macAppURL: newest(entries.filter(isMacApp)),
             hasPackages: hasPackages,
             // a copied folder carries the mark on itself, a copied file on itself
             isCopying: isBeingCopied(folder) || packages.contains(where: isBeingCopied),
@@ -59,6 +54,9 @@ public enum GameScanner {
             },
             isKept: build.map {
                 FileManager.default.fileExists(atPath: $0.folder.appending(path: keepName).path)
+            } ?? false,
+            macAppOutdated: build.flatMap { build in
+                newest(entries.filter(isMacApp)).map { isOutdated(app: $0, build: build.folder) }
             } ?? false,
             state: state
         )
@@ -111,6 +109,34 @@ public enum GameScanner {
                 .contentModificationDate ?? .distantPast
             hasContent = GameScanner.children(of: folder).contains { $0.lastPathComponent != "run" }
         }
+    }
+
+    /// nxnative's app: `<game name>.app` with its Mac host inside, not any app that happens to be there.
+    static func isMacApp(_ url: URL) -> Bool {
+        url.pathExtension == "app"
+            && FileManager.default.isExecutableFile(
+                atPath: url.appending(path: "Contents/MacOS/dmhost").path)
+    }
+
+    /// The app was packed with other nxnative code than the build's launcher runs, as nxplay decides it: by the code
+    /// `app.tree` records (nxplay --mac-app), else, for an app from before that, by being older than the launcher. No
+    /// launcher: nothing to compare (Play has only the app's build to go by).
+    static func isOutdated(app: URL, build: URL) -> Bool {
+        let launcher = build.appending(path: launcherName)
+        guard FileManager.default.fileExists(atPath: launcher.path) else { return false }
+        if let packed = try? String(contentsOf: build.appending(path: "app.tree"), encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines), !packed.isEmpty
+        {
+            return ProfileNews.builtTree(build).map { $0 != packed } ?? false
+        }
+        func modified(_ url: URL) -> Date? {
+            (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate
+        }
+        guard let packed = modified(app.appending(path: "Contents/Info.plist")),
+            let built = modified(launcher)
+        else { return false }
+        return packed < built
     }
 
     /// `extract/v<number>` folders, newest version first.

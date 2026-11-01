@@ -88,6 +88,32 @@ import Testing
             GameScanner.scan(root: root).first?.macAppURL?.lastPathComponent == "Metroid Dread.app")
     }
 
+    /// nxplay's app_is_current, as the library shows it: the code app.tree records against the launcher's, else dates.
+    @Test func aMacAppPackedWithOlderCodeIsOutdated() throws {
+        let build = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
+        let launcher = build.appending(path: "start_mac.sh")
+        try Data("#!/bin/sh\n# nxnative tree aaa\ncd x\n".utf8).write(to: launcher)
+        let app = root.appending(path: "Metroid/Metroid Dread.app")
+        try touch(app.appending(path: "Contents/MacOS/dmhost"), executable: true)
+        try touch(app.appending(path: "Contents/Info.plist"))
+        func outdated() -> Bool { GameScanner.scan(root: root).first?.macAppOutdated == true }
+
+        try Data("aaa\n".utf8).write(to: build.appending(path: "app.tree"))
+        #expect(!outdated())
+        try Data("bbb\n".utf8).write(to: build.appending(path: "app.tree"))
+        #expect(outdated())
+        // from before app.tree: older than the launcher
+        try FileManager.default.removeItem(at: build.appending(path: "app.tree"))
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(-3600)],
+            ofItemAtPath: app.appending(path: "Contents/Info.plist").path)
+        #expect(outdated())
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(3600)],
+            ofItemAtPath: app.appending(path: "Contents/Info.plist").path)
+        #expect(!outdated())
+    }
+
     @Test func aLauncherWithoutTheMacHostIsNotReady() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
         try touch(folder.appending(path: "start_mac.sh"))
