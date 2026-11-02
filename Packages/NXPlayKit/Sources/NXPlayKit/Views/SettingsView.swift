@@ -253,6 +253,7 @@ private struct DeviceSettings: View {
                     "Signs Install on Device: Xcode builds the game for your iPhone or iPad and installs it, no sideloading. Teams come from Xcode › Settings › Apple Accounts; a Personal Team builds without the Increased Memory Limit."
                 )
             }
+            RemoteSettingsSection()
         }
         .onAppear { library.refreshDevices() }
     }

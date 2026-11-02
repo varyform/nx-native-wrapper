@@ -6,6 +6,8 @@ public struct DeviceApp: Hashable, Identifiable, Sendable {
     public let name: String
     public let version: String
     public var id: String { bundleID }
+    /// The title ID that ends nxnative's bundle IDs.
+    public var titleID: String { String(bundleID.suffix(16)).uppercased() }
 }
 
 /// The parts of `xcrun devicectl` the save transfer uses. Paths on the device are inside the app's data container.
@@ -20,6 +22,11 @@ public enum DeviceCtl {
     public static func apps(on device: Device, titleID: String) async throws -> [DeviceApp] {
         parseApps(
             try await run(["device", "info", "apps", "--device", device.id]), titleID: titleID)
+    }
+
+    /// Every nxnative game on a device: the apps whose bundle IDs end in a title ID (16 hex digits).
+    public static func games(on device: Device) async throws -> [DeviceApp] {
+        parseApps(try await run(["device", "info", "apps", "--device", device.id]), titleID: nil)
     }
 
     /// The files of the app's save (Documents/save, the iOS app's DM_SAVE).
@@ -56,17 +63,24 @@ public enum DeviceCtl {
 
     // MARK: - Output
 
-    static func parseApps(_ json: Data, titleID: String) -> [DeviceApp] {
-        let suffix = titleID.lowercased()
+    /// nil `titleID`: any nxnative game.
+    static func parseApps(_ json: Data, titleID: String?) -> [DeviceApp] {
+        let suffix = titleID?.lowercased()
         return (result(json)?["apps"] as? [[String: Any]] ?? []).compactMap { app in
             guard let bundleID = app["bundleIdentifier"] as? String,
-                bundleID.lowercased().hasSuffix(suffix),
+                isGame(bundleID, suffix: suffix),
                 app["containerAccessible"] as? Bool != false
             else { return nil }
             return DeviceApp(
                 bundleID: bundleID, name: app["name"] as? String ?? bundleID,
                 version: app["version"] as? String ?? "")
         }
+    }
+
+    /// The game's bundle ID, or with no title ID any that ends in one (16 hex digits).
+    private static func isGame(_ bundleID: String, suffix: String?) -> Bool {
+        if let suffix { return bundleID.lowercased().hasSuffix(suffix) }
+        return bundleID.wholeMatch(of: /.*[^0-9A-Fa-f][0-9A-Fa-f]{16}/) != nil
     }
 
     /// `info files` lists Documents recursively; the save is what is under save/.

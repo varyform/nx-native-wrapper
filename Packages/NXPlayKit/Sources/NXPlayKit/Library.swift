@@ -35,6 +35,8 @@ public final class Library {
         static let globalSettings = "globalSettings"
         static let saveChoices = "appSaveChoices"
         static let updateBeforePlay = "updateBeforePlay"
+        static let remoteEnabled = "remoteEnabled"
+        static let remoteToken = "remoteToken"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -104,6 +106,21 @@ public final class Library {
     public internal(set) var teams: [AppleTeam] = []
     public internal(set) var devices: [Device] = []
     public private(set) var isLoadingDevices = false
+
+    /// Settings › Devices › iPad App: the server the iPad app installs games through (Library+Remote.swift).
+    public var remoteEnabled: Bool {
+        didSet {
+            defaults.set(remoteEnabled, forKey: Keys.remoteEnabled)
+            applyRemote()
+        }
+    }
+    /// The code the iPad app pairs with; a new one locks out the iPads that had the old one.
+    public internal(set) var remoteToken: String {
+        didSet { defaults.set(remoteToken, forKey: Keys.remoteToken) }
+    }
+    /// Why the iPad app's server isn't listening.
+    public internal(set) var remoteProblem: String?
+    @ObservationIgnored var remoteServer: RemoteServer?
 
     public private(set) var games: [Game] = []
     public internal(set) var jobs: [Game.ID: Job] = [:]
@@ -241,6 +258,10 @@ public final class Library {
             (defaults.dictionary(forKey: Keys.saveChoices) as? [String: String] ?? [:])
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
+        remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
+        let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
+        defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
+        remoteToken = token
 
         teamID = defaults.string(forKey: Keys.team) ?? ""
         // hidden for a new player (the status bar shows builds; a failure opens it); someone who chose a games folder
@@ -271,6 +292,7 @@ public final class Library {
         refresh()
         refreshDevices()
         applyControllerPlayers()  // didSet doesn't run for the value read in init
+        applyRemote()
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
         if defaults.bool(forKey: Keys.consoleMode), root != nil {
             consoleMode = true

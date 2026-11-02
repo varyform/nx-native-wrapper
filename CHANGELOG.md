@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **iPad app server** (Settings › Devices › iPad App, off by default): the groundwork for an iPad app that lists your games and asks the Mac to install one. The Mac then builds it and installs it on the iPad over Wi-Fi. NX Play shows up on the local network over Bonjour. Each request needs the pairing code shown in Settings, and **New Code** replaces it.
+
 ### Changed
 
 - **NX Play's own log lines are blue too**, like nxplay's since 1.7.16: the save backup's commits and pushes, the command each run starts with, and how it ended (done, failed, cancelled).

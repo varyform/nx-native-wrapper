@@ -88,6 +88,13 @@ Right-click a game for more, or use the **Game** menu:
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
+**iPad app server** (Settings › Devices › iPad App, off by default): the groundwork for an iPad app that lists your games and asks the Mac to install one. The Mac builds the game signed with your team, then installs it over Wi-Fi, the way Install on Device does. NX Play advertises itself over Bonjour (`_nxplay._tcp`, port 47474), and every request needs the pairing code shown there. **New Code** locks out anyone holding the old one. The iPad must be paired with Xcode, with **Connect via network** on. The API is in `Library+Remote.swift`:
+
+```sh
+curl -H "Authorization: Bearer <code>" http://<mac>.local:47474/v1/games
+curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/games/<folder>/install?device=<udid>"
+```
+
 **Save backup** (Settings): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
 
 **Cloud saves** (Settings › Saves): a game's Mac and iPhone copies play on from one save, through iCloud Drive (its nxnative Saves folder) or a folder you pick. This is nxnative's own sync: each game keeps one file there, `<title ID>/save.dmsync`. The game brings in the cloud's save when it starts and sends its own a few seconds after each save. On the iPhone, pick the same folder in the game app's Cloud saves. When both sides changed, the newer save wins and the other is kept in the save's backups. A save made in the last seconds before you quit goes up at the game's next start. From the Terminal: `DM_SAVE_SYNC=icloud nxplay <game folder>`.
