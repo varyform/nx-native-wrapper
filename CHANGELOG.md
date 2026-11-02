@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **Don't Play is a row in Play's questions** ([#9](https://github.com/varyform/nx-native-wrapper/issues/9)): asking whether to update first, or which save to use, Console Mode's controller can now move down to **Don't Play**, under the answers, and press A. The row shows the button that does the same from anywhere (B, or Esc). Before, it was a button the controller couldn't reach, and nothing on screen said B cancels.
+
 ## 1.8.0 — 2026-11-02
 
 ### Added

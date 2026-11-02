@@ -4,7 +4,7 @@ import Foundation
 /// save stays as it is. Console Mode answers it with the controller, so the highlighted row lives here.
 public struct SaveQuestion: Identifiable, Sendable {
     public enum Row: CaseIterable, Sendable {
-        case nxplay, app, newer, remember
+        case nxplay, app, newer, remember, cancel
     }
 
     public let game: Game
@@ -53,7 +53,8 @@ extension Library {
             appSave: question.appSave.usesApp(choice) ? question.appSave.folder : nil)
     }
 
-    /// The controller: up and down move through the rows, A picks the save or ticks "Don't ask again", B cancels.
+    /// The controller: up and down move through the rows, A picks the save, ticks "Don't ask again" or doesn't play,
+    /// B doesn't play.
     func handleSaveQuestion(_ command: Gamepad.Command) {
         guard var question = saveQuestion else { return }
         let rows = SaveQuestion.Row.allCases
@@ -67,6 +68,7 @@ extension Library {
             case .app: return answerSaveQuestion(.app)
             case .newer: return answerSaveQuestion(.newer)
             case .remember: question.remember.toggle()
+            case .cancel: return answerSaveQuestion(nil)
             }
         case .back: return answerSaveQuestion(nil)
         case .menu, .info: break

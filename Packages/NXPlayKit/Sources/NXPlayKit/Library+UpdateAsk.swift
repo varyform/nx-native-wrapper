@@ -4,7 +4,7 @@ import Foundation
 /// row lives here.
 public struct UpdatePrompt: Identifiable {
     public enum Row: CaseIterable, Sendable {
-        case update, current
+        case update, current, cancel
     }
 
     public let job: Job
@@ -33,14 +33,22 @@ extension Library {
         presentNextAsk()
     }
 
-    /// The controller: left and right, or up and down, choose; A answers; B doesn't play.
+    /// The controller: up and down, or left and right, move through the rows; A answers; B doesn't play.
     func handleUpdatePrompt(_ command: Gamepad.Command) {
         guard var prompt = updatePrompt else { return }
+        let rows = UpdatePrompt.Row.allCases
+        let index = rows.firstIndex(of: prompt.focus) ?? 0
         switch command {
-        case .up, .down, .left, .right:
-            prompt.focus = prompt.focus == .update ? .current : .update
+        case .up, .left: prompt.focus = rows[max(0, index - 1)]
+        case .down, .right: prompt.focus = rows[min(rows.count - 1, index + 1)]
         case .confirm:
-            return answerUpdate(prompt.focus == .update ? .update : .current)
+            let answer: UpdateAnswer =
+                switch prompt.focus {
+                case .update: .update
+                case .current: .current
+                case .cancel: .cancel
+                }
+            return answerUpdate(answer)
         case .back: return answerUpdate(.cancel)
         case .menu, .info: break
         }

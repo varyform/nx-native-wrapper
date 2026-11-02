@@ -44,14 +44,12 @@ struct UpdateAskView: View {
                 row(
                     .current, "Play Current Build",
                     detail: "Play now; the next Play asks again", default: false)
+                DontPlayRow(highlighted: library.updatePrompt?.focus == .cancel) {
+                    library.answerUpdate(.cancel)
+                }
             }
-            HStack {
-                Text("Settings \u{203A} General can stop asking.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("Don\u{2019}t Play") { library.answerUpdate(.cancel) }
-                    .keyboardShortcut(.cancelAction)
-            }
+            Text("Settings \u{203A} General can stop asking.")
+                .font(.caption).foregroundStyle(.secondary)
         }
         .padding(24)
         .frame(width: 520)

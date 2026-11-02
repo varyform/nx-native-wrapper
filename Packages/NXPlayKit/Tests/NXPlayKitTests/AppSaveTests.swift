@@ -115,4 +115,17 @@ import Testing
         #expect(library.saveQuestion == nil)
         #expect(library.saveChoice(for: game) == nil)
     }
+
+    /// Don't Play is the last row, so the controller reaches it without knowing B (issue #9).
+    @Test func theLastRowDoesntPlay() throws {
+        let game = try game(nxplay: .distantPast, app: .now)
+        let library = library()
+        library.saveQuestion = SaveQuestion(
+            game: game, appSave: try #require(AppSave(game: game, home: home)))
+        for _ in 0..<5 { library.handle(.down) }
+        #expect(library.saveQuestion?.focus == .cancel)
+        library.handle(.confirm)
+        #expect(library.saveQuestion == nil)
+        #expect(library.jobs.isEmpty)
+    }
 }

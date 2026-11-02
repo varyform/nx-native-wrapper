@@ -36,9 +36,8 @@ struct SaveChoiceView: View {
             }
             .padding(6)
             .overlay(highlight(.remember))
-            HStack {
-                Spacer()
-                Button("Cancel") { library.answerSaveQuestion(nil) }.keyboardShortcut(.cancelAction)
+            DontPlayRow(highlighted: library.saveQuestion?.focus == .cancel) {
+                library.answerSaveQuestion(nil)
             }
         }
         .padding(24)
@@ -84,7 +83,7 @@ struct SaveChoiceView: View {
         case .nxplay: .nxplay
         case .app: .app
         case .newer: .newer
-        case .remember: nil
+        case .remember, .cancel: nil
         }
     }
 
