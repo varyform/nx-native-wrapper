@@ -78,6 +78,10 @@ struct RemoveGameView: View {
         }
         let rows: [(String, Bool)] = [
             ("\(packages) game file\(packages == 1 ? "" : "s") (NSP, NSZ, XCI, XCZ)", packages > 0),
+            (
+                "The game's dumped files: base, updates, DLC",
+                game.isDump && names.contains { GameDump.folders.contains($0) }
+            ),
             ("The build: extracted game, rewritten code, shaders", game.buildFolder != nil),
             ("The Mac app", names.contains { $0.hasSuffix(".app") }),
             ("IPAs", names.contains { $0.lowercased().hasSuffix(".ipa") }),

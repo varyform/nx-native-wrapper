@@ -1,6 +1,7 @@
 import Foundation
 
-/// One subfolder of the games folder: the NSPs of a game and, once built, its `<title ID>_build` folder.
+/// One subfolder of the games folder: the NSPs of a game (or a dump of its files) and, once built, its
+/// `<title ID>_build` folder.
 public struct Game: Identifiable, Hashable, Sendable {
     public enum State: Hashable, Sendable {
         /// Only the packages: nothing extracted yet.
@@ -27,7 +28,11 @@ public struct Game: Identifiable, Hashable, Sendable {
     public let xcodeBuildFolder: URL?
     /// The standalone Mac app Make Mac App packed into the game folder (nxnative's --platform mac-app).
     public var macAppURL: URL? = nil
+    /// The game files are there to build from: NSPs, NSZs, XCIs or XCZs, or a dump.
     public let hasPackages: Bool
+    /// The game files are a dump of the game (`base/`, `updates/`, `dlc/`), as nxnative builds a Switch 2 game: no
+    /// prod.keys needed, and no icon or name of its own (GameDump).
+    public var isDump = false
     /// A game file Finder is still copying into the folder: nothing may build from it until it's complete.
     public var isCopying = false
     /// When nxplay last started or ended the game (`run/last_played`); Console Mode puts the latest first.
@@ -41,6 +46,8 @@ public struct Game: Identifiable, Hashable, Sendable {
     public let state: State
 
     public var id: String { folder.path }
+    /// Switch 2 title IDs start with 04 (Switch 1 ones with 01).
+    public var isSwitch2: Bool { titleID?.hasPrefix("04") == true }
     public var isExtracted: Bool { state != .notExtracted }
     public var canExtract: Bool { state == .notExtracted && hasPackages && !isCopying }
     /// Builds read the game files: a rebuild, the IPA and Install on Device (which also starts from the NSPs).

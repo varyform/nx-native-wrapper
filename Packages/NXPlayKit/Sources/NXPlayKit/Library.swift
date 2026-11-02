@@ -900,8 +900,9 @@ public final class Library {
                 "No nxnative checkout at \(repo). Open Setup to install it, or set its folder in Settings."
             return nil
         }
-        // playing a ready game only needs the keys when nxnative changed and it rebuilds; nxplay says so then
-        guard (kind == .play && game.state == .ready) || fm.fileExists(atPath: keys) else {
+        // playing a ready game only needs the keys when nxnative changed and it rebuilds; nxplay says so then. A dump's
+        // files aren't encrypted: it never needs them
+        guard (kind == .play && game.state == .ready) || game.isDump || fm.fileExists(atPath: keys) else {
             problem = "No prod.keys at \(keys). Set the file in Settings."
             return nil
         }

@@ -6,6 +6,13 @@ struct IconBadges: View {
 
     var body: some View {
         HStack(spacing: 4) {
+            if game.isSwitch2 {
+                IconBadge(
+                    text: "Switch 2", color: .red,
+                    help:
+                        "A Switch 2 game. nxnative builds it from a dump of its files (base, updates, DLC), with no prod.keys, and tests it on the Mac only."
+                )
+            }
             if game.isKept {
                 IconBadge(
                     text: "Kept", symbol: "lock.fill", color: .orange,
@@ -69,6 +76,12 @@ struct ProfileBadges: View {
                         text: "In bring-up", symbol: "hammer.fill", color: .orange,
                         help: Self.help(profile))
                 }
+            } else if game.isDump {
+                IconBadge(
+                    text: "No profile", symbol: "xmark", color: .red,
+                    help:
+                        "nxnative builds a game from a dump only once it has a profile for it, and has none for \(game.titleID ?? "this game") yet. Extract tries again with nxnative's latest code."
+                )
             } else if game.titleID != nil {
                 IconBadge(
                     text: "Guessed", symbol: "questionmark", color: .gray,

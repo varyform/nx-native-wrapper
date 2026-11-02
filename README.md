@@ -8,7 +8,7 @@
 - Copy saves between the Mac and a device, after seeing which one is newer, and back them up to your own private Git repository while you play.
 - Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
-> You need your own games (NSP, NSZ, XCI or XCZ files) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
+> You need your own games (NSP, NSZ, XCI or XCZ files, or a dump of a Switch 2 game) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
 
 **Contents**
 
@@ -77,9 +77,17 @@ Open NX Play and choose your games folder, with one subfolder per game:
 Switch/
 ├── Metroid Dread/
 │   └── Metroid Dread [010093801237C000][v0].nsp
-└── Super Mario Bros Wonder/
-    └── ….nsz
+├── Super Mario Bros Wonder/
+│   └── ….nsz
+└── Donkey Kong Bananza/
+    ├── base/
+    │   ├── exefs/        main, main.npdm, sdk, …
+    │   └── romfs/
+    └── updates/
+        └── 458752/       exefs/ and romfs/ of the update
 ```
+
+A Switch 2 game is a dump of its files, the way [nxnative builds one](https://github.com/seedds/nxnative#switch-2-games): `base/`, then optionally `updates/<version>/` and `dlc/<title ID>/`. It needs no `prod.keys`, and carries no icon or name, so it shows its folder's name. A **Switch 2** badge marks it. nxnative builds a dump only for a game it has a profile for, and tests Switch 2 games on the Mac only; a **No profile** badge marks one it can't build yet.
 
 Extracted games show their icons and a **Play** button; the others have **Extract**, and **Extract All** builds them one after another. A status bar at the bottom shows what's building. The log, which starts hidden (View › Show Log, ⇧⌘Y), shows the selected game's output, and opens by itself when a build fails. The toolbar switches between the grid and a sortable list (View › as Grid ⌘1 / as List ⌘2).
 

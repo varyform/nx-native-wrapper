@@ -225,9 +225,11 @@ update_nxnative() {
 }
 
 # A game whose original files were removed to free space (NX Play's Remove Game Files) cannot be rebuilt:
-# after an nxnative update it keeps playing the build it has, rather than failing to rebuild and not starting
+# after an nxnative update it keeps playing the build it has, rather than failing to rebuild and not starting.
+# A Switch 2 game's files are a dump of it (base/exefs/main.npdm and base/romfs, nxnative's pack_dump.py).
 has_game_files() {
   local f
+  [[ -f "$game/base/exefs/main.npdm" && -d "$game/base/romfs" ]] && return 0
   shopt -s nocasematch
   for f in "$game"/*; do
     case "$f" in *.nsp | *.nsz | *.xci | *.xcz) [[ -s "$f" ]] && return 0 ;; esac

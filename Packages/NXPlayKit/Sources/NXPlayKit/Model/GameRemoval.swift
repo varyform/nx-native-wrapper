@@ -1,8 +1,8 @@
 import Foundation
 
 /// Game › Remove Game…: what removing a game deletes, and what stays. Only what NX Play and nxnative put in the game's
-/// folder goes: the game files, the build, the survey, the IPAs and the Mac app; anything else the player keeps there
-/// (a mod, notes) stays, and the folder goes only once it is empty.
+/// folder goes: the game files (a dump's base, updates and dlc folders), the build, the survey, the IPAs and the Mac
+/// app; anything else the player keeps there (a mod, notes) stays, and the folder goes only once it is empty.
 ///
 /// The saves stay unless the player asks otherwise: in the build's `run/` (the save, the device save, their backups
 /// and cloud-sync record, and when it was last played), which the library doesn't count as a game on its own. Put the
@@ -36,6 +36,7 @@ public struct GameRemoval: Sendable {
             let name = url.lastPathComponent
             let ext = url.pathExtension.lowercased()
             if GameScanner.packageExtensions.contains(ext) || ext == "ipa" { return true }
+            if game.isDump && GameDump.folders.contains(name) { return true }
             // nxnative's Mac app and the stamp it keeps beside it
             if ext == "app" || name.hasSuffix(".app.key") { return true }
             let stem = name.split(separator: "_").first.map(String.init)?.uppercased()

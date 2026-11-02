@@ -118,7 +118,7 @@ struct GameBadge: View {
                 case .extracted: Badge(text: "Extracted", color: .blue)
                 case .notExtracted:
                     Badge(
-                        text: game.hasPackages ? "Not extracted" : "No NSP files", color: .secondary
+                        text: game.hasPackages ? "Not extracted" : "No game files", color: .secondary
                     )
                 }
             }

@@ -1,7 +1,8 @@
 import Foundation
 
 /// Finds the games in a folder laid out the way build_ipa_from_nsp.py leaves it:
-/// `<root>/<game>/*.nsp` and `<root>/<game>/<title ID>_build/extract/v<version>/{icon.jpg,control.nacp}`.
+/// `<root>/<game>/*.nsp` and `<root>/<game>/<title ID>_build/extract/v<version>/{icon.jpg,control.nacp}`. A Switch 2
+/// game is a dump of its files in place of the NSPs (GameDump).
 public enum GameScanner {
     static let packageExtensions: Set<String> = ["nsp", "nsz", "xci", "xcz"]
     static let launcherName = "start_mac.sh"
@@ -18,7 +19,8 @@ public enum GameScanner {
         guard isDirectory(folder) else { return nil }
         let entries = children(of: folder)
         let packages = entries.filter { packageExtensions.contains($0.pathExtension.lowercased()) }
-        let hasPackages = !packages.isEmpty
+        let isDump = GameDump.isDump(folder)
+        let hasPackages = !packages.isEmpty || isDump
         let builds = entries.filter(isBuildFolder).map(Build.init(folder:))
         // a build with nothing but its run folder holds the saves of a removed game (Remove Game keeps them): no game
         // until its files come back
@@ -33,7 +35,9 @@ public enum GameScanner {
         return Game(
             folder: folder,
             name: nacp?.title ?? folder.lastPathComponent,
-            titleID: build.map { String($0.folder.lastPathComponent.dropLast("_build".count)) },
+            // a dump names its game before the build does
+            titleID: build.map { String($0.folder.lastPathComponent.dropLast("_build".count)) }
+                ?? (isDump ? GameDump.titleID(of: folder) : nil),
             version: nacp?.displayVersion,
             languages: nacp?.languages ?? [],
             iconURL: build?.iconURL,
@@ -46,6 +50,7 @@ public enum GameScanner {
             // nxnative's app: <game name>.app with its Mac host inside (not any app that happens to be there)
             macAppURL: newest(entries.filter(isMacApp)),
             hasPackages: hasPackages,
+            isDump: isDump,
             // a copied folder carries the mark on itself, a copied file on itself
             isCopying: isBeingCopied(folder) || packages.contains(where: isBeingCopied),
             lastPlayed: build.flatMap {
