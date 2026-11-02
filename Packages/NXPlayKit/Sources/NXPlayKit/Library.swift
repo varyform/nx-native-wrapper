@@ -107,20 +107,22 @@ public final class Library {
     public internal(set) var devices: [Device] = []
     public private(set) var isLoadingDevices = false
 
-    /// Settings › Devices › iPad App: the server the iPad app installs games through (Library+Remote.swift).
+    /// Settings › Devices › iPhone & iPad App: the server the iOS app installs games through (Library+Remote.swift).
     public var remoteEnabled: Bool {
         didSet {
             defaults.set(remoteEnabled, forKey: Keys.remoteEnabled)
             applyRemote()
         }
     }
-    /// The code the iPad app pairs with; a new one locks out the iPads that had the old one.
+    /// The code the iOS app pairs with; a new one locks out the devices that had the old one.
     public internal(set) var remoteToken: String {
         didSet { defaults.set(remoteToken, forKey: Keys.remoteToken) }
     }
-    /// Why the iPad app's server isn't listening.
+    /// Why the iOS app's server isn't listening.
     public internal(set) var remoteProblem: String?
     @ObservationIgnored var remoteServer: RemoteServer?
+    /// Install NX Play's run, while it goes and after (Library+IOSApp.swift).
+    public internal(set) var iosAppInstall: IOSAppInstall?
 
     public private(set) var games: [Game] = []
     public internal(set) var jobs: [Game.ID: Job] = [:]

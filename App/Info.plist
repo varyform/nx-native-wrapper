@@ -7,12 +7,12 @@
 	     with NX_SOURCE_ROOT empty, so a released app keeps everything in its own folder (AppHome) -->
     <key>NXSourceRoot</key>
     <string>$(NX_SOURCE_ROOT)</string>
-    <!-- Settings › Devices › iPad App: the server the iPad app finds over Bonjour (RemoteServer) -->
+    <!-- Settings › Devices › iPhone & iPad App: the server the iOS app finds over Bonjour (RemoteServer) -->
     <key>NSBonjourServices</key>
     <array>
       <string>_nxplay._tcp</string>
     </array>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>The NX Play iPad app finds this Mac on the local network to list your games and install them on the iPad.</string>
+    <string>NX Play on your iPhone or iPad finds this Mac on the local network to list your games and install them there.</string>
   </dict>
 </plist>

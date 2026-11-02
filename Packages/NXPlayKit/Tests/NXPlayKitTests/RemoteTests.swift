@@ -83,4 +83,16 @@ import Testing
         let apps = DeviceCtl.parseApps(json, titleID: nil)
         #expect(apps.map(\.titleID) == ["010093801237C000", "0100646009FBE000"])
     }
+
+    @Test func readsWhenAProfileExpires() throws {
+        let plist = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <plist version="1.0"><dict><key>ExpirationDate</key><date>2027-10-25T15:06:36Z</date></dict></plist>
+            """
+        // the list sits between the CMS signature's bytes
+        let profile = Data([0x30, 0x80, 0x06]) + Data(plist.utf8) + Data([0xA0, 0x00])
+        let date = try #require(Provisioning.expiration(ofProfile: profile))
+        #expect(date == ISO8601DateFormatter().date(from: "2027-10-25T15:06:36Z"))
+        #expect(Provisioning.expiration(ofProfile: Data([0x30, 0x80])) == nil)
+    }
 }

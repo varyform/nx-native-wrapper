@@ -497,6 +497,17 @@ if [[ -n "$device" ]]; then
   app="$build/xcode-derived-data/Build/Products/Release-iphoneos/DmIOS.app"
   xlog="$build/logs/xcode_device.log"
 
+  # NX Play's iOS app opens a game by the URL scheme nxplay-<title ID>; nxnative's app registers none, and
+  # --prepare-xcode writes the plist afresh each time, so it's added here, before every build
+  plist="$build/xcode/Gen/Info.plist" tid="${scheme##*(}" tid="${tid%)}"
+  if [[ -f "$plist" && "$tid" =~ ^[0-9A-Fa-f]{16}$ ]]; then
+    url_scheme="nxplay-$(tr '[:upper:]' '[:lower:]' <<< "$tid")"
+    /usr/libexec/PlistBuddy -c "Delete :CFBundleURLTypes" "$plist" > /dev/null 2>&1 || true
+    /usr/libexec/PlistBuddy -c "Add :CFBundleURLTypes array" -c "Add :CFBundleURLTypes:0 dict" \
+      -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes array" \
+      -c "Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string $url_scheme" "$plist"
+  fi
+
   # the derived data Xcode uses for this project too; the first build copies the whole game into the app.
   # Built for any iPhone: a device destination needs the phone unlocked through the whole build
   stage 1 "Xcode build · $scheme"

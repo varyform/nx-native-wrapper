@@ -56,6 +56,17 @@ targets:
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Setup/pyproject.toml
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Setup/uv.lock
           - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/Setup/.python-version
+      # Settings › Devices › Install NX Play: bin/install-ios with the iOS app's source and the icon it shares
+      # (Library+IOSApp.swift), in the layout the script expects
+      - name: Bundle the iOS app
+        script: |
+          dir="$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/iOSApp"
+          rm -rf "$dir"
+          mkdir -p "$dir/bin" "$dir/App"
+          cp "$SRCROOT/bin/install-ios" "$dir/bin/"
+          rsync -a --exclude '*.xcodeproj' --exclude Gen "$SRCROOT/iOS/" "$dir/iOS/"
+          rsync -a "$SRCROOT/App/AppIcon.icon" "$dir/App/"
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: NXPlayKit
     settings:

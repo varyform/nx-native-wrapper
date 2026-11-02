@@ -1,7 +1,7 @@
 import Foundation
 import SystemConfiguration
 
-/// The iPad app's API (Settings › Devices › iPad App). The iPad lists the games, picks itself from the devices this
+/// The iOS app's API (Settings › Devices › iPhone & iPad App). The iPhone or iPad lists the games, picks itself from the devices this
 /// Mac reaches, and asks for an install: the Mac builds the game signed with its team and installs it over Wi-Fi
 /// with devicectl, as Install on Device does. iOS doesn't let one app install another, so the Mac pushes the app.
 /// Every request carries the pairing code (`Authorization: Bearer <code>`).
@@ -15,7 +15,7 @@ import SystemConfiguration
 ///
 /// A game's id is its folder's name in the games folder.
 extension Library {
-    /// A new pairing code: 3 groups of 4 letters and digits, about 60 bits, short enough to type on the iPad.
+    /// A new pairing code: 3 groups of 4 letters and digits, about 60 bits, short enough to type on a phone.
     static func newRemoteToken() -> String {
         let alphabet = Array("abcdefghjkmnpqrstuvwxyz23456789")
         return (0..<3).map { _ in
@@ -128,6 +128,8 @@ extension Library {
             "canInstall": game.canBuildFromFiles && !game.isKept,
             "hasIcon": icon(for: game) != nil,
             "job": job(for: game).map(remoteJSON) ?? NSNull(),
+            // when the copy installed from this Mac stops opening (a Personal Team's after 7 days)
+            "expires": Provisioning.expiration(of: game).map { $0.ISO8601Format() } ?? NSNull(),
         ]
     }
 
@@ -144,9 +146,13 @@ extension Library {
             status = "failed"
             exitCode = code
         }
+        // a failure's reason is in its last lines (xcodebuild's error, devicectl's refusal)
+        let reason =
+            status == "failed"
+            ? job.log.lines.suffix(40).map(\.text).filter { !$0.isEmpty }.suffix(8) : []
         return [
             "kind": kind, "device": device, "status": status, "exitCode": exitCode,
-            "fraction": job.progressFraction, "text": job.progressText,
+            "fraction": job.progressFraction, "text": job.progressText, "lastLines": Array(reason),
         ]
     }
 

@@ -88,7 +88,20 @@ Right-click a game for more, or use the **Game** menu:
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
-**iPad app server** (Settings › Devices › iPad App, off by default): the groundwork for an iPad app that lists your games and asks the Mac to install one. The Mac builds the game signed with your team, then installs it over Wi-Fi, the way Install on Device does. NX Play advertises itself over Bonjour (`_nxplay._tcp`, port 47474), and every request needs the pairing code shown there. **New Code** locks out anyone holding the old one. The iPad must be paired with Xcode, with **Connect via network** on. The API is in `Library+Remote.swift`:
+**NX Play for iPhone and iPad**: a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does. To set it up:
+
+1. Pair the device with Xcode once (Window › Devices and Simulators) with **Connect via network** on, and turn on Developer Mode.
+2. On the Mac, turn on Settings › Devices › iPhone & iPad App. NX Play then shows up on the local network over Bonjour (`_nxplay._tcp`, port 47474) with a pairing code. **New Code** locks out devices that had the old one.
+3. Choose the device and click **Install NX Play** in the same section. NX Play builds the app from the source it carries and signs it with your team. From a checkout, `bin/install-ios <UDID>` does the same; `xcrun devicectl list devices` lists the UDIDs.
+4. On the device, pick the Mac, enter the code, and pick which of the Mac's devices this one is.
+
+The header shows which Mac the device is connected to. Games installed from now on open from the launcher: nxplay gives each one the URL scheme `nxplay-<title ID>`. A game installed before that needs **Reinstall from the Mac** once. A connected controller works too:
+- the d-pad or left stick moves through the games
+- **A** opens a game, then plays it (or installs it when it isn't on the device)
+- **Y** installs it again
+- **B** goes back
+
+Games installed with a Personal Team stop opening after 7 days, and with a paid team after a year. The launcher shows how long each game has left. Within two days of expiry, a banner offers **Renew**, which installs those games again. NX Play itself expires the same way: install it again from Settings. Installs go over the cable when the device is plugged in, otherwise over Wi-Fi. The Mac has to be awake and NX Play open. The API is in `Library+Remote.swift`:
 
 ```sh
 curl -H "Authorization: Bearer <code>" http://<mac>.local:47474/v1/games

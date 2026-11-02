@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Build NX Play for iPhone and iPad (iOS/), signed with your Apple team, and install it on a device by cable or over
+# Wi-Fi.
+# usage: bin/install-ios <device UDID> [--team <team ID>]
+#   the UDIDs: xcrun devicectl list devices. The team: --team, else NX Play's (Settings › Devices), else the first
+#   paid one Xcode knows (Xcode › Settings › Apple Accounts), else any.
+# NX Play runs the copy in its bundle (Resources/iOSApp) for Settings › Devices › Install NX Play, with
+# NXPLAY_IOS_WORK pointing into its Application Support folder: the bundle itself is never written to.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+work="${NXPLAY_IOS_WORK:-$PWD/build/ios}"
+
+usage() { echo "usage: $(basename "$0") <device UDID> [--team <team ID>]" >&2; exit 2; }
+device="" team=""
+while (( $# )); do
+  case "$1" in
+    --team) team="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
+    -*) usage ;;
+    *) device="$1"; shift ;;
+  esac
+done
+[[ -n "$device" ]] || usage
+
+[[ -n "$team" ]] || team="$(defaults read com.varyform.nxplay teamID 2> /dev/null || true)"
+if [[ -z "$team" ]]; then
+  # AppleTeam.fromXcode's choice: a paid team first (a Personal Team lacks the Increased Memory Limit)
+  team="$(defaults export com.apple.dt.Xcode - 2> /dev/null | python3 -c '
+import plistlib, sys
+d = plistlib.loads(sys.stdin.buffer.read())
+teams = [t for k in ("IDEProvisioningTeamByIdentifier", "IDEProvisioningTeams") for v in d.get(k, {}).values() for t in v]
+teams.sort(key=lambda t: bool(t.get("isFreeProvisioningTeam")))
+print(teams[0]["teamID"] if teams else "")
+' || true)"
+fi
+[[ -n "$team" ]] || { echo "install-ios: no Apple team: sign in under Xcode › Settings › Apple Accounts" >&2; exit 1; }
+
+# xcodegen writes the project next to project.yml: generate it in a copy, so the source stays as it is
+echo "preparing the project"
+mkdir -p "$work/src/App"
+rsync -a --delete iOS/ "$work/src/iOS/"
+rsync -a --delete App/AppIcon.icon "$work/src/App/"
+if command -v mise > /dev/null && mise which xcodegen > /dev/null 2>&1; then
+  (cd "$work/src/iOS" && mise exec -- xcodegen generate --quiet)
+else
+  (cd "$work/src/iOS" && xcodegen generate --quiet)
+fi
+echo "building NX Play for iOS, signed with team $team"
+xcodebuild -project "$work/src/iOS/NXPlayIOS.xcodeproj" -scheme NXPlayIOS -configuration Release \
+  -destination 'generic/platform=iOS' -derivedDataPath "$work/derived" DEVELOPMENT_TEAM="$team" \
+  -allowProvisioningUpdates -allowProvisioningDeviceRegistration -quiet build
+app="$work/derived/Build/Products/Release-iphoneos/NXPlayIOS.app"
+echo "built: $app"
+
+echo "installing on the device"
+xcrun devicectl device install app --device "$device" "$app"
+bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+if xcrun devicectl device process launch --device "$device" --terminate-existing "$bundle" > /dev/null; then
+  echo "installed and opened on the device"
+else
+  echo "installed; unlock the device and open NX Play"
+fi

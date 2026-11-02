@@ -6,7 +6,11 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
-- **iPad app server** (Settings › Devices › iPad App, off by default): the groundwork for an iPad app that lists your games and asks the Mac to install one. The Mac then builds it and installs it on the iPad over Wi-Fi. NX Play shows up on the local network over Bonjour. Each request needs the pairing code shown in Settings, and **New Code** replaces it.
+- **NX Play for iPhone and iPad**: a launcher that lists the Mac's games, asks the Mac to install one, and plays the installed ones. The Mac builds the game and installs it on the device over Wi-Fi, or over the cable when the device is plugged in. On the Mac, turn on Settings › Devices › iPhone & iPad App and click **Install NX Play**. Then pair the device with the code Settings shows; **New Code** replaces the code. On the device:
+  - The header shows NX Play's icon and which Mac it's connected to.
+  - A controller can drive it.
+  - It says when a game's signature runs out (7 days with a Personal Team). **Renew** installs the expiring games again.
+- **Games installed on a device open from NX Play for iPhone and iPad**: nxplay gives each one a URL scheme, `nxplay-<title ID>`. Reinstall a game installed before this once.
 
 ### Changed
 

@@ -1,7 +1,8 @@
 import Foundation
 import Network
+import SystemConfiguration
 
-/// How the iPad app reaches NX Play: a small HTTP server on the local network, advertised over Bonjour as
+/// How the iOS app reaches NX Play: a small HTTP server on the local network, advertised over Bonjour as
 /// `_nxplay._tcp`, so the app finds the Mac without being given an address. Everything runs on the main queue,
 /// where the library lives. Each connection carries one request and closes after the response.
 @MainActor final class RemoteServer {
@@ -30,7 +31,11 @@ import Network
             onProblem?("Can't listen on port \(port): \(error.localizedDescription)")
             return
         }
-        listener.service = NWListener.Service(type: Self.serviceType)
+        // the host name in the TXT record: the iOS app talks HTTP to <name>.local, not to the Bonjour service
+        let host = (SCDynamicStoreCopyLocalHostName(nil) as String?).map { "\($0).local" }
+        listener.service = NWListener.Service(
+            type: Self.serviceType,
+            txtRecord: NWTXTRecord(["v": "1", "host": host ?? "", "port": "\(port)"]).data)
         listener.stateUpdateHandler = { [weak self] state in
             MainActor.assumeIsolated {
                 switch state {
