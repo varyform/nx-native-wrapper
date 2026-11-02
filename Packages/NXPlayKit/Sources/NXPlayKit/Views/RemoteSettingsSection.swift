@@ -12,7 +12,7 @@ struct RemoteSettingsSection: View {
             Toggle("Let iPhones and iPads install games from this Mac", isOn: $library.remoteEnabled)
             if library.remoteEnabled {
                 LabeledContent("Address") {
-                    Text(verbatim: "\(ProcessInfo.processInfo.hostName):\(RemoteServer.defaultPort)")
+                    Text(verbatim: library.remoteAddress)
                         .textSelection(.enabled)
                 }
                 LabeledContent("Pairing code") {
@@ -71,9 +71,10 @@ struct RemoteSettingsSection: View {
         }
     }
 
-    /// The first device, until one is chosen.
+    /// The device NX Play last went to (renewing it is the usual reason to come back), else the first one.
     private func pickDevice() {
         guard !library.devices.contains(where: { $0.id == deviceID }) else { return }
-        deviceID = library.devices.first?.id ?? ""
+        let last = library.iosAppInstall?.device.id
+        deviceID = library.devices.first { $0.id == last }?.id ?? library.devices.first?.id ?? ""
     }
 }

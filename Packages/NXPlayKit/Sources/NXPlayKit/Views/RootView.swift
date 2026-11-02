@@ -82,7 +82,9 @@ public struct RootView: View {
             }
             #if DEBUG
                 .task {
-                    if library.screenshotScene == .settings { openSettings() }
+                    if library.screenshotScene == .settings || library.screenshotScene == .devices {
+                        openSettings()
+                    }
                     if library.screenshotScene == .freeUpSpace {
                         openWindow(id: CleanupView.windowID)
                     }

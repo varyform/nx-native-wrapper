@@ -23,6 +23,11 @@ extension Library {
         }.joined(separator: "-")
     }
 
+    /// Where the iOS app reaches the server, as Settings shows it; a sample in screenshot mode.
+    public var remoteAddress: String {
+        "\(isScreenshot ? "Mac.local" : ProcessInfo.processInfo.hostName):\(RemoteServer.defaultPort)"
+    }
+
     public func renewRemoteToken() {
         remoteToken = Self.newRemoteToken()
     }

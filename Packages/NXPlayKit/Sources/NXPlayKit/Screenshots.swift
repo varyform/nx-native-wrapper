@@ -15,6 +15,8 @@
         case consoleDetails = "console-details"
         case freeUpSpace = "free-up-space"
         case settings
+        /// Settings › Devices with the iPhone & iPad App section on.
+        case devices
         case transferSaves = "transfer-saves"
     }
 
@@ -103,6 +105,13 @@
                 }
             case .freeUpSpace, .settings:
                 break  // RootView opens their windows
+            case .devices:
+                library.settingsTab = .devices
+                library.remoteEnabled = true  // no server in screenshot mode (applyRemote)
+                library.remoteToken = "k7m2-x9pq-r4tw"
+                library.iosAppInstall = IOSAppInstall(
+                    device: Self.devices[1], state: .succeeded,
+                    status: "installed and opened on the device")
             case .transferSaves:
                 library.jobs[game.id] = job(for: game, finished: true)
                 library.transfer = transfer(for: game)
@@ -255,7 +264,7 @@
             let main = windows.max {
                 $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
             }
-            let ownWindow = scene == .settings || scene == .freeUpSpace
+            let ownWindow = scene == .settings || scene == .devices || scene == .freeUpSpace
             if let main, !ownWindow {
                 main.setContentSize(Self.windowSize)
                 main.center()

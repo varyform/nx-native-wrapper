@@ -88,12 +88,18 @@ Right-click a game for more, or use the **Game** menu:
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
-**NX Play for iPhone and iPad**: a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does. To set it up:
+**NX Play for iPhone and iPad**: a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does.
+
+![NX Play on an iPhone: its icon and the Mac it's connected to in the header, and the games installed on the phone as tiles with their versions](docs/ios.webp)
+
+To set it up:
 
 1. Pair the device with Xcode once (Window › Devices and Simulators) with **Connect via network** on, and turn on Developer Mode.
 2. On the Mac, turn on Settings › Devices › iPhone & iPad App. NX Play then shows up on the local network over Bonjour (`_nxplay._tcp`, port 47474) with a pairing code. **New Code** locks out devices that had the old one.
 3. Choose the device and click **Install NX Play** in the same section. NX Play builds the app from the source it carries and signs it with your team. From a checkout, `bin/install-ios <UDID>` does the same; `xcrun devicectl list devices` lists the UDIDs.
 4. On the device, pick the Mac, enter the code, and pick which of the Mac's devices this one is.
+
+<img src="docs/devices.webp" alt="Settings › Devices: the Apple team, and the iPhone & iPad App section with the Mac's address, the pairing code and Install NX Play" width="560">
 
 The header shows which Mac the device is connected to. Games installed from now on open from the launcher: nxplay gives each one the URL scheme `nxplay-<title ID>`. A game installed before that needs **Reinstall from the Mac** once. The launcher asks the Mac what's on the device whenever it comes to the front, or when you pull down to refresh. A game deleted from the home screen then shows as **Removed from this iPhone** (or iPad), with a one-tap reinstall, because the Mac remembers which games each device has had. A connected controller works too:
 - the d-pad or left stick moves through the games
@@ -223,7 +229,7 @@ To work in Xcode, run `xcodegen generate` (or `mise run generate`) and open `NXP
 
 `Package.swift` in the root exists only so SourceKit-LSP (Zed, VS Code, …) understands the app's sources; build and test with the Xcode project and `Packages/NXPlayKit`.
 
-`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, console-details, free-up-space, settings, transfer-saves). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
+`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, console-details, free-up-space, settings, devices, transfer-saves). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
 
 ## License
 
