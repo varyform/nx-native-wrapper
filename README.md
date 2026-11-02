@@ -10,6 +10,18 @@
 
 > You need your own games (NSP, NSZ, XCI or XCZ files) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
 
+**Contents**
+
+- [Why](#why)
+- [Requirements](#requirements)
+- [Install](#install), or [from the source](#from-the-source)
+- [Using NX Play](#using-nx-play): [the Game menu](#the-game-menu), [iPhone and iPad](#iphone-and-ipad), [saves](#saves), [tools](#tools), [settings](#settings), [Console Mode](#console-mode)
+- [Command line](#command-line)
+- [Controls](#controls)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [License](#license)
+
 ## Why
 
 nxnative can pack a game into a standalone Mac app (`--platform mac-app`), with its own settings window. That's an app for one game.
@@ -73,6 +85,8 @@ Extracted games show their icons and a **Play** button; the others have **Extrac
 
 ![The library as a list, with each game's version, title ID and status](docs/list.webp)
 
+### The Game menu
+
 Right-click a game for more, or use the **Game** menu:
 
 - **Rebuild**: builds the game again with the current nxnative.
@@ -88,7 +102,9 @@ Right-click a game for more, or use the **Game** menu:
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
-**NX Play for iPhone and iPad**: a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does.
+### iPhone and iPad
+
+**NX Play for iPhone and iPad** is a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does.
 
 ![NX Play on an iPhone: its icon and the Mac it's connected to in the header, and the games installed on the phone as tiles with their versions](docs/ios.webp)
 
@@ -114,9 +130,13 @@ curl -H "Authorization: Bearer <code>" http://<mac>.local:47474/v1/games
 curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/games/<folder>/install?device=<udid>"
 ```
 
-**Save backup** (Settings): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
+### Saves
+
+**Save backup** (Settings › Saves): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
 
 **Cloud saves** (Settings › Saves): a game's Mac and iPhone copies play on from one save, through iCloud Drive (its nxnative Saves folder) or a folder you pick. This is nxnative's own sync: each game keeps one file there, `<title ID>/save.dmsync`. The game brings in the cloud's save when it starts and sends its own a few seconds after each save. On the iPhone, pick the same folder in the game app's Cloud saves. When both sides changed, the newer save wins and the other is kept in the save's backups. A save made in the last seconds before you quit goes up at the game's next start. From the Terminal: `DM_SAVE_SYNC=icloud nxplay <game folder>`.
+
+### Tools
 
 **Tools › Update All Builds…** builds every game with the current nxnative, one after another, so none of them makes you wait when you want to play. A build after an nxnative update can take from a few minutes to an hour, mostly the game's shaders. After an Xcode update every game recompiles them once. A game that's already current takes seconds. Kept builds and games without their game files are skipped. With **Only while plugged in**, the next build waits while the Mac is on battery. While a build runs, NX Play keeps the Mac awake (the display can sleep), so it can run overnight.
 
@@ -132,7 +152,13 @@ Pick files one by one, a whole game, or a whole kind. Nothing is selected until 
 
 ![Free Up Space: game files, IPAs and Xcode builds per game, with their sizes](docs/free-up-space.webp)
 
-Settings has a tab for each subject: **General** (the games folder, the keys file, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+### Settings
+
+Settings has a tab for each subject: **General** (the games folder, the keys file, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+
+<img src="docs/settings.webp" alt="NX Play's Settings" width="560">
+
+### Console Mode
 
 **On the couch:** a game controller drives the library. The D-pad or left stick chooses a game, A plays it, and Menu switches to **Console Mode** (also ⇧⌘F): full screen. A, B and Y are the Switch's, as the games read them: on an Xbox or PlayStation controller A is the right button and B the bottom one, and the hints show the button to press. The selected game's eShop banner fills the top half, with its name and badges. Below it, the games ready to play sit in a row of their artwork, the one you played last first, with the clock and the controller's button hints. Games started from it open full screen; Settings › Games can make every game start that way. B or Esc goes back. Any connected controller drives it. In a game each controller is a player of its own, in the order they connected (player 1 shares with the keyboard), up to 8; the top bar shows each one's player number. Settings › Games › Controllers can make the keyboard player 1 on its own, or every controller player 1.
 
@@ -141,8 +167,6 @@ Settings has a tab for each subject: **General** (the games folder, the keys fil
 Down (or a click on the game's name) opens the game's details: the banner and the name slide up, and the eShop's description, facts (publisher, release date, players, genre, age rating) and screenshots take the row's place. Down scrolls the description, then moves to the screenshots, where left and right choose one and A shows it full screen. Left and right on the description move to the next game. Up at the top, B or Esc close the details. A trackpad or mouse scrolls and clicks too. The artwork and details come from [blawar/titledb](https://github.com/blawar/titledb), the community list NX2Apple uses too; the images only from Nintendo's image server.
 
 ![Console Mode's details: the eShop description, facts and screenshots under the game's name](docs/console-details.webp)
-
-<img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 
 ## Command line
 
