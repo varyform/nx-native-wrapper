@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.0 — 2026-11-02
+
 ### Added
 
 - **NX Play for iPhone and iPad**: a launcher that lists the Mac's games, asks the Mac to install one, and plays the installed ones. The Mac builds the game and installs it on the device over Wi-Fi, or over the cable when the device is plugged in. On the Mac, turn on Settings › Devices › iPhone & iPad App and click **Install NX Play**. Then pair the device with the code Settings shows; **New Code** replaces the code. On the device:
