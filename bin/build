@@ -10,6 +10,9 @@ if command -v mise > /dev/null; then
 else
   xcodegen generate --quiet
 fi
+# the app is assembled afresh each time, from the compiled code Xcode keeps: files a build step copied in and a later
+# version no longer makes (a renamed folder of resources) would otherwise stay in it, and bin/install would ship them
+rm -rf "build/Build/Products/Release/NX Play.app"
 xcodebuild -project NXPlay.xcodeproj -scheme NXPlay -configuration Release \
   -destination 'generic/platform=macOS' -derivedDataPath build -quiet build "$@"
 
