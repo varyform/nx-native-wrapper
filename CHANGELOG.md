@@ -10,6 +10,7 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
   - The header shows NX Play's icon and which Mac it's connected to.
   - A controller can drive it.
   - It says when a game's signature runs out (7 days with a Personal Team). **Renew** installs the expiring games again.
+  - It notices a game you deleted from the home screen when you come back to it, or when you pull down to refresh, and marks it **Removed from this iPhone** (or iPad). One tap reinstalls it.
 - **Games installed on a device open from NX Play for iPhone and iPad**: nxplay gives each one a URL scheme, `nxplay-<title ID>`. Reinstall a game installed before this once.
 
 ### Changed

@@ -28,7 +28,10 @@ struct GameSheet: View {
                         }
                         VStack(alignment: .leading, spacing: 4) {
                             Text(game.name).font(.title2.bold())
-                            Text(installed.map { "On this \(UIDevice.current.model) · \($0)" } ?? "Not on this \(UIDevice.current.model)")
+                            Text(
+                                installed.map { "On this \(UIDevice.current.model) · \($0)" }
+                                    ?? (launcher.wasRemoved(game) ? "Removed from this " : "Not on this ")
+                                    + UIDevice.current.model)
                                 .foregroundStyle(.secondary)
                             if let version = game.version {
                                 Text("On the Mac: \(version)").foregroundStyle(.secondary)
@@ -60,7 +63,8 @@ struct GameSheet: View {
                             Button { launcher.startInstall(game) } label: {
                                 hint(
                                     installed == nil ? "a.circle" : "y.circle",
-                                    installed == nil ? "Install" : "Reinstall from the Mac", shown: hints)
+                                    installed != nil || launcher.wasRemoved(game)
+                                        ? "Reinstall from the Mac" : "Install", shown: hints)
                             }
                         } else {
                             Text(

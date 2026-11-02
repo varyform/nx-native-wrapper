@@ -51,11 +51,16 @@ struct RemoteDevice: Decodable, Identifiable, Hashable, Sendable {
     let os: String
 }
 
-/// A game installed on the device, as devicectl lists it.
-struct DeviceGame: Decodable, Sendable {
-    let bundleID: String
-    let titleID: String
-    let version: String
+/// What a device has: its games as devicectl lists them, and the ones deleted from it (title IDs).
+struct DeviceGames: Decodable, Sendable {
+    struct App: Decodable, Sendable {
+        let bundleID: String
+        let titleID: String
+        let version: String
+    }
+
+    let apps: [App]
+    let removed: [String]
 }
 
 /// A Mac running NX Play, and the pairing code it showed in Settings › Devices › iPhone & iPad App.
@@ -80,7 +85,7 @@ struct MacClient: Sendable {
     func games() async throws -> [RemoteGame] { try await get("v1/games") }
     func devices() async throws -> [RemoteDevice] { try await get("v1/devices") }
 
-    func installed(on device: String) async throws -> [DeviceGame] {
+    func installed(on device: String) async throws -> DeviceGames {
         try await get("v1/devices/\(Self.part(device))/apps")
     }
 

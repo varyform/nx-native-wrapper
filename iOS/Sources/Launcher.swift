@@ -24,6 +24,9 @@ final class Launcher {
     private(set) var devices: [RemoteDevice] = []
     /// The version installed here, by title ID (uppercased).
     private(set) var installed: [String: String] = [:]
+    /// Games this device had and no longer has, deleted from it, by title ID (uppercased): the Mac remembers
+    /// what it installed and what it saw.
+    private(set) var removed: Set<String> = []
     private(set) var icons: [String: UIImage] = [:]
     var problem: String?
     /// The Mac isn't answering: the games shown are as last seen.
@@ -102,13 +105,16 @@ final class Launcher {
 
     // MARK: - Games
 
-    /// While the app is in front: the games every couple of seconds while one builds, else now and then.
+    /// While the app is in front: the games every couple of seconds while one builds, else now and then. Starting
+    /// (the app coming to the front) asks again what's installed: a game deleted from the home screen meanwhile.
     func startPolling() {
         guard polling == nil else { return }
         polling = Task { [weak self] in
+            var first = true
             while !Task.isCancelled {
                 guard let self else { return }
-                await self.refresh()
+                await self.refresh(checkingInstalled: first)
+                first = false
                 let busy = self.games.contains { $0.job?.isActive == true }
                 try? await Task.sleep(for: .seconds(busy ? 2 : 15))
             }
@@ -120,7 +126,9 @@ final class Launcher {
         polling = nil
     }
 
-    func refresh() async {
+    /// `checkingInstalled`: ask the device what's installed (devicectl on the Mac, a few seconds), as pull to
+    /// refresh does; otherwise only on the first load and after an install.
+    func refresh(checkingInstalled: Bool = false) async {
         guard let mac else { return }
         do {
             if info == nil { info = try await mac.client.info() }
@@ -133,7 +141,7 @@ final class Launcher {
                 game.job?.kind == "install" && game.job?.isActive == false
                     && previous.first { $0.id == game.id }?.job?.isActive == true
             }
-            if installed.isEmpty || finished { await loadInstalled() }
+            if checkingInstalled || installed.isEmpty || finished { await loadInstalled() }
         } catch {
             offline = true
         }
@@ -141,9 +149,10 @@ final class Launcher {
 
     private func loadInstalled() async {
         guard let mac, let device = mac.device else { return }
-        guard let apps = try? await mac.client.installed(on: device) else { return }
+        guard let list = try? await mac.client.installed(on: device) else { return }
         installed = Dictionary(
-            apps.map { ($0.titleID.uppercased(), $0.version) }, uniquingKeysWith: { a, _ in a })
+            list.apps.map { ($0.titleID.uppercased(), $0.version) }, uniquingKeysWith: { a, _ in a })
+        removed = Set(list.removed.map { $0.uppercased() })
     }
 
     /// The grid's order: the games on this device first, ready to play, then the rest by name.
@@ -161,6 +170,11 @@ final class Launcher {
     func renewExpiring() {
         // the Mac queues installs and runs them one at a time
         for game in expiring where game.canInstall { startInstall(game) }
+    }
+
+    /// Deleted from this device since the Mac installed it (or saw it here).
+    func wasRemoved(_ game: RemoteGame) -> Bool {
+        game.titleID.map { removed.contains($0.uppercased()) } ?? false
     }
 
     func installedVersion(_ game: RemoteGame) -> String? {

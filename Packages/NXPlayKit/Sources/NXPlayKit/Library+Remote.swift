@@ -10,7 +10,7 @@ import SystemConfiguration
 ///     GET  /v1/games                     the games, each with its running job
 ///     GET  /v1/games/<id>/icon           the game's artwork
 ///     GET  /v1/devices                   the devices an install can go to, looked for again
-///     GET  /v1/devices/<udid>/apps       the games installed on a device, by title ID
+///     GET  /v1/devices/<udid>/apps       the games installed on a device, and the ones deleted from it
 ///     POST /v1/games/<id>/install?device=<udid>
 ///
 /// A game's id is its folder's name in the games folder.
@@ -73,10 +73,16 @@ extension Library {
         if let udid = route("GET", "v1/devices/*/apps")?.first {
             guard let device = await remoteDevice(udid) else { return .error(404, "No such device") }
             do {
-                return .json(
-                    try await DeviceCtl.games(on: device).map {
+                let apps = try await DeviceCtl.games(on: device)
+                let removed = removedGames(on: udid, installed: apps.map(\.titleID))
+                // what's there now is remembered too: a game installed before NX Play kept track counts
+                remember(apps.map(\.titleID), on: udid)
+                return .json([
+                    "apps": apps.map {
                         ["bundleID": $0.bundleID, "titleID": $0.titleID, "version": $0.version]
-                    })
+                    },
+                    "removed": removed,
+                ])
             } catch {
                 return .error(502, error.localizedDescription)
             }
@@ -104,6 +110,20 @@ extension Library {
             return .error(500, problem ?? "The install didn't start")
         }
         return .json(remoteJSON(job), status: 202)
+    }
+
+    /// A device had these games: installed from this Mac, or listed on it.
+    func remember(_ titleIDs: [String], on udid: String) {
+        let known = Set(deviceGames[udid] ?? [])
+        let all = known.union(titleIDs.map { $0.uppercased() })
+        if all != known { deviceGames[udid] = all.sorted() }
+    }
+
+    /// The games the device had and no longer lists: deleted there. They stay remembered, so they keep showing as
+    /// removed until they're installed again.
+    func removedGames(on udid: String, installed: [String]) -> [String] {
+        let present = Set(installed.map { $0.uppercased() })
+        return (deviceGames[udid] ?? []).filter { !present.contains($0) }
     }
 
     private func remoteGame(_ id: String) -> Game? {

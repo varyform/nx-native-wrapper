@@ -37,6 +37,7 @@ public final class Library {
         static let updateBeforePlay = "updateBeforePlay"
         static let remoteEnabled = "remoteEnabled"
         static let remoteToken = "remoteToken"
+        static let deviceGames = "deviceGames"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -117,6 +118,11 @@ public final class Library {
     /// The code the iOS app pairs with; a new one locks out the devices that had the old one.
     public internal(set) var remoteToken: String {
         didSet { defaults.set(remoteToken, forKey: Keys.remoteToken) }
+    }
+    /// The games each device has had from this Mac, or was seen with, by UDID: title IDs, uppercased. One a device
+    /// no longer lists was deleted there (Library+Remote.swift).
+    public internal(set) var deviceGames: [String: [String]] {
+        didSet { defaults.set(deviceGames, forKey: Keys.deviceGames) }
     }
     /// Why the iOS app's server isn't listening.
     public internal(set) var remoteProblem: String?
@@ -264,6 +270,7 @@ public final class Library {
         let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
         defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
         remoteToken = token
+        deviceGames = defaults.dictionary(forKey: Keys.deviceGames) as? [String: [String]] ?? [:]
 
         teamID = defaults.string(forKey: Keys.team) ?? ""
         // hidden for a new player (the status bar shows builds; a failure opens it); someone who chose a games folder
@@ -778,7 +785,10 @@ public final class Library {
         {
             NSWorkspace.shared.activateFileViewerSelecting([file])
         }
-        if case .install = job.kind { refreshDevices() }
+        if case .install(let device) = job.kind {
+            if job.status == .succeeded, let id = job.game.titleID { remember([id], on: device.id) }
+            refreshDevices()
+        }
         // a failure's reason is in its output: show it
         if case .failed = job.status {
             showsLog = true

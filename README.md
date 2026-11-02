@@ -95,7 +95,7 @@ Right-click a game for more, or use the **Game** menu:
 3. Choose the device and click **Install NX Play** in the same section. NX Play builds the app from the source it carries and signs it with your team. From a checkout, `bin/install-ios <UDID>` does the same; `xcrun devicectl list devices` lists the UDIDs.
 4. On the device, pick the Mac, enter the code, and pick which of the Mac's devices this one is.
 
-The header shows which Mac the device is connected to. Games installed from now on open from the launcher: nxplay gives each one the URL scheme `nxplay-<title ID>`. A game installed before that needs **Reinstall from the Mac** once. A connected controller works too:
+The header shows which Mac the device is connected to. Games installed from now on open from the launcher: nxplay gives each one the URL scheme `nxplay-<title ID>`. A game installed before that needs **Reinstall from the Mac** once. The launcher asks the Mac what's on the device whenever it comes to the front, or when you pull down to refresh. A game deleted from the home screen then shows as **Removed from this iPhone** (or iPad), with a one-tap reinstall, because the Mac remembers which games each device has had. A connected controller works too:
 - the d-pad or left stick moves through the games
 - **A** opens a game, then plays it (or installs it when it isn't on the device)
 - **Y** installs it again

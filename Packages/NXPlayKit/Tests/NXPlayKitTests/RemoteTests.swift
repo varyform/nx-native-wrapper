@@ -95,4 +95,25 @@ import Testing
         #expect(date == ISO8601DateFormatter().date(from: "2027-10-25T15:06:36Z"))
         #expect(Provisioning.expiration(ofProfile: Data([0x30, 0x80])) == nil)
     }
+
+    @Test func aGameTheDeviceHadAndNoLongerListsWasRemoved() {
+        let library = library()
+        let device = Device(id: "phone", name: "Phone", model: "iPhone 18 Pro", osVersion: "27.2")
+        let game = Game(
+            folder: URL(filePath: "/games/Well"), name: "Well", titleID: "010020d01ad24000",
+            version: nil, languages: [], iconURL: nil, buildFolder: nil, ipaURL: nil,
+            xcodeBuildFolder: nil, hasPackages: true, state: .ready)
+        let install = Job(
+            kind: .install(device), game: game,
+            command: NXPlayCommand(script: URL(filePath: "/usr/bin/true"), arguments: [], environment: [:]))
+        install.showScreenshot(["installed"], status: .succeeded)
+        library.finished(install)
+        #expect(library.deviceGames == ["phone": ["010020D01AD24000"]])
+
+        // seen on the device: remembered as well
+        library.remember(["0100646009fbe000"], on: "phone")
+        #expect(library.removedGames(on: "phone", installed: ["010020D01AD24000", "0100646009FBE000"]).isEmpty)
+        #expect(library.removedGames(on: "phone", installed: ["0100646009FBE000"]) == ["010020D01AD24000"])
+        #expect(library.removedGames(on: "tablet", installed: []).isEmpty)
+    }
 }

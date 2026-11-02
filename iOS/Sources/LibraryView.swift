@@ -47,7 +47,7 @@ struct LibraryView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
-            .refreshable { await launcher.refresh() }
+            .refreshable { await launcher.refresh(checkingInstalled: true) }
             .toolbar {
                 ToolbarItem(placement: .principal) { Header() }
                 ToolbarItem(placement: .primaryAction) { LibraryMenu() }
@@ -198,6 +198,7 @@ struct GameTile: View {
             return "On this \(UIDevice.current.model) · \(version)"
         }
         if game.job?.status == "failed" { return "Install failed" }
+        if launcher.wasRemoved(game) { return "Removed from this \(UIDevice.current.model)" }
         return game.canInstall ? "On the Mac" : "Can't be installed"
     }
 }
