@@ -1,7 +1,8 @@
 import Foundation
 
 /// CHANGELOG.md, as far as NX Play draws it: a section per release ("## 1.7.5 — 2026-10-28", "## Unreleased"), each
-/// with its "### Added" headings, "- " items and paragraphs; inline markdown stays in the text. A release's notes on
+/// with its "### Added" headings, "- " items and paragraphs; inline markdown stays in the text, and image lines (the
+/// release page's screenshots) are left out. A release's notes on
 /// GitHub are one section's body, without the "##" line: they read as one untitled section.
 public struct Changelog: Equatable, Sendable {
     public struct Section: Equatable, Sendable, Identifiable {
@@ -43,6 +44,9 @@ public struct Changelog: Equatable, Sendable {
             // the file's title and introduction come before the first release
             guard !sections.isEmpty, !line.hasPrefix("# ") else { continue }
             if trimmed.isEmpty {
+                continues = false
+            } else if trimmed.hasPrefix("![") {
+                // a screenshot for the GitHub release page: What's New is text only
                 continues = false
             } else if line.hasPrefix("#") {
                 let heading = line.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)

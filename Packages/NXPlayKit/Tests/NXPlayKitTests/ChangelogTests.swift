@@ -81,6 +81,12 @@ struct ChangelogTests {
         #expect(Changelog(markdown: "").isEmpty)
     }
 
+    @Test func screenshotsAreForTheReleasePageOnly() {
+        let log = Changelog(
+            markdown: "### Added\n\n- One.\n\n![The iPhone app](https://example.com/ios.webp)\n\n- Two.\n")
+        #expect(log.sections[0].blocks == [.heading("Added"), .item("One."), .item("Two.")])
+    }
+
     @Test func theCheckoutsChangelogReads() throws {
         let root = URL(filePath: #filePath).deletingLastPathComponent()
             .appending(path: "../../../../CHANGELOG.md").standardized

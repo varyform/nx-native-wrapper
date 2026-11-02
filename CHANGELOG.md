@@ -13,6 +13,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
   - It notices a game you deleted from the home screen when you come back to it, or when you pull down to refresh, and marks it **Removed from this iPhone** (or iPad). One tap reinstalls it.
 - **Games installed on a device open from NX Play for iPhone and iPad**: nxplay gives each one a URL scheme, `nxplay-<title ID>`. Reinstall a game installed before this once.
 
+![NX Play on an iPhone: the games installed on the phone, and the Mac it's connected to](https://raw.githubusercontent.com/varyform/nx-native-wrapper/v1.8.0/docs/ios.webp)
+
+![Settings › Devices: the iPhone & iPad App section with the Mac's address, the pairing code and Install NX Play](https://raw.githubusercontent.com/varyform/nx-native-wrapper/v1.8.0/docs/devices.webp)
+
 ### Changed
 
 - **NX Play's own log lines are blue too**, like nxplay's since 1.7.16: the save backup's commits and pushes, the command each run starts with, and how it ended (done, failed, cancelled).
