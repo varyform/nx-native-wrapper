@@ -65,6 +65,12 @@ struct NXPlayApp: App {
         }
         .defaultSize(width: 760, height: 680)
 
+        Window("Sources", id: SourcesView.windowID) {
+            SourcesView()
+                .library(library)
+        }
+        .defaultSize(width: 1080, height: 680)
+
         Window("Setup", id: SetupView.windowID) {
             SetupView()
                 .library(library)

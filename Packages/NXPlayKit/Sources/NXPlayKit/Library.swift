@@ -37,6 +37,8 @@ public final class Library {
         static let updateBeforePlay = "updateBeforePlay"
         static let remoteEnabled = "remoteEnabled"
         static let remoteToken = "remoteToken"
+        static let remotePort = "remotePort"
+        static let remoteID = "remoteID"
         static let deviceGames = "deviceGames"
     }
 
@@ -130,7 +132,11 @@ public final class Library {
     /// Install NX Play's run, while it goes and after (Library+IOSApp.swift).
     public internal(set) var iosAppInstall: IOSAppInstall?
 
-    public private(set) var games: [Game] = []
+    public private(set) var games: [Game] = [] {
+        didSet { titleFolders = Self.titleFolderIndex(games) }
+    }
+    /// The games' folders by title ID, for Sources (Library+Repositories.swift).
+    @ObservationIgnored var titleFolders: [String: String] = [:]
     public internal(set) var jobs: [Game.ID: Job] = [:]
     public var selection: Game.ID?
     public var problem: String?
@@ -204,8 +210,36 @@ public final class Library {
     public let gamepad = Gamepad()
     /// Updates from GitHub releases (a released app only).
     public let updater = AppUpdater()
+    /// Sources: the player's own repositories and the downloads from them (Repositories.swift).
+    public let repositories: Repositories
     /// The Settings tab shown; Check for Updates… opens Updates.
     public var settingsTab = SettingsTab.general
+
+    /// Optional local override when another app owns the default port (Settings › Devices). Bonjour advertises this
+    /// port too, and the pairing QR code carries it. A change restarts the server.
+    var remotePort: UInt16 {
+        didSet {
+            guard remotePort != oldValue else { return }
+            defaults.set(remotePort == RemoteServer.defaultPort ? nil : Int(remotePort), forKey: Keys.remotePort)
+            restartRemote()
+        }
+    }
+    /// Whether phones on this network can find the server over Bonjour yet (RemoteServer.Advertisement).
+    var remoteAdvertisement = RemoteServer.Advertisement.off
+    /// The Mac's addresses and Tailscale, for Settings › Devices and the pairing QR code.
+    let remoteNetwork: RemoteNetwork
+    /// A random ID this Mac keeps, in its Bonjour TXT record, `/v1/hello` and the pairing QR code: the iOS app checks
+    /// an address leads to the Mac it paired with before it sends the pairing code there.
+    var remoteID: String {
+        if let id = defaults.string(forKey: Keys.remoteID).flatMap(UUID.init(uuidString:)) { return id.uuidString }
+        let id = UUID().uuidString
+        defaults.set(id, forKey: Keys.remoteID)
+        return id
+    }
+
+    static func remotePort(_ value: Int) -> UInt16 {
+        (1024...65535).contains(value) ? UInt16(value) : RemoteServer.defaultPort
+    }
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var queue: [Job] = []
@@ -244,6 +278,11 @@ public final class Library {
         self.defaults = defaults
         self.isScreenshot = isScreenshot
         self.artwork = artwork
+        repositories = Repositories(
+            defaults: defaults,
+            credentials: isScreenshot ? MemoryCredentials() : KeychainCredentials(),
+            stateFile: isScreenshot
+                ? nil : AppHome.folder.appending(path: "Repositories/downloads.json"))
         banners = artwork.cachedBanners()
         eshopIcons = artwork.cachedIcons()
         titleInfo = artwork.cachedInfo()
@@ -267,6 +306,8 @@ public final class Library {
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
+        remotePort = Self.remotePort(defaults.integer(forKey: Keys.remotePort))
+        remoteNetwork = RemoteNetwork(sample: isScreenshot)
         let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
         defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
         remoteToken = token
@@ -290,6 +331,7 @@ public final class Library {
             }
         }
         gamepad.onCommand = { [weak self] in self?.handle($0) }
+        connectRepositories()
         if !isScreenshot {
             observeInstall()
             if let preview = AppUpdater.requestedPreview {
@@ -841,7 +883,7 @@ public final class Library {
 
     /// Nothing running that quitting would stop: no job (queued or running) and no file work in flight.
     public var isIdle: Bool {
-        tasksInFlight == 0 && !jobs.values.contains { $0.status.isActive }
+        tasksInFlight == 0 && !jobs.values.contains { $0.status.isActive } && !repositories.isActive
     }
 
     /// Runs file work that must not be cut short by bin/install's quit.
@@ -877,12 +919,13 @@ public final class Library {
 
     @ObservationIgnored var terminate: () -> Void = { NSApp.terminate(nil) }
 
-    private func quitIfIdle() {
+    func quitIfIdle() {
         guard quitsWhenIdle, isIdle else { return }
         terminate()
     }
 
     private func stopAll() {
+        repositories.stopAll()
         queue.removeAll()
         jobs.values.forEach { $0.terminate() }
     }

@@ -4,6 +4,20 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Sources** (Tools › Sources…, ⇧⌘D): download games from your own repositories, catalogs of your game files hosted on your own server (Catalog/README.md has the format and a generator). Add as many as you like, each with its own access token in the Keychain. Turn them on or off, refresh them, or remove them; a source that fails shows its own error. Pick a game's files (base, updates, DLC) to download them into the game's folder in your games folder. Each file is checked against its size and the SHA-256, or the SHA-1 an archive publishes, before the library sees it (the algorithm is shown with each file), a file already there is never replaced, nothing goes into a Switch 2 dump (an NSP beside it would be built in place of the dump), and archives are refused. Downloads run one at a time with progress, Cancel and Retry, and their status is kept across launches. NX Play for iPhone and iPad browses the same sources and asks the Mac to download, then installs from the library as usual.
+- **Pair NX Play for iPhone and iPad with a QR code**: Settings › Devices › **Show QR Code…** shows a code with the Mac's addresses and the pairing code; **Scan QR Code** on the device pairs in one step (the camera app opens it too, and **Copy Link** pastes through Universal Clipboard). The device asks first, and sends the code only to an address that answers as NX Play on that Mac. The QR window stays out of screenshots and screen sharing and closes after three minutes; the device keeps the code in its Keychain.
+- **Tailscale**: the QR code and Settings › Devices include the Mac's Tailscale name and addresses when Tailscale runs, so the device reaches the Mac from anywhere on your tailnet. NX Play only reads Tailscale's status and changes none of its settings. Bonjour still finds the Mac only on the same local network.
+- **Settings › Devices lists the Mac's real addresses** (IPv4, IPv6, `.local`, Tailscale) and a **Port** field for when another app has 47474. The device takes any of them, IPv6 in brackets included.
+
+### Fixed
+
+- **The iPhone didn't find the Mac**: after NX Play was replaced, macOS could hold back its Bonjour service for half an hour while it applied its local network rules to the new copy, with the server listening all along. NX Play now watches for Bonjour to confirm the service, says in Settings when it hasn't, and registers it again until it's visible. On the device, the Macs found are resolved to the address they answer at, a Mac on two networks shows once, Local Network access turned off says so instead of looking forever, and a failed search starts again.
+- **The device keeps its pairing when the Mac moves**: it tries the Mac's other confirmed addresses before calling it offline; a failed pairing attempt leaves the current pairing as it was. When Bonjour sees the Mac's ID at a new address, the library offers to pair again instead of sending the saved code there (the ID is public, so anything on the network could claim it). Requests go straight to the Mac: no proxy, no redirects. Cancel and Unpair now stop a pairing under way, and an old reconnect or refresh can't overwrite a newer pairing. Errors say what to check (Wi-Fi, Tailscale, Local Network access, the port).
+- **A long or emoji Mac name** could make a QR code the device refused as too long or damaged; the Mac now shortens the name to fit, and lists any address it had to leave out.
+- **An IPv6 address typed on the device** made no URL ("Bad address"), and **Tailscale names (`*.ts.net`)** were refused by iOS for plain HTTP.
+
 ## 1.8.1 — 2026-11-03
 
 ### Added

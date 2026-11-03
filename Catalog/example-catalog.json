@@ -1,0 +1,56 @@
+{
+  "nxplayCatalog": 1,
+  "name": "Example shelf (synthetic)",
+  "entries": [
+    {
+      "id": "sample-game-one",
+      "name": "Sample Game One",
+      "titleID": "0100000000010000",
+      "version": "1.0.1",
+      "publisher": "Example Studio",
+      "description": "A made-up entry that shows every field. The checksums and sizes are placeholders: nothing at these addresses exists.",
+      "packages": [
+        {
+          "kind": "base",
+          "filename": "Sample Game One [0100000000010000][v0].nsp",
+          "url": "files/Sample%20Game%20One%20%5B0100000000010000%5D%5Bv0%5D.nsp",
+          "bytes": 1048576,
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "titleID": "0100000000010000",
+          "version": 0
+        },
+        {
+          "kind": "update",
+          "filename": "Sample Game One [0100000000010800][v65536].nsp",
+          "url": "files/Sample%20Game%20One%20%5B0100000000010800%5D%5Bv65536%5D.nsp",
+          "bytes": 262144,
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+          "titleID": "0100000000010800",
+          "version": 65536
+        },
+        {
+          "kind": "dlc",
+          "filename": "Sample Game One Extra [0100000000011001][v0].nsp",
+          "url": "https://files.example.com/dlc/Sample%20Game%20One%20Extra%20%5B0100000000011001%5D%5Bv0%5D.nsp",
+          "bytes": 131072,
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+          "titleID": "0100000000011001",
+          "version": 0
+        }
+      ]
+    },
+    {
+      "name": "Sample Game Two",
+      "titleID": "0100000000020000",
+      "packages": [
+        {
+          "kind": "base",
+          "filename": "Sample Game Two.xci",
+          "url": "files/Sample%20Game%20Two.xci",
+          "bytes": 2097152,
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000004"
+        }
+      ]
+    }
+  ]
+}

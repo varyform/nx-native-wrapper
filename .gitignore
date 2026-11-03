@@ -7,3 +7,4 @@ xcuserdata/
 
 /.venv/
 /nxnative/
+__pycache__/

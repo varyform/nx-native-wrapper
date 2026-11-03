@@ -217,5 +217,7 @@ public struct ToolsMenu: View {
         Button("Update All Builds…") { library.showsUpdateAll = true }
             .disabled(library.updatableGames.isEmpty)
         Button("Free Up Space…") { openWindow(id: CleanupView.windowID) }
+        Divider()
+        SourcesMenuItem()
     }
 }
