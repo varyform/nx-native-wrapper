@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.1 — 2026-11-03
+
 ### Added
 
 - **Switch 2 games**: a game folder can hold a dump of the game's files in place of NSPs, the way nxnative builds a Switch 2 game: `base/exefs`, `base/romfs`, and optionally `updates/<version>/` and `dlc/<title ID>/`. NX Play lists it, reads its title ID from `main.npdm`, and builds and plays it like any other game, with no `prod.keys`. A **Switch 2** badge marks Switch 2 games. nxnative builds a dump only for a game it has a profile for (Donkey Kong Bananza, Splatoon Raiders and Fire Emblem Fortune's Weave so far), so a **No profile** badge marks the others; Extract tries again with nxnative's latest code. Remove Game deletes the dump's `base`, `updates` and `dlc` folders with the rest.
