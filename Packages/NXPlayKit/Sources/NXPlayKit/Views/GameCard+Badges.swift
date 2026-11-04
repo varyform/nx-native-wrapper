@@ -10,7 +10,7 @@ struct IconBadges: View {
                 IconBadge(
                     text: "Switch 2", color: .red,
                     help:
-                        "A Switch 2 game. nxnative builds it from a dump of its files (base, updates, DLC), with no prod.keys, and tests it on the Mac only."
+                        "A Switch 2 game. nxnative builds it from a NUP file or a dump of its files (base, updates, DLC), with no prod.keys, and tests it on the Mac only."
                 )
             }
             if game.isKept {
@@ -76,11 +76,11 @@ struct ProfileBadges: View {
                         text: "In bring-up", symbol: "hammer.fill", color: .orange,
                         help: Self.help(profile))
                 }
-            } else if game.isDump {
+            } else if game.isUnencrypted {
                 IconBadge(
                     text: "No profile", symbol: "xmark", color: .red,
                     help:
-                        "nxnative builds a game from a dump only once it has a profile for it, and has none for \(game.titleID ?? "this game") yet. Extract tries again with nxnative's latest code."
+                        "nxnative builds a game from a NUP or a dump only once it has a profile for it, and has none for \(game.titleID ?? "this game") yet. Extract tries again with nxnative's latest code."
                 )
             } else if game.titleID != nil {
                 IconBadge(

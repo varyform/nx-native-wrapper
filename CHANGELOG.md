@@ -4,6 +4,14 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Switch 2 games from a NUP file** ([#12](https://github.com/varyform/nx-native-wrapper/issues/12)): a game folder can hold one `.nup` file, which nxnative now builds with no `prod.keys`. NX Play lists it, reads its title ID from the file, and builds and plays it, with the same **Switch 2** and **No profile** badges as a dump. Free Up Space and Remove Game treat the `.nup` like an NSP.
+
+### Fixed
+
+- **NSPs beside a dump of the same game**: nxnative builds the NSPs then, and those need `prod.keys`. NX Play treated the folder as a dump: it didn't check for the keys, and could show **No profile**.
+
 ## 1.8.1 — 2026-11-03
 
 ### Added

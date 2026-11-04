@@ -27,7 +27,7 @@ struct GameGrid: View {
                     ContentUnavailableView(
                         "No Games",
                         systemImage: "gamecontroller",
-                        description: Text("No subfolder here holds NSP, NSZ, XCI or XCZ files.")
+                        description: Text("No subfolder here holds NSP, NSZ, XCI, XCZ or NUP files.")
                     )
                     .padding(.top, 40)
                 } else if shown.isEmpty {

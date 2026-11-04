@@ -15,7 +15,7 @@ struct GameList: View {
         if library.games.isEmpty {
             ContentUnavailableView(
                 "No Games", systemImage: "gamecontroller",
-                description: Text("No subfolder here holds NSP, NSZ, XCI or XCZ files."))
+                description: Text("No subfolder here holds NSP, NSZ, XCI, XCZ or NUP files."))
         } else if rows.isEmpty {
             ContentUnavailableView.search(text: library.search)
         } else {

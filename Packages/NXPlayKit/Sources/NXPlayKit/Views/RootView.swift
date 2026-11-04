@@ -98,7 +98,7 @@ public struct RootView: View {
                 Label("No Games Folder", systemImage: "folder")
             } description: {
                 Text(
-                    "Choose the folder with one subfolder per game: its NSP, NSZ, XCI or XCZ files."
+                    "Choose the folder with one subfolder per game: its NSP, NSZ, XCI, XCZ or NUP files."
                 )
             } actions: {
                 Button("Choose Folder…") { library.chooseRoot() }

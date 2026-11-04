@@ -2,9 +2,9 @@ import Foundation
 
 /// Finds the games in a folder laid out the way build_ipa_from_nsp.py leaves it:
 /// `<root>/<game>/*.nsp` and `<root>/<game>/<title ID>_build/extract/v<version>/{icon.jpg,control.nacp}`. A Switch 2
-/// game is a dump of its files in place of the NSPs (GameDump).
+/// game is a NUP file (GameNUP) or a dump of its files (GameDump) in place of the NSPs.
 public enum GameScanner {
-    static let packageExtensions: Set<String> = ["nsp", "nsz", "xci", "xcz"]
+    static let packageExtensions: Set<String> = ["nsp", "nsz", "xci", "xcz", GameNUP.fileExtension]
     static let launcherName = "start_mac.sh"
     /// nxplay's mark of a kept build (Keep This Build).
     static let keepName = "keep"
@@ -18,8 +18,15 @@ public enum GameScanner {
     public static func game(at folder: URL) -> Game? {
         guard isDirectory(folder) else { return nil }
         let entries = children(of: folder)
-        let packages = entries.filter { packageExtensions.contains($0.pathExtension.lowercased()) }
-        let isDump = GameDump.isDump(folder)
+        let encrypted = entries.filter {
+            let ext = $0.pathExtension.lowercased()
+            return ext != GameNUP.fileExtension && packageExtensions.contains(ext)
+        }
+        let nups = entries.filter(GameNUP.isNUP)
+        let packages = encrypted + nups
+        // what nxnative builds from: the NSPs when there are any, else the NUP, else the dump (its nup_file, dump_folder)
+        let nup = encrypted.isEmpty ? nups.first : nil
+        let isDump = packages.isEmpty && GameDump.isDump(folder)
         let hasPackages = !packages.isEmpty || isDump
         let builds = entries.filter(isBuildFolder).map(Build.init(folder:))
         // a build with nothing but its run folder holds the saves of a removed game (Remove Game keeps them): no game
@@ -35,8 +42,9 @@ public enum GameScanner {
         return Game(
             folder: folder,
             name: nacp?.title ?? folder.lastPathComponent,
-            // a dump names its game before the build does
+            // a NUP or a dump names its game before the build does
             titleID: build.map { String($0.folder.lastPathComponent.dropLast("_build".count)) }
+                ?? nup.flatMap(GameNUP.titleID(of:))
                 ?? (isDump ? GameDump.titleID(of: folder) : nil),
             version: nacp?.displayVersion,
             languages: nacp?.languages ?? [],
@@ -50,6 +58,7 @@ public enum GameScanner {
             // nxnative's app: <game name>.app with its Mac host inside (not any app that happens to be there)
             macAppURL: newest(entries.filter(isMacApp)),
             hasPackages: hasPackages,
+            isNUP: nup != nil,
             isDump: isDump,
             // a copied folder carries the mark on itself, a copied file on itself
             isCopying: isBeingCopied(folder) || packages.contains(where: isBeingCopied),

@@ -8,7 +8,7 @@
 - Copy saves between the Mac and a device, after seeing which one is newer, and back them up to your own private Git repository while you play.
 - Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
-> You need your own games (NSP, NSZ, XCI or XCZ files, or a dump of a Switch 2 game) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
+> You need your own games (NSP, NSZ, XCI or XCZ files, or a NUP file or dump of a Switch 2 game) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
 
 **Contents**
 
@@ -87,7 +87,7 @@ Switch/
         └── 458752/       exefs/ and romfs/ of the update
 ```
 
-A Switch 2 game is a dump of its files, the way [nxnative builds one](https://github.com/seedds/nxnative#switch-2-games): `base/`, then optionally `updates/<version>/` and `dlc/<title ID>/`. It needs no `prod.keys`, and carries no icon or name, so it shows its folder's name. A **Switch 2** badge marks it. nxnative builds a dump only for a game it has a profile for, and tests Switch 2 games on the Mac only; a **No profile** badge marks one it can't build yet.
+A Switch 2 game is one `.nup` file or a dump of its files, the way [nxnative builds one](https://github.com/seedds/nxnative#switch-2-games). A dump is `base/`, then optionally `updates/<version>/` and `dlc/<title ID>/`. Neither needs `prod.keys`. A game shows its folder's name until it's built, and a dump stays that way, since it carries no icon or name; a NUP that holds them shows them once built. If NSPs sit beside a NUP or a dump, nxnative builds the NSPs, and those need `prod.keys`. A **Switch 2** badge marks these games. nxnative builds a NUP or a dump only for a game it has a profile for, and tests Switch 2 games on the Mac only; a **No profile** badge marks one it can't build yet.
 
 Extracted games show their icons and a **Play** button; the others have **Extract**, and **Extract All** builds them one after another. A status bar at the bottom shows what's building. The log, which starts hidden (View › Show Log, ⇧⌘Y), shows the selected game's output, and opens by itself when a build fails. The toolbar switches between the grid and a sortable list (View › as Grid ⌘1 / as List ⌘2).
 
@@ -150,7 +150,7 @@ curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/game
 
 **Tools › Free Up Space** lists, per game and with their sizes, what you can delete:
 
-- **Game files:** each game's NSP, NSZ, XCI and XCZ files, plus the NSPs a build converted from NSZ. Only games already built for the Mac qualify, since they keep playing from their build. Without these files a game can't be rebuilt: it keeps its current build when nxnative updates, and Install on Device and Build IPA need the files back. If your games folder holds your only copy, keep a backup.
+- **Game files:** each game's NSP, NSZ, XCI, XCZ and NUP files, plus the NSPs a build converted from NSZ. Only games already built for the Mac qualify, since they keep playing from their build. Without these files a game can't be rebuilt: it keeps its current build when nxnative updates, and Install on Device and Build IPA need the files back. If your games folder holds your only copy, keep a backup.
 - **Builds:** each game's `<title ID>_build` folder: the extracted game, its rewritten code and its shaders. The next Play builds it again from the game files, which takes as long as the first build. Its saves stay, and so does when you last played it. A game whose game files are gone keeps its build, since that's how it still plays; a kept build stays too. A game's build and its game files can't be deleted together.
 - **IPAs:** the ones built for sideloading. Build IPA makes them again.
 - **Xcode builds:** `<title ID>_build/xcode-derived-data`, which Install on Device keeps to make the next install fast. It's a full copy of the game. Without it the next install works, but compiles and copies everything again.

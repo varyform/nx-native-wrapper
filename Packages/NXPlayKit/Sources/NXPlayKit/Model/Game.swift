@@ -1,6 +1,6 @@
 import Foundation
 
-/// One subfolder of the games folder: the NSPs of a game (or a dump of its files) and, once built, its
+/// One subfolder of the games folder: the NSPs of a game (or its NUP, or a dump of its files) and, once built, its
 /// `<title ID>_build` folder.
 public struct Game: Identifiable, Hashable, Sendable {
     public enum State: Hashable, Sendable {
@@ -28,11 +28,16 @@ public struct Game: Identifiable, Hashable, Sendable {
     public let xcodeBuildFolder: URL?
     /// The standalone Mac app Make Mac App packed into the game folder (nxnative's --platform mac-app).
     public var macAppURL: URL? = nil
-    /// The game files are there to build from: NSPs, NSZs, XCIs or XCZs, or a dump.
+    /// The game files are there to build from: NSPs, NSZs, XCIs, XCZs or a NUP, or a dump.
     public let hasPackages: Bool
-    /// The game files are a dump of the game (`base/`, `updates/`, `dlc/`), as nxnative builds a Switch 2 game: no
-    /// prod.keys needed, and no icon or name of its own (GameDump).
+    /// nxnative builds the game from one NUP file, as it can a Switch 2 game (GameNUP).
+    public var isNUP = false
+    /// nxnative builds the game from a dump of it (`base/`, `updates/`, `dlc/`), as it can a Switch 2 game: no icon or
+    /// name of its own (GameDump).
     public var isDump = false
+    /// What nxnative builds from isn't encrypted (a NUP or a dump): it needs no prod.keys, and nxnative builds it only
+    /// for a game it has a profile for.
+    public var isUnencrypted: Bool { isNUP || isDump }
     /// A game file Finder is still copying into the folder: nothing may build from it until it's complete.
     public var isCopying = false
     /// When nxplay last started or ended the game (`run/last_played`); Console Mode puts the latest first.

@@ -5,8 +5,8 @@
 # usage: nxplay [--rebuild] [--build-only] [--ipa | --mac-app] [--fps] [--fullscreen] [--lang <code>] <game folder> [extra build_ipa_from_nsp.py options...]
 #   --build-only   build (when needed) and save the launcher, without starting the game
 #   (a <title ID>_build/keep file stops nxnative updates from rebuilding that build; --rebuild still does)
-#   --ipa          build the iOS IPA instead, into the game folder (needs the NSPs)
-#   --mac-app      pack a standalone Mac app of the game instead, <game name>.app in the game folder (needs the NSPs);
+#   --ipa          build the iOS IPA instead, into the game folder (needs the game files)
+#   --mac-app      pack a standalone Mac app of the game instead, <game name>.app in the game folder (needs the game files);
 #                  it keeps its own save in ~/Library/Application Support/nxnative/<title ID>
 #   --device <udid>  install on a device through Xcode instead: prepare the game's Xcode project, build it signed
 #                  with your team (Xcode > Settings > Apple Accounts), install and start it; pass --team-id <id>
@@ -226,13 +226,13 @@ update_nxnative() {
 
 # A game whose original files were removed to free space (NX Play's Remove Game Files) cannot be rebuilt:
 # after an nxnative update it keeps playing the build it has, rather than failing to rebuild and not starting.
-# A Switch 2 game's files are a dump of it (base/exefs/main.npdm and base/romfs, nxnative's pack_dump.py).
+# A Switch 2 game's files are a NUP, or a dump of it (base/exefs/main.npdm and base/romfs, nxnative's pack_dump.py).
 has_game_files() {
   local f
   [[ -f "$game/base/exefs/main.npdm" && -d "$game/base/romfs" ]] && return 0
   shopt -s nocasematch
   for f in "$game"/*; do
-    case "$f" in *.nsp | *.nsz | *.xci | *.xcz) [[ -s "$f" ]] && return 0 ;; esac
+    case "$f" in *.nsp | *.nsz | *.xci | *.xcz | *.nup) [[ -s "$f" ]] && return 0 ;; esac
   done
   return 1
 }
@@ -691,10 +691,10 @@ fi
 
 if [[ $rebuild -eq 1 ]] && ! has_game_files; then
   if [[ $explicit_rebuild -eq 0 && -n "$(find_launcher)" ]]; then
-    say "nxplay: no game files (NSP, NSZ, XCI, XCZ) to rebuild from: playing the current build, without these nxnative changes"
+    say "nxplay: no game files (NSP, NSZ, XCI, XCZ, NUP) to rebuild from: playing the current build, without these nxnative changes"
     rebuild=0
   else
-    warn "nxplay: no game files (NSP, NSZ, XCI, XCZ) in $game to build from; put them back to rebuild"
+    warn "nxplay: no game files (NSP, NSZ, XCI, XCZ, NUP) in $game to build from; put them back to rebuild"
     exit 1
   fi
 fi

@@ -77,7 +77,7 @@ struct RemoveGameView: View {
             GameScanner.packageExtensions.contains(($0 as NSString).pathExtension.lowercased())
         }
         let rows: [(String, Bool)] = [
-            ("\(packages) game file\(packages == 1 ? "" : "s") (NSP, NSZ, XCI, XCZ)", packages > 0),
+            ("\(packages) game file\(packages == 1 ? "" : "s") (NSP, NSZ, XCI, XCZ, NUP)", packages > 0),
             (
                 "The game's dumped files: base, updates, DLC",
                 game.isDump && names.contains { GameDump.folders.contains($0) }

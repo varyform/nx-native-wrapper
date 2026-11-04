@@ -196,7 +196,7 @@ extension CleanupKind {
     var note: LocalizedStringKey {
         switch self {
         case .gameFiles:
-            "NSP, NSZ, XCI, XCZ of games built for the Mac: they keep playing, but can't be rebuilt."
+            "NSP, NSZ, XCI, XCZ, NUP of games built for the Mac: they keep playing, but can't be rebuilt."
         case .builds: "Play builds them again from the game files; saves stay."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."

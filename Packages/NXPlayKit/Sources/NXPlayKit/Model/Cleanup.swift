@@ -3,7 +3,7 @@ import Observation
 
 /// What Tools › Free Up Space can delete.
 public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
-    /// A game's NSP / NSZ / XCI / XCZ files, and the NSPs a build converted from NSZ (`<id>_build/nsp`).
+    /// A game's NSP / NSZ / XCI / XCZ / NUP files, and the NSPs a build converted from NSZ (`<id>_build/nsp`).
     case gameFiles
     /// `<id>_build` without its saves, its converted NSPs or its Xcode build: the extracted and built game, which
     /// Play builds again from the game files.
