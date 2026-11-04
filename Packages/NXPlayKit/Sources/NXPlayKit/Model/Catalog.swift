@@ -288,15 +288,31 @@ public enum RepositoryAddress {
     }
 
     /// Query keys that look like credentials: they'd be saved with the address in NX Play's settings.
+    /// Each name is read from the query as written, decoded as many times as it takes (`%74oken` and `%2574oken` are
+    /// `token`) with malformed escapes left as they are: one bad escape elsewhere in the query mustn't hide a name,
+    /// as the system's own query parsing gives no names at all then. A name with an encoded "=" (`token%3D…`) carries
+    /// its value: only the part before the "=" is quoted. Read as redaction reads it (`ControlRedaction`, one budget):
+    /// an address redaction couldn't read to the end, and would hide whole, is refused rather than saved.
     public static func secretQueryProblem(_ url: URL) -> String? {
-        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
-        let secret = items.first {
-            $0.name.lowercased().contains(
-                #/token|key|sig|auth|pass|secret|credential/#)
+        let query = url.query(percentEncoded: true) ?? ""
+        let unreadable =
+            "the address is encoded over and over, which may hide a credential: put it in the Access token field"
+        if ControlRedaction.exhausts(url.absoluteString) { return unreadable }
+        let budget = ControlRedaction.Budget(for: query)
+        let names = query.split(separator: "&").map {
+            String($0.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false).first ?? "")
         }
-        return secret.map {
-            "the address has “\($0.name)” in it, which looks like a credential: put it in the Access token field"
+        for name in names {
+            guard let layers = try? ControlRedaction.decodedLayers(name, budget: budget) else { return unreadable }
+            // the most decoded first: what is quoted stops at its "=", however the "=" was encoded
+            for layer in layers.reversed() {
+                let shown = String(layer.prefix { $0 != "=" })
+                if shown.lowercased().contains(#/token|key|sig|auth|pass|secret|credential/#) {
+                    return "the address has “\(shown)” in it, which looks like a credential: put it in the Access token field"
+                }
+            }
         }
+        return nil
     }
 
     /// An address is checked as an IP address first (a v6 one has no dots, so it would pass for a single-label name),

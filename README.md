@@ -16,7 +16,7 @@
 - [Requirements](#requirements)
 - [Install](#install), or [from the source](#from-the-source)
 - [Using NX Play](#using-nx-play): [the Game menu](#the-game-menu), [iPhone and iPad](#iphone-and-ipad), [saves](#saves), [tools](#tools), [sources](#sources), [settings](#settings), [Console Mode](#console-mode)
-- [Command line](#command-line)
+- [Command line](#command-line), [control API and MCP](#control-api-and-mcp)
 - [Controls](#controls)
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
@@ -219,6 +219,19 @@ Each run starts by updating nxnative and lists any new commits. A game is rebuil
 The run command is saved in `<game folder>/<title ID>_build/start_mac.sh`. It holds absolute paths, so after you move a game folder (or nxnative), the next run rewrites them to the new location.
 
 Environment variables: `NXNATIVE` (the nxnative checkout; default `./nxnative`, else `../nxnative`), `NX_KEYS` (default `~/.switch/prod.keys`), `NXPLAY_VENV` (default `./.venv`).
+
+### Control API and MCP
+
+Scripts and AI agents on your Mac can drive the running app through a local API. It covers the library, builds, installs, plays, Sources and downloads, settings, Free Up Space and the window, with jobs, events and Cancel. You can reach it as MCP tools, or from `nxplay_control.py`, which is bundled in the app. It is off unless you turn it on:
+
+```sh
+C="/Applications/NX Play.app/Contents/Resources/nxplay_control.py"
+python3 "$C" enable                 # then quit and open NX Play again
+python3 "$C" call games.list
+claude mcp add nxplay -- python3 "$C" mcp
+```
+
+It listens on 127.0.0.1 only, with a token of its own in a file only you can read. The iOS app's pairing code opens nothing there, and no command runs a shell, reads arbitrary files or shows a secret. [docs/control-api.md](docs/control-api.md) lists every command and the security rules.
 
 ## Controls
 

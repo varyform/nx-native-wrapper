@@ -48,6 +48,11 @@ public final class Repositories {
     @ObservationIgnored private var running: (id: String, task: Task<Void, Never>)?
     @ObservationIgnored private var loading: Set<String> = []
     @ObservationIgnored private var savedKey: [String] = []
+    /// Runs of a download that a Retry or the trimming of old downloads replaced, as they ended (the last
+    /// `keptEnded`): a Retry reuses the download's id, so whoever followed an earlier run (the control API) reads
+    /// how that run ended here, never the new run's state.
+    @ObservationIgnored private(set) var endedRuns: [DownloadJob] = []
+    static let keptEnded = 100
 
     init(defaults: UserDefaults, credentials: any CredentialStore, stateFile: URL?) {
         self.defaults = defaults
@@ -347,6 +352,24 @@ public final class Repositories {
         }
     }
 
+    /// Stops this run of a download, only while it's the download's current run: a cancel meant for a run a Retry
+    /// replaced never reaches the new run.
+    public func cancel(_ id: String, attempt: Int) {
+        guard job(id)?.attempt == attempt else { return }
+        cancel(id)
+    }
+
+    /// The download's run `attempt`: its current record, or the run as it ended before a Retry replaced it.
+    public func run(_ id: String, attempt: Int) -> DownloadJob? {
+        if let job = job(id), job.attempt == attempt { return job }
+        return endedRuns.last { $0.id == id && $0.attempt == attempt }
+    }
+
+    private func keepEnded(_ jobs: [DownloadJob]) {
+        endedRuns.append(contentsOf: jobs)
+        if endedRuns.count > Self.keptEnded { endedRuns.removeFirst(endedRuns.count - Self.keptEnded) }
+    }
+
     /// Stops a running download (its partial file is deleted) or takes a waiting one off the queue.
     public func cancel(_ id: String) {
         guard let index = downloads.firstIndex(where: { $0.id == id }), downloads[index].state.isActive else {
@@ -370,6 +393,7 @@ public final class Repositories {
             throw Failure("No download \(id)", status: 404)
         }
         var job = downloads[index]
+        let ended = job
         guard job.state == .failed || job.state == .cancelled else {
             throw Failure("\(job.entryName) isn't stopped", status: 409)
         }
@@ -400,7 +424,10 @@ public final class Repositories {
         job.state = .queued
         job.message = nil
         job.finished = nil
+        job.attempt += 1
         try admit(job)
+        // the run that ended stays readable as it ended, in the same turn the new run takes its place
+        keepEnded([ended])
         downloads[index] = job
         startNext()
         return job
@@ -512,6 +539,7 @@ public final class Repositories {
         let finished = downloads.filter { !$0.state.isActive }
         guard finished.count > Self.keptFinished else { return }
         let dropped = Set(finished.prefix(finished.count - Self.keptFinished).map(\.id))
+        keepEnded(downloads.filter { dropped.contains($0.id) })
         downloads.removeAll { dropped.contains($0.id) }
     }
 
@@ -618,6 +646,8 @@ public struct DownloadJob: Identifiable, Sendable, Equatable {
     public internal(set) var fileIndex = 0
     public let created: Date
     public internal(set) var finished: Date?
+    /// Which run of this download: 1, then one more for each Retry (which keeps the id).
+    public internal(set) var attempt = 1
 
     init(id: String, source: RepositorySource, entry: CatalogEntry, folder: String, root: URL, files: [File]) {
         self.id = id
@@ -640,7 +670,7 @@ public struct DownloadJob: Identifiable, Sendable, Equatable {
         var record: [String: Any] = [
             "id": id, "sourceID": sourceID, "sourceName": sourceName, "entryID": entryID,
             "entryName": entryName, "titleID": titleID, "folder": folder, "root": root,
-            "state": state.rawValue, "bytesDone": bytesDone,
+            "state": state.rawValue, "bytesDone": bytesDone, "attempt": attempt,
             "created": created.timeIntervalSince1970,
             "files": files.map { file -> [String: Any] in
                 // a SHA-256 as "sha256", as downloads.json always had it; a SHA-1 as "sha1"
@@ -698,5 +728,6 @@ public struct DownloadJob: Identifiable, Sendable, Equatable {
         bytesDone = (record["bytesDone"] as? NSNumber)?.int64Value ?? 0
         created = Date(timeIntervalSince1970: record["created"] as? Double ?? 0)
         finished = (record["finished"] as? Double).map(Date.init(timeIntervalSince1970:))
+        attempt = max(1, (record["attempt"] as? NSNumber)?.intValue ?? 1)
     }
 }

@@ -6,6 +6,10 @@ public struct IOSAppInstall: Sendable {
     public enum State: Sendable { case running, succeeded, failed }
 
     public let device: Device
+    /// This run, of all the runs this launch: what a control API job follows (a later run replaces this record).
+    public let id = UUID()
+    /// When it started.
+    public let started = Date()
     public var state = State.running
     /// What the script is doing, or how it ended.
     public var status = "Starting…"
@@ -24,7 +28,7 @@ extension Library {
 
     public func installIOSApp(on device: Device) {
         guard iosAppInstall?.state != .running, let script = Self.iosAppScript else { return }
-        iosAppInstall = IOSAppInstall(device: device)
+        startIOSAppInstall(IOSAppInstall(device: device))
         var environment = NXPlayCommand.environment(nxnative: nxnativePath, keys: keysPath)
         // the project is generated and built there, never in the bundle
         environment["NXPLAY_IOS_WORK"] = AppHome.folder.appending(path: "iOS").path
@@ -61,6 +65,22 @@ extension Library {
             iosAppInstall?.state = .failed
             iosAppInstall?.status = "Couldn't start the install: \(error.localizedDescription)"
         }
+    }
+
+    /// A run takes the record's place; the run it replaces, ended, is kept as it ended (the last few), so whoever
+    /// followed it (a control API job, from Settings' button or the API alike) still reads how it ended.
+    func startIOSAppInstall(_ install: IOSAppInstall) {
+        if let ended = iosAppInstall {
+            endedIOSAppInstalls.append(ended)
+            if endedIOSAppInstalls.count > 8 { endedIOSAppInstalls.removeFirst(endedIOSAppInstalls.count - 8) }
+        }
+        iosAppInstall = install
+    }
+
+    /// The run with this id: the current one, or one that ended before a later run replaced it.
+    func iosAppInstall(id: UUID) -> IOSAppInstall? {
+        if let install = iosAppInstall, install.id == id { return install }
+        return endedIOSAppInstalls.last { $0.id == id }
     }
 
     private func iosAppOutput(_ lines: [String]) {

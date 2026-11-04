@@ -223,12 +223,31 @@ public final class Cleanup {
     public func toggle(_ file: CleanupFile) { toggle([file]) }
 
     /// Deletes the selected files and folders for good (not to the Trash: the point is the space). Scan
-    /// first, so a game that became busy meanwhile is skipped.
+    /// first, so a game that became busy meanwhile is skipped. The window and the control API delete through
+    /// `Library.freeUpSpace` instead, which also takes the library's turn for file work and judges the selection
+    /// again against the disk as it is then.
     public func delete() async {
         let files = selectedFiles.filter { $0.blocked == nil }
         guard canDelete, !files.isEmpty else { return }
         phase = .deleting
-        let failures = await Task.detached {
+        let failures = await Self.remove(files)
+        let removed = files.filter { failures[$0.url] == nil }
+        let size = removed.reduce(0) { $0 + $1.size }
+        selection = Set(failures.keys)
+        confirmation = ""
+        phase =
+            failures.isEmpty
+            ? .done(count: removed.count, size: size)
+            : .failed(
+                "\(removed.count) of \(files.count) removed. Not removed: "
+                    + failures.map { "\($0.key.lastPathComponent) (\($0.value))" }.sorted().joined(
+                        separator: "; "))
+    }
+
+    /// Deletes these files and folders for good, off the main actor: a build without its saves, a Mac app with its
+    /// key. → why each one that couldn't go didn't.
+    nonisolated static func remove(_ files: [CleanupFile]) async -> [URL: String] {
+        await Task.detached {
             files.reduce(into: [URL: String]()) { failures, file in
                 do {
                     if file.role == .build {
@@ -250,16 +269,24 @@ public final class Cleanup {
                 }
             }
         }.value
-        let removed = files.filter { failures[$0.url] == nil }
-        let size = removed.reduce(0) { $0 + $1.size }
-        selection = Set(failures.keys)
-        confirmation = ""
-        phase =
-            failures.isEmpty
-            ? .done(count: removed.count, size: size)
-            : .failed(
-                "\(removed.count) of \(files.count) removed. Not removed: "
-                    + failures.map { "\($0.key.lastPathComponent) (\($0.value))" }.sorted().joined(
-                        separator: "; "))
+    }
+
+    /// The window's Delete went to the library (`Library.freeUpSpace`): deleting…
+    func beginDeleting() { phase = .deleting }
+
+    /// …and how it went. A refusal deleted nothing: the selection stays for the player to look at again.
+    func finishDeleting(_ outcome: CleanupOutcome) {
+        switch outcome {
+        case .done(let removed, let size):
+            selection = []
+            confirmation = ""
+            phase = .done(count: removed.count, size: size)
+        case .refused(let message), .notListed(let message):
+            phase = .failed("Nothing was deleted: \(message)")
+        case .failed(let message, _, let notRemoved):
+            selection = notRemoved
+            confirmation = ""
+            phase = .failed(message)
+        }
     }
 }

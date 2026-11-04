@@ -118,7 +118,7 @@ extension Library {
         games.first { $0.folder.lastPathComponent == folder }?.folder.lastPathComponent
     }
 
-    private func remoteJSON(_ source: RepositorySource) -> [String: Any] {
+    func remoteJSON(_ source: RepositorySource) -> [String: Any] {
         var json: [String: Any] = [
             "id": source.id, "name": source.name, "origin": source.origin?.text ?? "",
             "enabled": source.enabled, "error": NSNull(), "entries": 0, "issues": 0, "refreshed": NSNull(),
@@ -138,7 +138,7 @@ extension Library {
         return json
     }
 
-    private func remoteJSON(_ entry: CatalogEntry) -> [String: Any] {
+    func remoteJSON(_ entry: CatalogEntry) -> [String: Any] {
         let folder = repositories.folder(for: entry)
         return [
             "id": entry.id, "name": entry.name, "titleID": entry.titleID, "version": entry.version,
@@ -158,7 +158,7 @@ extension Library {
         ]
     }
 
-    private func remoteJSON(_ job: DownloadJob) -> [String: Any] {
+    func remoteJSON(_ job: DownloadJob) -> [String: Any] {
         [
             "id": job.id, "source": job.sourceID, "sourceName": job.sourceName, "entry": job.entryID,
             "entryName": job.entryName, "titleID": job.titleID, "folder": job.folder,

@@ -167,12 +167,18 @@ public struct CleanupView: View {
         await cleanup.scan(games: library.games, busy: busy)
     }
 
+    /// The library deletes, as it does for the control API: after any other deletion, with the games held, and only
+    /// what still holds once it looks again (a game that started building meanwhile, or whose build or files another
+    /// deletion took, refuses the whole selection).
     private func delete() {
         guard cleanup.canDelete else { return }
+        let chosen = cleanup.selectedFiles
+        cleanup.beginDeleting()
         Task {
-            await rescan()  // a game that started building meanwhile is no longer selectable
-            await library.inFlight { await cleanup.delete() }
-            library.refresh()
+            let outcome = await library.freeUpSpace(
+                chosen.map(\.url),
+                sizes: Dictionary(chosen.filter { !$0.measuring }.map { ($0.url, $0.size) }, uniquingKeysWith: { a, _ in a }))
+            cleanup.finishDeleting(outcome)
             await rescan()
         }
     }

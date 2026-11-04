@@ -150,6 +150,7 @@ extension Library {
                 "The Mac can't reach that device: pair it with Xcode, with Connect via network on")
         }
         guard !isBusy(game) else { return .error(409, "\(game.name) is busy on the Mac") }
+        guard !isReserved(game) else { return .error(409, Self.reservedProblem(game)) }
         guard !game.isKept else { return .error(409, Self.keptBuildProblem) }
         guard game.canBuildFromFiles else {
             return .error(422, "\(game.name) has no game files to build from")
@@ -186,7 +187,7 @@ extension Library {
         return devices.first { $0.id == udid }
     }
 
-    private func remoteJSON(_ game: Game) -> [String: Any] {
+    func remoteJSON(_ game: Game) -> [String: Any] {
         [
             "id": game.folder.lastPathComponent,
             "name": game.name,
@@ -202,7 +203,7 @@ extension Library {
         ]
     }
 
-    private func remoteJSON(_ job: Job) -> [String: Any] {
+    func remoteJSON(_ job: Job) -> [String: Any] {
         var kind = "\(job.kind)"
         var device: Any = NSNull()
         if case .install(let target) = job.kind {
@@ -225,7 +226,7 @@ extension Library {
         ]
     }
 
-    private func remoteJSON(_ device: Device) -> [String: Any] {
+    func remoteJSON(_ device: Device) -> [String: Any] {
         ["id": device.id, "name": device.name, "model": device.model, "os": device.osVersion]
     }
 }

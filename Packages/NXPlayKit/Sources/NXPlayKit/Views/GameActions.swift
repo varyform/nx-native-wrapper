@@ -45,7 +45,8 @@ struct GameActions: View {
                     get: { game?.isKept == true },
                     set: { kept in game.map { library.setKept(kept, $0) } })
             )
-            .disabled(game?.canKeep != true)
+            // not while Free Up Space or Remove Game holds it (the library refuses then too)
+            .disabled(game?.canKeep != true || game.map(library.isReserved) != false)
             // nxnative's settings for the game, as its Mac app's window shows them; they need a build to list them
             Button("Game Settings…", systemImage: "slider.horizontal.3") {
                 library.settingsGame = game

@@ -33,6 +33,9 @@ targets:
       # Help › NX Play Changelog, and an update's What's New (read from the downloaded app's copy)
       - path: CHANGELOG.md
         buildPhase: resources
+      # the control API's command line and stdio MCP adapter (docs/control-api.md), at a stable path in the app
+      - path: Control/nxplay_control.py
+        buildPhase: resources
     postCompileScripts:
       # the setup NX Play runs from Settings › Setup: bin/setup with the files it reads (AppHome.setupProject)
       - name: Bundle the setup

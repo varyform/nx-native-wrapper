@@ -6,7 +6,7 @@ import Foundation
 extension Library {
     /// The games it builds: built ones with their game files, not kept, not busy; the one played last first.
     public var updatableGames: [Game] {
-        games.filter { $0.state == .ready && $0.canBuildFromFiles && !$0.isKept && !isBusy($0) }
+        games.filter { $0.state == .ready && $0.canBuildFromFiles && !$0.isKept && !isBusy($0) && !isReserved($0) }
             .sorted { ($0.lastPlayed ?? .distantPast) > ($1.lastPlayed ?? .distantPast) }
     }
 

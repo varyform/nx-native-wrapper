@@ -131,6 +131,20 @@ public final class Library {
     @ObservationIgnored var remoteServer: RemoteServer?
     /// Install NX Play's run, while it goes and after (Library+IOSApp.swift).
     public internal(set) var iosAppInstall: IOSAppInstall?
+    /// The runs a later run replaced, as they ended (Library+IOSApp.swift).
+    @ObservationIgnored var endedIOSAppInstalls: [IOSAppInstall] = []
+    /// The local control API, while it runs (Library+Control.swift).
+    @ObservationIgnored var controlAPI: ControlAPI?
+    /// The windows the control API asked RootView to open (`ui.open`), oldest first, each until RootView opens it or
+    /// its call stops waiting; and the serials RootView opened, each answered to its own call only.
+    public internal(set) var windowRequests: [ControlWindowRequest] = []
+    @ObservationIgnored var windowRequestsOpened: Set<Int> = []
+    /// Free Up Space and Remove Game, one at a time, and the games each holds meanwhile (Library+FileWork.swift).
+    @ObservationIgnored let fileWorkGate = FileWorkGate()
+    public internal(set) var reservedGames: [Game.ID: Int] = [:]
+    @ObservationIgnored var controlWindowSerial = 0
+    /// How long `ui.open` waits for RootView (tests wait less).
+    @ObservationIgnored var windowOpenTimeout: Duration = .seconds(2)
 
     public private(set) var games: [Game] = [] {
         didSet { titleFolders = Self.titleFolderIndex(games) }
@@ -249,7 +263,7 @@ public final class Library {
     /// bin/install asked NX Play to quit once nothing is running, to replace it (quitWhenIdleNotification).
     public private(set) var quitsWhenIdle = false
     /// File work outside the jobs that quitting would cut short: Free Up Space deleting, a save transfer copying.
-    @ObservationIgnored private var tasksInFlight = 0
+    @ObservationIgnored var tasksInFlight = 0
     @ObservationIgnored let artwork: ArtworkStore
     @ObservationIgnored private var bannerFetch: Task<Void, Never>?
     /// The title IDs artwork was looked for this launch: a refresh doesn't look again for one titledb lacks.
@@ -326,6 +340,7 @@ public final class Library {
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.stopControl()
                 self?.stopAll()
                 self?.updater.installOnQuit()
             }
@@ -344,6 +359,7 @@ public final class Library {
         refreshDevices()
         applyControllerPlayers()  // didSet doesn't run for the value read in init
         applyRemote()
+        applyControl()
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
         if defaults.bool(forKey: Keys.consoleMode), root != nil {
             consoleMode = true
@@ -584,7 +600,11 @@ public final class Library {
     }
 
     public var extractableGames: [Game] {
-        games.filter { $0.canExtract && !isBusy($0) }
+        games.filter { $0.canExtract && !isBusy($0) && !isReserved($0) }
+    }
+
+    static func reservedProblem(_ game: Game) -> String {
+        "\(game.name)'s files are being deleted (Free Up Space or Remove Game): start it again once that's done."
     }
 
     public func job(for game: Game) -> Job? { jobs[game.id] }
@@ -616,9 +636,31 @@ public final class Library {
     public func makeMacApp(_ game: Game) { run(.macApp, game) }
     public func install(_ game: Game, on device: Device) { run(.install(device), game) }
 
-    /// Keep This Build on or off: nxplay reads the keep file before it rebuilds after an nxnative update.
+    /// Keep This Build on or off: nxplay reads the keep file before it rebuilds after an nxnative update. The
+    /// window's toggle; a refusal or failure is said in its alert.
     public func setKept(_ kept: Bool, _ game: Game) {
-        guard let file = game.keepFile else { return }
+        if let refusal = changeKept(kept, game) { problem = refusal.message }
+    }
+
+    /// Why Keep This Build didn't change.
+    enum KeepRefusal: Error, Equatable {
+        /// Free Up Space or Remove Game holds the game: it may be deleting the very build (Library+FileWork.swift).
+        case reserved(String)
+        case failed(String)
+
+        var message: String {
+            switch self {
+            case .reserved(let message), .failed(let message): message
+            }
+        }
+    }
+
+    /// Keep This Build on or off, for the window and the control API alike. Refused while file work holds the game:
+    /// a deletion judged the build's protection when it took its turn, and a keep marker written meanwhile would be
+    /// deleted with the build it was meant to protect. Ask again once the deletion is done.
+    func changeKept(_ kept: Bool, _ game: Game) -> KeepRefusal? {
+        if isReserved(game) { return .reserved(Self.reservedKeepProblem(game)) }
+        guard let file = game.keepFile else { return nil }
         do {
             if kept {
                 try Data(
@@ -630,9 +672,15 @@ public final class Library {
                 try FileManager.default.removeItem(at: file)
             }
         } catch {
-            problem = "Could not change Keep This Build: \(error.localizedDescription)"
+            refresh()
+            return .failed("Could not change Keep This Build: \(error.localizedDescription)")
         }
         refresh()
+        return nil
+    }
+
+    static func reservedKeepProblem(_ game: Game) -> String {
+        "\(game.name)'s files are being deleted (Free Up Space or Remove Game): change Keep This Build once that's done."
     }
 
     /// Opens the save transfer for a game; the copy NX Play installs is preferred when a device has several.
@@ -793,6 +841,11 @@ public final class Library {
     /// `appSave`: a play with the Mac app's own save (NXPLAY_SAVE=app), the folder its backup follows.
     func run(_ kind: Job.Kind, _ game: Game, select: Bool = true, appSave: URL? = nil) {
         guard !isBusy(game) else { return }
+        // Free Up Space or Remove Game is deleting its files (Library+FileWork.swift)
+        if isReserved(game) {
+            problem = Self.reservedProblem(game)
+            return
+        }
         if game.isKept, kind.rewritesTheMacBuild {
             problem = Self.keptBuildProblem
             return

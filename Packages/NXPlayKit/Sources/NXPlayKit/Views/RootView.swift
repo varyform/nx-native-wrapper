@@ -8,9 +8,7 @@ public struct RootView: View {
     @FocusState private var searchFocused: Bool
     /// The update problem banner, dismissed for this launch.
     @State private var problemDismissed = false
-    #if DEBUG
-        @Environment(\.openSettings) private var openSettings
-    #endif
+    @Environment(\.openSettings) private var openSettings
 
     public init() {}
 
@@ -27,6 +25,10 @@ public struct RootView: View {
             )
             .searchFocused($searchFocused)
             .onChange(of: library.searchRequests) { searchFocused = true }
+            // the control API's ui.open: only a view can open a window. Every queued request is opened and answered
+            // on its own, also those waiting when the window appears
+            .onChange(of: library.windowRequests) { library.openRequestedWindows(openRequested) }
+            .onAppear { library.openRequestedWindows(openRequested) }
             .toolbar(library.consoleMode ? .hidden : .visible, for: .windowToolbar)
             .background(
                 // screenshots show Console Mode in the window, at the README's size, not across a whole screen
@@ -152,6 +154,14 @@ public struct RootView: View {
             Button("Find Games…") { library.findGames() }
                 .keyboardShortcut("f")
                 .disabled(library.root == nil || library.consoleMode)
+        }
+    }
+
+    private func openRequested(_ window: ControlWindow) {
+        switch window {
+        case .main: break
+        case .settings: openSettings()
+        default: window.windowID.map { openWindow(id: $0) }
         }
     }
 
