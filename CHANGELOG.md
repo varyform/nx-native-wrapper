@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.3 — 2026-11-05
+
 ### Added
 
 - **More layouts of a Switch 2 dump**, now that nxnative builds them: `exefs/` and `romfs/` directly in the game's folder, as `nup extract` writes them, a dump with only `updates/<version>/`, and a base game whose RomFS is in its update. NX Play didn't list these before.
