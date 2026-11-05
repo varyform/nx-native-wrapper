@@ -32,11 +32,9 @@ public struct Game: Identifiable, Hashable, Sendable {
     public let hasPackages: Bool
     /// nxnative builds the game from one NUP file, as it can a Switch 2 game (GameNUP).
     public var isNUP = false
-    /// nxnative builds the game from a dump of it (`base/`, `updates/`, `dlc/`), as it can a Switch 2 game: no icon or
-    /// name of its own (GameDump).
+    /// nxnative builds the game from a dump of it, as it can a Switch 2 game: no icon or name of its own (GameDump).
     public var isDump = false
-    /// What nxnative builds from isn't encrypted (a NUP or a dump): it needs no prod.keys, and nxnative builds it only
-    /// for a game it has a profile for.
+    /// What nxnative builds from isn't encrypted (a NUP or a dump): it needs no prod.keys.
     public var isUnencrypted: Bool { isNUP || isDump }
     /// A game file Finder is still copying into the folder: nothing may build from it until it's complete.
     public var isCopying = false

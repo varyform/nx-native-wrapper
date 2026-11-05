@@ -59,6 +59,48 @@ import Testing
         #expect(games[1].isDump && games[1].titleID == nil)
     }
 
+    @Test func everyLayoutNxnativeBuildsIsAGame() throws {
+        let npdm = Self.npdm(programID: 0x0400_0000_0000_1000)
+        try write("Flat/exefs/main.npdm", npdm)
+        try write("Flat/romfs/a.bin")
+        try write("UpdateOnly/updates/65536/exefs/main.npdm", npdm)
+        try write("UpdateOnly/updates/65536/romfs/a.bin")
+        try write("RomFSInUpdate/base/exefs/main.npdm", npdm)
+        try write("RomFSInUpdate/updates/65536/romfs/a.bin")
+        for name in ["Flat", "UpdateOnly", "RomFSInUpdate"] {
+            let game = try #require(GameScanner.game(at: root.appending(path: name)))
+            #expect(game.isDump && game.titleID == "0400000000001000", "\(name)")
+        }
+    }
+
+    @Test func theNewestWholeUpdateNamesAGameWithNoBase() throws {
+        try write("Two/updates/131072/exefs/main.npdm", Self.npdm(programID: 0x0400_0000_0000_2000))
+        try write("Two/updates/131072/romfs/a.bin")
+        try write("Two/updates/65536/exefs/main.npdm", Self.npdm(programID: 0x0400_0000_0000_1000))
+        try write("Two/updates/65536/romfs/a.bin")
+        try write("Two/updates/999999/exefs/main.npdm", Self.npdm(programID: 0x0400_0000_0000_3000))  // no RomFS
+        let game = try #require(GameScanner.game(at: root.appending(path: "Two")))
+        #expect(game.titleID == "0400000000002000")
+    }
+
+    @Test func foldersThatOnlyLookLikeAnUpdateAreNoGame() throws {
+        try write("Named/updates/latest/exefs/main.npdm", Self.npdm(programID: 1))
+        try write("Named/updates/latest/romfs/a.bin")
+        try write("NoCode/updates/65536/romfs/a.bin")
+        #expect(GameScanner.game(at: root.appending(path: "Named")) == nil)
+        #expect(GameScanner.game(at: root.appending(path: "NoCode")) == nil)
+    }
+
+    @Test func removingAFlatDumpTakesItsFolders() throws {
+        try write("Flat/exefs/main.npdm", Self.npdm(programID: 1))
+        try write("Flat/romfs/a.bin")
+        try write("Flat/Notes.txt")
+        let game = try #require(GameScanner.game(at: root.appending(path: "Flat")))
+        let removal = GameRemoval(game: game, removesSaves: false, home: root)
+        #expect(Set(removal.items.map(\.lastPathComponent)) == ["exefs", "romfs"])
+        #expect(removal.others.map(\.lastPathComponent) == ["Notes.txt"])
+    }
+
     @Test func removingADumpTakesItsFoldersAndLeavesTheRest() throws {
         let game = try #require(GameScanner.game(at: root.appending(path: "FastFusion")))
         let removal = GameRemoval(game: game, removesSaves: false, home: root)

@@ -76,12 +76,6 @@ struct ProfileBadges: View {
                         text: "In bring-up", symbol: "hammer.fill", color: .orange,
                         help: Self.help(profile))
                 }
-            } else if game.isUnencrypted {
-                IconBadge(
-                    text: "No profile", symbol: "xmark", color: .red,
-                    help:
-                        "nxnative builds a game from a NUP or a dump only once it has a profile for it, and has none for \(game.titleID ?? "this game") yet. Extract tries again with nxnative's latest code."
-                )
             } else if game.titleID != nil {
                 IconBadge(
                     text: "Guessed", symbol: "questionmark", color: .gray,

@@ -4,6 +4,14 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **More layouts of a Switch 2 dump**, now that nxnative builds them: `exefs/` and `romfs/` directly in the game's folder, as `nup extract` writes them, a dump with only `updates/<version>/`, and a base game whose RomFS is in its update. NX Play didn't list these before.
+
+### Changed
+
+- **A Switch 2 game with no nxnative profile can now be built**: nxnative guesses a profile for a NUP or a dump, as it does for an NSP, instead of refusing it. Its red **No profile** badge is now the grey **Guessed** one. Such a game may still not boot.
+
 ## 1.8.2 — 2026-11-04
 
 ### Added

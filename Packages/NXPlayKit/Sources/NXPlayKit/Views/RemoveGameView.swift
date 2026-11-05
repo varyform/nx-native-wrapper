@@ -79,7 +79,7 @@ struct RemoveGameView: View {
         let rows: [(String, Bool)] = [
             ("\(packages) game file\(packages == 1 ? "" : "s") (NSP, NSZ, XCI, XCZ, NUP)", packages > 0),
             (
-                "The game's dumped files: base, updates, DLC",
+                "The game's dumped files",
                 game.isDump && names.contains { GameDump.folders.contains($0) }
             ),
             ("The build: extracted game, rewritten code, shaders", game.buildFolder != nil),
