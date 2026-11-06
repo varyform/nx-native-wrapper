@@ -21,6 +21,7 @@ struct GameGrid: View {
         let shown = library.shownGames
         let extracted = shown.filter(\.isExtracted)
         let remaining = shown.filter { !$0.isExtracted }
+        let icons = library.games.compactMap(library.icon(for:))
         ScrollViewReader { proxy in
             ScrollView {
                 if library.games.isEmpty {
@@ -47,6 +48,12 @@ struct GameGrid: View {
                 }
             }
             .background(.background)
+            // ahead of scrolling, so no card shows up before its icon
+            .task(id: icons) {
+                for url in icons where !Task.isCancelled {
+                    _ = await IconCache.loadThumbnail(at: url)
+                }
+            }
             // a controller moves the selection: keep it in view
             .onChange(of: library.selection) {
                 withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(library.selection) }

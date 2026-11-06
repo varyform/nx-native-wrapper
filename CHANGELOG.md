@@ -8,6 +8,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Game › Open Cheats Folder** opens a built game's cheats folder (`<title ID>_build/cheats`), so you can put a downloaded `<build ID>.txt` there. It loads the next time the game starts.
 
+### Changed
+
+- **NX Play uses less memory, and loads game icons in the background:** icons are kept at the size they're shown. After scrolling through a library of about 40 games, the app used 148 MB instead of 257 MB.
+
 ### Fixed
 
 - **Removing a build no longer deletes a game's cheats:** Free Up Space keeps the cheat files and your choices of which are on, like the saves, and so does Remove Game unless you also remove the saves.
