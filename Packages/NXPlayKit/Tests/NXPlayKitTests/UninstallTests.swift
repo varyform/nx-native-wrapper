@@ -109,13 +109,14 @@ import Testing
         defaults.synchronize()
         let app = Process()
         app.executableURL = URL(filePath: "/bin/sleep")
-        app.arguments = ["0.5"]
+        app.arguments = ["60"]  // the test ends it, so a slow machine can't quit it before the check below
         try app.run()
 
         Uninstaller.cleanUp(
             afterPID: app.processIdentifier, folders: [appHome, caches], domain: domain)
         try await Task.sleep(for: .milliseconds(200))
         #expect(FileManager.default.fileExists(atPath: appHome.path))  // the app still runs
+        app.terminate()
         // the shell removes one folder after the other: wait for both
         for _ in 0..<50
         where [appHome, caches].contains(where: { FileManager.default.fileExists(atPath: $0.path) })
@@ -124,9 +125,12 @@ import Testing
         }
         #expect(!FileManager.default.fileExists(atPath: appHome.path))
         #expect(!FileManager.default.fileExists(atPath: caches.path))
-        try await Task.sleep(for: .milliseconds(300))
         let plist = FileManager.default.homeDirectoryForCurrentUser.appending(
             path: "Library/Preferences/\(domain).plist")
+        // the settings go after the folders
+        for _ in 0..<50 where FileManager.default.fileExists(atPath: plist.path) {
+            try await Task.sleep(for: .milliseconds(100))
+        }
         #expect(!FileManager.default.fileExists(atPath: plist.path))
     }
 }

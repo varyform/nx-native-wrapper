@@ -117,13 +117,14 @@ import Testing
         }
         let quitter = Process()
         quitter.executableURL = URL(filePath: "/bin/sleep")
-        quitter.arguments = ["0.5"]
+        quitter.arguments = ["60"]  // the test ends it, so a slow machine can't quit it before the check below
         try quitter.run()
 
         AppUpdater.swap(
             staged: staged, into: bundle, afterPID: quitter.processIdentifier, relaunch: false)
         try await Task.sleep(for: .milliseconds(200))
         #expect(try String(contentsOf: bundle.appending(path: "version"), encoding: .utf8) == "old")  // still running
+        quitter.terminate()
         for _ in 0..<50 {
             if (try? String(contentsOf: bundle.appending(path: "version"), encoding: .utf8))
                 == "new"

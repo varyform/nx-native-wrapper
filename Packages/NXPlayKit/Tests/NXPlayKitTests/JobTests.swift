@@ -68,16 +68,18 @@ import Testing
         let play = try job(
             running: """
                 echo "nxnative: up to date"
-                sleep 0.5
+                \(wait(for: "prepared"))
                 echo "nxplay: starting the game"
-                sleep 0.5
+                \(wait(for: "played"))
                 """, kind: .play)
         play.start()
         try await until { play.note == "nxnative: up to date" }
         #expect(play.isPreparing && play.showsProgress)
         #expect(play.progressText == "nxnative: up to date")
+        try signal("prepared")
         try await until { play.gameStarted }
         #expect(!play.isPreparing && !play.showsProgress)  // the game runs: no progress to show
+        try signal("played")
         try await finished(play)
 
         // a build's first stage ends the preparing too
@@ -85,11 +87,12 @@ import Testing
             running: """
                 echo '{"ev": "stage", "k": 2, "n": 4, "name": "shader split", "step": "reading", "t": 1793000000}'
                 echo '{"ev": "progress", "k": 2, "name": "shader split", "step": "reading", "frac": 0.5, "eta": null, "t": 1793000000}'
-                sleep 0.5
+                \(wait(for: "built"))
                 """, kind: .play)
         building.start()
         try await until { building.progress != nil }
         #expect(!building.isPreparing && building.isBuilding)
+        try signal("built")
         try await finished(building)
     }
 
@@ -150,6 +153,16 @@ import Testing
             command: NXPlayCommand(
                 script: script, arguments: arguments,
                 environment: ProcessInfo.processInfo.environment))
+    }
+
+    /// A script line that holds until the test calls `signal`, so a state can be checked before the script moves on,
+    /// however slow the machine. It gives up after 30 s so a failed test leaves no script behind.
+    private func wait(for name: String) -> String {
+        "for _ in {1..600}; do [ -e '\(folder.appending(path: name).path)' ] && break; sleep 0.05; done"
+    }
+
+    private func signal(_ name: String) throws {
+        try Data().write(to: folder.appending(path: name))
     }
 
     private func finished(_ job: Job) async throws {
