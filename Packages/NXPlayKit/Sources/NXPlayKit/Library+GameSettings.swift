@@ -190,13 +190,16 @@ extension Library {
             return game.state == .ready && !Self.isNewer(file, than: launcher)
         }
         guard !stale.isEmpty, let script = AppHome.script else { return }
-        let environment = NXPlayCommand.environment(
-            nxnative: (nxnativePath as NSString).expandingTildeInPath,
-            keys: (keysPath as NSString).expandingTildeInPath, venv: AppHome.venv.path)
+        // a game pinned to its own checkout lists the settings that checkout knows
+        let keys = (keysPath as NSString).expandingTildeInPath
+        let environment = stale.map {
+            NXPlayCommand.environment(
+                nxnative: nxnativeRepo(for: $0), keys: keys, venv: AppHome.venv.path)
+        }
         let folders = stale.map(\.folder.path)
         await Task.detached {
-            for folder in folders {
-                Self.runQuietly(script, ["--settings", folder], environment: environment)
+            for (folder, env) in zip(folders, environment) {
+                Self.runQuietly(script, ["--settings", folder], environment: env)
             }
         }.value
         readSettingsLists()
