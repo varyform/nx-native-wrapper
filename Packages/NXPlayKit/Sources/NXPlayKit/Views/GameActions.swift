@@ -8,6 +8,7 @@ struct GameActions: View {
     /// The menu bar's: keyboard shortcuts, and Stop always listed so ⌘. stays put.
     var inMenuBar = false
     @Environment(Library.self) private var library
+    @State private var pickingNXNative = false
 
     var body: some View {
         let busy = game.map(library.isBusy) ?? true
@@ -52,6 +53,63 @@ struct GameActions: View {
             }
             .disabled(game?.state != .ready || game?.titleID == nil)
             .shortcut(",", [.command, .option], if: inMenuBar)
+            // a checkout of a fork or a branch (a worktree), for a build it alone should use
+            Menu(
+                game.flatMap { Library.ownRepo(in: $0.folder) }
+                    .map { "nxnative: \($0.components(separatedBy: "/").last ?? $0)" }
+                    ?? "nxnative",
+                systemImage: "arrow.triangle.branch"
+            ) {
+                Button("Use a Checkout…", systemImage: "folder") {
+                    pickingNXNative = true
+                }
+                Button("Back to the Shared One", systemImage: "arrow.uturn.backward") {
+                    game.map(library.clearOwnRepo)
+                }
+                .disabled(game.flatMap { Library.ownRepo(in: $0.folder) } == nil)
+            }
+            .disabled(busy || game == nil)
+            .fileImporter(
+                isPresented: $pickingNXNative, allowedContentTypes: [.folder]
+            ) { result in
+                if case .success(let url) = result { game.map { library.setOwnRepo(url, for: $0) } }
+            }
+            // the game's RomFS mods: <game>/Mods/<name>/romfs, first enabled winning a same-file claim
+            if let game, let mods = library.mods(for: game, countFiles: true) {
+                Menu("Mods", systemImage: "puzzlepiece") {
+                    ForEach(mods.mods) { mod in
+                        Menu(mod.name) {
+                            Toggle(
+                                "Enabled",
+                                isOn: Binding(
+                                    get: { mod.enabled },
+                                    set: { library.setMod(mod, enabled: $0, for: game) }))
+                            if mod.enabled {
+                                Button("Move Up", systemImage: "arrow.up") {
+                                    library.moveMod(mod, up: true, for: game)
+                                }
+                                .disabled(mods.enabled.first?.id == mod.id)
+                                Button("Move Down", systemImage: "arrow.down") {
+                                    library.moveMod(mod, up: false, for: game)
+                                }
+                                .disabled(mods.enabled.last?.id == mod.id)
+                            }
+                            Divider()
+                            Text(
+                                mod.files.isEmpty
+                                    ? "no files in romfs/"
+                                    : "\(mod.files.count) files"
+                                        + (mod.shadowed > 0
+                                            ? "; \(mod.shadowed) covered by \(mod.shadowedBy ?? "an earlier mod")"
+                                            : ""))
+                        }
+                    }
+                    Divider()
+                    Button("Open Mods Folder", systemImage: "folder") {
+                        NSWorkspace.shared.open(mods.url)
+                    }
+                }
+            }
             Menu("Install on Device", systemImage: "apps.iphone") {
                 if library.devices.isEmpty {
                     Text(
