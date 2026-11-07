@@ -18,6 +18,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Removing a build no longer deletes a game's cheats:** Free Up Space keeps the cheat files and your choices of which are on, like the saves, and so does Remove Game unless you also remove the saves.
 
+- **Console Mode describes every build step in plain words:** building from a NUP or a dump, the new check of a game's files, and a few other steps showed nxnative's own names, such as `unpack v131072`.
+
 ## 1.8.3 — 2026-11-05
 
 ### Added

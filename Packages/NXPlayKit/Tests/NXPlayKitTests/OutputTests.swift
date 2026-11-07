@@ -45,6 +45,19 @@ import Testing
         #expect(BuildProgress.plainName("something new") == "something new")  // a stage it doesn't know
     }
 
+    @Test func aNUPsAndADumpsStagesInAPlayersWords() {
+        #expect(BuildProgress.plainName("unpack v131072") == "Unpacking the game")
+        #expect(BuildProgress.plainName("pack v131072") == "Unpacking the game")
+        #expect(BuildProgress.plainName("unpack DLC") == "Unpacking the DLC")
+        #expect(BuildProgress.plainName("pack DLC") == "Unpacking the DLC")
+        #expect(BuildProgress.plainName("check v131072 files") == "Checking the game files")
+    }
+
+    @Test func codeCapturesInAPlayersWords() {
+        #expect(BuildProgress.plainName("JIT capture") == "Translating the game's code")
+        #expect(BuildProgress.plainName("NRO capture") == "Translating the game's code")
+    }
+
     @Test func theSummarySaysTheStepAndWhatsLeft() {
         var progress = BuildProgress(
             stage: 8, stages: 9, name: "Mac shaders", step: "compiling", stageFraction: 0.67,
