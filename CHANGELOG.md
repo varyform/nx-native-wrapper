@@ -14,6 +14,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Fixed
 
+- **Game names no longer show as garbage when the control data compresses its titles:** NACPs from newer SDKs (repacks like Breath of the Wild's, Mario 1.2.1) deflate the language entries; they showed as mojibake in the library, the list and Console Mode.
+
 - **Removing a build no longer deletes a game's cheats:** Free Up Space keeps the cheat files and your choices of which are on, like the saves, and so does Remove Game unless you also remove the saves.
 
 ## 1.8.3 — 2026-11-05
