@@ -8,8 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.8.3"
-    CURRENT_PROJECT_VERSION: "22"
+    MARKETING_VERSION: "1.8.4"
+    CURRENT_PROJECT_VERSION: "23"
 
 packages:
   NXPlayKit:
