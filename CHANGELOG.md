@@ -6,6 +6,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **A game can build with its own nxnative checkout:** Game › nxnative › Use a Checkout… pins a game to a checkout anywhere — a fork or a branch, or a worktree of the same clone — as a `nxnative` link in its folder. Extracts, plays, rebuilds, IPAs, Mac apps and device installs all use it; nxnative updates pull that checkout, so a branch with no upstream stays frozen. Back to the Shared One drops the pin.
+
 - **Game › Open Cheats Folder** opens a built game's cheats folder (`<title ID>_build/cheats`), so you can put a downloaded `<build ID>.txt` there. It loads the next time the game starts.
 
 ### Changed

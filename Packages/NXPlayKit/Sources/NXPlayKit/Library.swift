@@ -889,7 +889,8 @@ public final class Library {
 
     private func command(_ kind: Job.Kind, _ game: Game) -> NXPlayCommand? {
         let fm = FileManager.default
-        let repo = (nxnativePath as NSString).expandingTildeInPath
+        // a game pinned to its own checkout (<game>/nxnative) builds with it, on every job kind
+        let repo = nxnativeRepo(for: game)
         let keys = (keysPath as NSString).expandingTildeInPath
         guard let script = AppHome.script else {
             problem = "The nxplay script is missing from the app bundle."
