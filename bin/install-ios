@@ -45,10 +45,20 @@ else
   (cd "$work/src/iOS" && xcodegen generate --quiet)
 fi
 echo "building NX Play for iOS, signed with team $team"
-xcodebuild -project "$work/src/iOS/NXPlayIOS.xcodeproj" -scheme NXPlayIOS -configuration Release \
-  -destination 'generic/platform=iOS' -derivedDataPath "$work/derived" DEVELOPMENT_TEAM="$team" \
-  -allowProvisioningUpdates -allowProvisioningDeviceRegistration -quiet build
+xcode_build() {
+  xcodebuild -project "$work/src/iOS/NXPlayIOS.xcodeproj" -scheme NXPlayIOS -configuration Release \
+    -destination "$1" -derivedDataPath "$work/derived" DEVELOPMENT_TEAM="$team" \
+    -allowProvisioningUpdates -allowProvisioningDeviceRegistration -quiet build
+}
+xcode_build 'generic/platform=iOS'
 app="$work/derived/Build/Products/Release-iphoneos/NXPlayIOS.app"
+# A build for any iPhone keeps the signing profile as it is, and the device refuses a profile made before it joined the
+# team. Only a build for the device itself adds it.
+if profile="$(security cms -D -i "$app/embedded.mobileprovision" 2> /dev/null)" \
+    && ! grep -qi "<string>$device</string>" <<< "$profile"; then
+  echo "adding this device to the signing profile: keep it unlocked for this step"
+  xcode_build "id=$device"
+fi
 echo "built: $app"
 
 echo "installing on the device"

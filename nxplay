@@ -532,13 +532,22 @@ if [[ -n "$device" ]]; then
 
   # the derived data Xcode uses for this project too; the first build copies the whole game into the app.
   # Built for any iPhone: a device destination needs the phone unlocked through the whole build
-  stage 1 "Xcode build · $scheme"
-  if ! xcodebuild -project "$project" -scheme "$scheme" -configuration Release -destination 'generic/platform=iOS' \
+  xcode_build() {
+    xcodebuild -project "$project" -scheme "$scheme" -configuration Release -destination "$1" \
       -derivedDataPath "$build/xcode-derived-data" -allowProvisioningUpdates -allowProvisioningDeviceRegistration \
-      build > "$xlog" 2>&1; then
+      build > "$xlog" 2>&1 && return
     grep -E "error:|BUILD FAILED|requires a provisioning|No Account" "$xlog" | tail -20 || true
     warn "nxplay: xcodebuild failed; full log: $xlog"
     exit 1
+  }
+  stage 1 "Xcode build · $scheme"
+  xcode_build 'generic/platform=iOS'
+  # A build for any iPhone keeps the game's signing profile as it is, and the device refuses a profile made before it
+  # joined the team. Only a build for the device itself adds it, so that happens once, for each game that needs it.
+  if profile="$(security cms -D -i "$app/embedded.mobileprovision" 2> /dev/null)" \
+      && ! grep -qi "<string>$device</string>" <<< "$profile"; then
+    say "nxplay: adding this device to the game's signing profile. Keep it unlocked for this step."
+    xcode_build "id=$device"
   fi
   stage_done 1 "Xcode build"
 
