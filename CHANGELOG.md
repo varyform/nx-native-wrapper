@@ -10,6 +10,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Game › Open Cheats Folder** opens a built game's cheats folder (`<title ID>_build/cheats`), so you can put a downloaded `<build ID>.txt` there. It loads the next time the game starts.
 
+- **NX Play for iPhone and iPad supports iPhone Duo:** the library keeps its tiles on either side of the fold, folded or flat. Installing the app again from the Mac brings this to the device.
+
 ### Changed
 
 - **NX Play uses less memory, and loads game icons in the background:** icons are kept at the size they're shown. After scrolling through a library of about 40 games, the app used 148 MB instead of 257 MB.

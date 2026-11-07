@@ -88,6 +88,7 @@ struct GameSheet: View {
             .toolbar {
                 Button { launcher.sheetGame = nil } label: { hint("b.circle", "Done", shown: hints) }
             }
+            .horizontalToolbar()
         }
     }
 

@@ -112,7 +112,7 @@ Right-click a game for more, or use the **Game** menu:
 
 ### iPhone and iPad
 
-**NX Play for iPhone and iPad** is a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does.
+**NX Play for iPhone and iPad** is a launcher for your phone or tablet, in `iOS/`. It lists the Mac's games, asks the Mac to install one, and plays the ones already installed. iOS doesn't let one app install another, so the Mac builds the game signed with your team and installs it over Wi-Fi, the way Install on Device does. Built with Xcode 27.2, it fills an iPhone Duo's screen and keeps the tiles on either side of the fold.
 
 ![NX Play on an iPhone: its icon and the Mac it's connected to in the header, and the games installed on the phone as tiles with their versions](docs/ios.webp)
 

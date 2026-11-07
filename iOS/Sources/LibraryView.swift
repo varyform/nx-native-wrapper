@@ -3,12 +3,11 @@ import SwiftUI
 /// The Mac's games as tiles: the ones on this device first, ready to play; the rest install from the Mac.
 struct LibraryView: View {
     @Environment(Launcher.self) private var launcher
-    private static let tile: CGFloat = 170
-    private static let spacing: CGFloat = 20
 
     var body: some View {
         NavigationStack {
             GeometryReader { geometry in
+                let grid = LibraryGrid(width: geometry.size.width, fold: geometry.verticalFold)
                 ScrollViewReader { scroller in
                     ScrollView {
                         ExpiryBanner().padding(.horizontal)
@@ -19,12 +18,7 @@ struct LibraryView: View {
                             )
                             .foregroundStyle(.orange).padding(.horizontal)
                         }
-                        LazyVGrid(
-                            columns: Array(
-                                repeating: GridItem(.flexible(), spacing: Self.spacing),
-                                count: columns(geometry.size.width)),
-                            spacing: 24
-                        ) {
+                        LazyVGrid(columns: grid.items, spacing: 24) {
                             ForEach(launcher.sortedGames) { game in
                                 Button {
                                     launcher.selected = game.id
@@ -36,14 +30,16 @@ struct LibraryView: View {
                                 .id(game.id)
                             }
                         }
-                        .padding()
+                        .padding(.vertical)
+                        .padding(.leading, grid.leading)
+                        .padding(.trailing, grid.trailing)
                     }
                     .onChange(of: launcher.selected) { _, id in
                         withAnimation { scroller.scrollTo(id) }
                     }
                 }
-                .onChange(of: geometry.size.width, initial: true) { _, width in
-                    launcher.columns = columns(width)
+                .onChange(of: grid.columns, initial: true) { _, columns in
+                    launcher.columns = columns
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -60,10 +56,36 @@ struct LibraryView: View {
             if let id = launcher.sheetGame { GameSheet(gameID: id) }
         }
     }
+}
 
-    /// As many tiles as fit the width, so the controller's up and down move by one row.
-    private func columns(_ width: CGFloat) -> Int {
-        max(2, Int((width - 32 + Self.spacing) / (Self.tile + Self.spacing)))
+// The fold's APIs are new in iOS 27.1. NX Play builds this app with the Mac's own Xcode, and an older one still has to
+// compile it, without them: Swift can't ask for the SDK's version, so this asks for its SwiftUI's (8.1 in Xcode 27.2).
+extension GeometryProxy {
+    /// An iPhone Duo's fold when it runs top to bottom. A fold across the screen needs nothing: the grid scrolls past it.
+    fileprivate var verticalFold: CGRect? {
+        #if canImport(SwiftUI, _version: 8.1)
+            if #available(iOS 27.1, *) {
+                // with the inactive one, whose width is zero while flat, so that folding doesn't move the tiles around
+                return reservedRegions(kind: .division, options: .includeInactive)
+                    .map(\.frame).first { $0.height > $0.width }
+            }
+        #endif
+        return nil
+    }
+}
+
+extension View {
+    /// Keeps a sheet's lone button in a bar across the top, where an iPhone Duo would otherwise give it a whole side.
+    @ViewBuilder func horizontalToolbar() -> some View {
+        #if canImport(SwiftUI, _version: 8.1)
+            if #available(iOS 27.1, *) {
+                toolbarVerticalBehavior(.disabled)
+            } else {
+                self
+            }
+        #else
+            self
+        #endif
     }
 }
 
@@ -115,7 +137,8 @@ private struct LibraryMenu: View {
             Button("Choose Another Device") { launcher.forgetDevice() }
             Button("Unpair", role: .destructive) { launcher.unpair() }
         } label: {
-            Image(systemName: "ellipsis.circle")
+            // a title for a vertical bar's overflow menu; the ellipsis is the system's own sign for that menu
+            Label("This Device", systemImage: "gearshape")
         }
     }
 }
