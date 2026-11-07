@@ -8,7 +8,6 @@ struct GameActions: View {
     /// The menu bar's: keyboard shortcuts, and Stop always listed so ⌘. stays put.
     var inMenuBar = false
     @Environment(Library.self) private var library
-    @State private var pickingNXNative = false
 
     var body: some View {
         let busy = game.map(library.isBusy) ?? true
@@ -53,27 +52,6 @@ struct GameActions: View {
             }
             .disabled(game?.state != .ready || game?.titleID == nil)
             .shortcut(",", [.command, .option], if: inMenuBar)
-            // a checkout of a fork or a branch (a worktree), for a build it alone should use
-            Menu(
-                game.flatMap { Library.ownRepo(in: $0.folder) }
-                    .map { "nxnative: \($0.components(separatedBy: "/").last ?? $0)" }
-                    ?? "nxnative",
-                systemImage: "arrow.triangle.branch"
-            ) {
-                Button("Use a Checkout…", systemImage: "folder") {
-                    pickingNXNative = true
-                }
-                Button("Back to the Shared One", systemImage: "arrow.uturn.backward") {
-                    game.map(library.clearOwnRepo)
-                }
-                .disabled(game.flatMap { Library.ownRepo(in: $0.folder) } == nil)
-            }
-            .disabled(busy || game == nil)
-            .fileImporter(
-                isPresented: $pickingNXNative, allowedContentTypes: [.folder]
-            ) { result in
-                if case .success(let url) = result { game.map { library.setOwnRepo(url, for: $0) } }
-            }
             Menu("Install on Device", systemImage: "apps.iphone") {
                 if library.devices.isEmpty {
                     Text(

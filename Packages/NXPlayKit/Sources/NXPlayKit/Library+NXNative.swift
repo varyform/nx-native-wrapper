@@ -6,6 +6,8 @@ import Foundation
 /// fork is a checkout of it, a branch is a worktree on it (one folder each, no switching a shared
 /// checkout under a queued build). nxplay pulls each game's own checkout when it updates, so a
 /// branch with no upstream stays frozen while the shared one keeps following nxnative.
+/// The link is made by hand — `ln -s <checkout> "<game folder>/nxnative"` — for the people testing
+/// nxnative branches, not a thing every player needs in the Game menu.
 extension Library {
     /// The item in a game's folder that pins its nxnative checkout.
     nonisolated static let ownNXNativeName = "nxnative"
@@ -31,26 +33,5 @@ extension Library {
             } ?? item.path
         return FileManager.default.fileExists(atPath: path + "/scripts/build_ipa_from_nsp.py")
             ? path : nil
-    }
-
-    /// Pins a game to the checkout at `url` (a symlink keeps the game folder movable on this volume).
-    func setOwnRepo(_ url: URL, for game: Game) {
-        let link = game.folder.appending(path: Self.ownNXNativeName)
-        do {
-            try FileManager.default.createSymbolicLink(at: link, withDestinationURL: url)
-            refresh()
-        } catch {
-            problem = "Could not link \(url.path) into the game's folder: \(error.localizedDescription)"
-        }
-    }
-
-    /// Back to the shared checkout: drops the link, never a checkout copied into the folder itself.
-    func clearOwnRepo(for game: Game) {
-        let link = game.folder.appending(path: Self.ownNXNativeName)
-        guard
-            (try? FileManager.default.destinationOfSymbolicLink(atPath: link.path)) != nil
-        else { return }
-        try? FileManager.default.removeItem(at: link)
-        refresh()
     }
 }

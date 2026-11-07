@@ -79,20 +79,10 @@ import Testing
         let game = Self.game(in: root.appending(path: "game"))
         #expect(library.nxnativeRepo(for: game) == "/shared")
         let repo = try Self.checkout("own", in: root)
-        library.setOwnRepo(repo, for: game)
+        try FileManager.default.createSymbolicLink(
+            at: game.folder.appending(path: "nxnative"), withDestinationURL: repo)
         #expect(library.nxnativeRepo(for: game) == repo.path)
-        library.clearOwnRepo(for: game)
+        try FileManager.default.removeItem(at: game.folder.appending(path: "nxnative"))
         #expect(library.nxnativeRepo(for: game) == "/shared")
-    }
-
-    @MainActor @Test func clearingKeepsACheckoutCopiedIntoTheFolder() throws {
-        let suite = testDefaultsName()
-        defer { removeTestDefaults(suite) }
-        let library = Library(defaults: UserDefaults(suiteName: suite)!, isScreenshot: true)
-        let root = try Self.root()
-        try Self.checkout("nxnative", in: root.appending(path: "game"))
-        let game = Self.game(in: root.appending(path: "game"))
-        library.clearOwnRepo(for: game)
-        #expect(Library.ownRepo(in: game.folder) != nil)
     }
 }
