@@ -85,4 +85,85 @@ import Testing
         try FileManager.default.removeItem(at: game.folder.appending(path: "nxnative"))
         #expect(library.nxnativeRepo(for: game) == "/shared")
     }
+
+    @Test func theLogSaysWhichCheckoutOrWhyNot() throws {
+        let root = try Self.root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let game = root.appending(path: "game")
+        let link = game.appending(path: "nxnative")
+        #expect(Library.ownRepoNote(in: game) == nil)  // most games: nothing to say
+
+        try FileManager.default.createSymbolicLink(
+            atPath: link.path, withDestinationPath: root.appending(path: "mistyped").path)
+        #expect(Library.ownRepoNote(in: game)?.hasPrefix("nxnative: ignoring \(link.path)") == true)
+        try FileManager.default.removeItem(at: link)
+
+        try FileManager.default.createDirectory(at: link, withIntermediateDirectories: true)
+        #expect(Library.ownRepoNote(in: game)?.hasPrefix("nxnative: ignoring \(link.path)") == true)
+        try FileManager.default.removeItem(at: link)
+
+        let repo = try Self.checkout("own", in: root)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: repo)
+        #expect(Library.ownRepoNote(in: game) == "nxnative: using \(repo.path)")
+    }
+
+    /// A profile in a checkout, its name telling which checkout it came from.
+    static func profile(_ id: String, named name: String, in repo: URL) throws {
+        let folder = repo.appending(path: "dm/games/\(id)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try "name\t\(name)\n".write(
+            to: folder.appending(path: "game.tsv"), atomically: true, encoding: .utf8)
+    }
+
+    @MainActor @Test func aPinnedGamesProfileComesFromItsOwnCheckout() throws {
+        let root = try Self.root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let shared = try Self.checkout("shared", in: root)
+        let own = try Self.checkout("own", in: root)
+        try Self.profile("A000", named: "shared A", in: shared)  // not pinned
+        try Self.profile("B000", named: "shared B", in: shared)  // pinned, in both
+        try Self.profile("B000", named: "own B", in: own)
+        try Self.profile("C000", named: "shared C", in: shared)  // pinned, its branch has no profile
+        try Self.profile("D000", named: "own D", in: own)  // pinned, only its branch has a profile
+        let pinned = ["B000": own, "C000": own, "D000": own]
+
+        let known = Library.profiles(repo: shared.path, own: pinned)
+        #expect(known == ["A000", "B000", "D000"])
+        let profiles = Library.gameProfiles(repo: shared, titleIDs: known, own: pinned)
+        #expect(profiles["A000"]?.name == "shared A")
+        #expect(profiles["B000"]?.name == "own B")
+        #expect(profiles["C000"] == nil)
+        #expect(profiles["D000"]?.name == "own D")
+    }
+
+    @Test func aPinnedGamesNewsComeFromItsOwnCheckout() throws {
+        let root = try Self.root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        /// A checkout where the game's profile changed once since `built`, its tree.
+        func checkout(_ name: String, subject: String) throws -> (repo: URL, built: String) {
+            let repo = root.appending(path: name)
+            func git(_ args: String...) {
+                _ = ProfileNews.git(repo, ["-c", "user.name=t", "-c", "user.email=t@t"] + args)
+            }
+            try Self.profile("A000", named: name, in: repo)
+            try Self.profile("B000", named: name, in: repo)
+            git("init", "-q")
+            git("add", "-A")
+            git("commit", "-q", "-m", "first")
+            let built = try #require(ProfileNews.git(repo, ["rev-parse", "HEAD^{tree}"]))
+            try Self.profile("A000", named: "\(name) again", in: repo)
+            try Self.profile("B000", named: "\(name) again", in: repo)
+            git("add", "-A")
+            git("commit", "-q", "-m", subject)
+            return (repo, built)
+        }
+        let shared = try checkout("shared", subject: "from shared")
+        let own = try checkout("own", subject: "from own")
+
+        let news = ProfileNews.read(
+            repo: shared.repo, builds: ["A000": shared.built, "B000": own.built],
+            own: ["B000": own.repo])
+        #expect(news["A000"]?.map(\.subject) == ["from shared"])
+        #expect(news["B000"]?.map(\.subject) == ["from own"])
+    }
 }

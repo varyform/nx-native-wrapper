@@ -100,7 +100,6 @@ Right-click a game for more, or use the **Game** menu:
 - **Rebuild**: builds the game again with the current nxnative.
 - **Keep This Build**: for a game that plays well. nxnative updates no longer rebuild it, and a lock badge marks it. While it's kept, Install on Device, Build IPA and Make Mac App are off, since they'd rewrite files the kept build runs. Rebuild still replaces it.
 - **Game Settings…** (⌥⌘,): the settings nxnative offers for the game, with the defaults it was tested with. Depending on the game these include frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble and performance switches. The basic ones come first; the rest are under Advanced settings. Each one follows Settings › Games until you change it for the game. A changed value is tinted and has its own reset button, and **Use Global Settings** resets them all. They apply the next time the game starts, and the log lists them. The game's Mac app shares the game's own values: NX Play keeps them where nxnative's own settings window does.
-- **A `nxnative` link in a game's folder** pins the game to that checkout — a fork, or a branch as a worktree of the same clone — so one game can try new code while the rest follow upstream: `ln -s ~/src/nxnative-fork "<game folder>/nxnative"`. Everything the game runs (extract, play, rebuild, IPA, Mac app, device install, its settings list) uses it, and the pre-play update pulls that checkout: a branch with no upstream stays frozen. The job's log says which checkout a game used. Remove the link to go back to the shared one.
 - **Install on Device**: builds the game with Xcode, signed with your team, then installs and starts it on a connected iPhone or iPad. The device must be paired with Xcode and in Developer Mode.
 - **Build IPA**: an unsigned IPA in the game folder, for AltStore, Sideloadly and the like.
 - **Make Mac App**: a standalone, double-clickable app of the game (nxnative's `--platform mac-app`) in the game folder, for the Dock or Launchpad. It's made of APFS clones of the extracted files, so it takes almost no space on the same volume. Once a game has its app, **Play** starts the app, so the Dock shows the game's own name and icon, with the game's save and cheats from its folder and NX Play's settings. When an nxnative update rebuilds the game, the app is packed again with it, which adds a couple of minutes to the rebuild, so Play keeps starting the app. When that can't happen (the game files were removed, or the packing failed), Play uses the build: an orange **App** badge and Console Mode's "App out of date" say so, and **Update Mac App** in the Game menu packs it again. Opened from Finder or the Dock, the app plays on from the same save too: NX Play points it there through the app's `env.txt` in `~/Library/Application Support/nxnative/<title ID>`. The exception is an app that already has a save of its own from before. That one keeps it, and while the two saves differ, **Play** asks which one to use: NX Play's, the app's, or the newer one. **Don't ask again** keeps the answer for the game; **Ask Again** in Game Settings undoes it. The log names the save each play uses.
@@ -148,6 +147,16 @@ curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/game
 ### Cheats
 
 nxnative runs Atmosphère-format cheat codes. In a game's window, the **Cheats** menu and its panel (⇧⌘C) turn them on and off while you play, and **Find Cheats…** imports them from Ryujinx, a yuzu-family emulator or a Switch SD card. You can also drop a file onto the panel. **Game › Open Cheats Folder** opens `<title ID>_build/cheats`, where they're kept with your choices of which are on. A downloaded file goes there named `<build ID>.txt`, for the exact build of your game (the panel shows it), and loads the next time the game starts. Free Up Space keeps them, like the saves, and so does Remove Game unless you also remove the saves.
+
+### Testing an nxnative branch
+
+A `nxnative` link in a game's folder pins the game to that checkout, either a fork or a branch as a worktree of the same clone, so one game can try new code while the rest follow upstream:
+
+```sh
+ln -s ~/src/nxnative-fork "<game folder>/nxnative"
+```
+
+Everything the game runs uses it (extract, play, rebuild, IPA, Mac app, device install, its settings list), and so do its badges and nxnative Notes. The pre-play update pulls that checkout, so a branch with no upstream stays frozen. The job's log says which checkout a game used, or that it ignored a link that isn't a checkout. Remove the link to go back to the shared one.
 
 ### Tools
 

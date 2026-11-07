@@ -358,12 +358,14 @@ public final class Library {
         games = root.map(GameScanner.scan(root:)) ?? []
         readSettingsLists()
         writeMissingSettingsLists()
-        profiles = Self.profiles(repo: repo)
+        let own = ownRepos
+        profiles = Self.profiles(repo: repo, own: own)
         let repoURL = URL(filePath: repo, directoryHint: .isDirectory)
-        gameProfiles = GameProfile.read(
+        gameProfiles = Self.gameProfiles(
             repo: repoURL,
-            titleIDs: Set(games.compactMap { $0.titleID?.uppercased() }).intersection(profiles))
-        refreshNews(repo: repoURL)
+            titleIDs: Set(games.compactMap { $0.titleID?.uppercased() }).intersection(profiles),
+            own: own)
+        refreshNews(repo: repoURL, own: own)
         fetchBanners()
         watchCopies()
     }
@@ -413,11 +415,12 @@ public final class Library {
     @ObservationIgnored private var newsTask: Task<Void, Never>?
     @ObservationIgnored private var lastFetch: Date?
     @ObservationIgnored private var newsBuilds: [String: String]?
+    @ObservationIgnored private var newsOwnRepos: [String: URL]?
 
-    /// Looks for profile news when the builds changed, and fetches nxnative at most hourly, never while a job runs
-    /// (nxplay fetches then too). A refresh comes often (each activation, every few seconds while a copy runs): one
-    /// that changes nothing runs no git.
-    private func refreshNews(repo: URL) {
+    /// Looks for profile news when the builds or the games' checkouts changed, and fetches nxnative at most hourly,
+    /// never while a job runs (nxplay fetches then too). A refresh comes often (each activation, every few seconds
+    /// while a copy runs): one that changes nothing runs no git.
+    private func refreshNews(repo: URL, own: [String: URL]) {
         guard !isScreenshot, newsTask == nil else { return }
         let builds = Dictionary(
             games.compactMap { game -> (String, String)? in
@@ -427,13 +430,16 @@ public final class Library {
                 return (id, tree)
             }, uniquingKeysWith: { a, _ in a })
         let fetch = isIdle && (lastFetch.map { -$0.timeIntervalSinceNow > 3600 } ?? true)
-        guard fetch || builds != newsBuilds else { return }
+        guard fetch || builds != newsBuilds || own != newsOwnRepos else { return }
         if fetch { lastFetch = .now }
         newsBuilds = builds
+        newsOwnRepos = own
         newsTask = Task {
             let news = await Task.detached {
-                if fetch { ProfileNews.fetch(repo: repo) }
-                return ProfileNews.read(repo: repo, builds: builds)
+                if fetch {
+                    for checkout in Set(own.values).union([repo]) { ProfileNews.fetch(repo: checkout) }
+                }
+                return ProfileNews.read(repo: repo, builds: builds, own: own)
             }.value
             profileNews = news
             newsTask = nil
@@ -759,8 +765,7 @@ public final class Library {
         // spelled out either way, so the shell's environment can't decide
         if kind == .play { command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app" }
         let job = Job(kind: kind, game: game, command: command)
-        // a build from a branch shows in the job's log (and in bug reports): where its nxnative came from
-        if let own = Library.ownRepo(in: game.folder) { job.note("nxnative: using \(own)") }
+        if let note = Library.ownRepoNote(in: game.folder) { job.note(note) }
         job.onFinish = { [weak self] job in self?.finished(job) }
         job.onAsk = { [weak self] _ in self?.presentNextAsk() }
         jobs[game.id] = job

@@ -14,6 +14,16 @@ public struct ProfileCommit: Equatable, Hashable, Sendable, Identifiable {
 /// commit with that tree is where its news start, and they run to the upstream's tip, which NX Play fetches itself
 /// (only fetches: nxplay still moves the checkout when a game plays).
 enum ProfileNews {
+    /// The same, each game's from the checkout it builds with: `own` names the games pinned to theirs.
+    static func read(repo: URL, builds: [String: String], own: [String: URL]) -> [String: [ProfileCommit]] {
+        var news = read(repo: repo, builds: builds.filter { own[$0.key] == nil })
+        for checkout in Set(own.values) {
+            let pinned = builds.filter { own[$0.key] == checkout }
+            news.merge(read(repo: checkout, builds: pinned)) { _, new in new }
+        }
+        return news
+    }
+
     /// Title ID → the commits since its build that changed dm/games/<title ID>, newest first.
     static func read(repo: URL, builds: [String: String]) -> [String: [ProfileCommit]] {
         guard !builds.isEmpty else { return [:] }

@@ -34,4 +34,48 @@ extension Library {
         return FileManager.default.fileExists(atPath: path + "/scripts/build_ipa_from_nsp.py")
             ? path : nil
     }
+
+    /// The job's line about the game's link, in bug reports too. A link that can't be used says so: a mistyped path
+    /// would otherwise look like a test of the branch while the game builds with the shared checkout.
+    nonisolated static func ownRepoNote(in folder: URL) -> String? {
+        if let own = ownRepo(in: folder) { return "nxnative: using \(own)" }
+        let item = folder.appending(path: ownNXNativeName)
+        // attributesOfItem looks at the link itself, so a dangling one counts as there
+        guard (try? FileManager.default.attributesOfItem(atPath: item.path)) != nil else { return nil }
+        return "nxnative: ignoring \(item.path): it isn't an nxnative checkout, so this uses the shared one"
+    }
+
+    /// The games pinned to their own checkout, by title ID (uppercased, as the profiles are).
+    var ownRepos: [String: URL] {
+        var own: [String: URL] = [:]
+        for game in games {
+            guard let id = game.titleID?.uppercased(), own[id] == nil,
+                let repo = Self.ownRepo(in: game.folder)
+            else { continue }
+            own[id] = URL(filePath: repo, directoryHint: .isDirectory)
+        }
+        return own
+    }
+
+    /// The title IDs nxnative has a profile for, a pinned game asking its own checkout.
+    static func profiles(repo: String, own: [String: URL]) -> Set<String> {
+        var profiles = Self.profiles(repo: repo)
+        for (id, checkout) in own {
+            if Self.profiles(repo: checkout.path).contains(id) {
+                profiles.insert(id)
+            } else {
+                profiles.remove(id)
+            }
+        }
+        return profiles
+    }
+
+    /// What nxnative says about these games, a pinned game's from its own checkout.
+    static func gameProfiles(repo: URL, titleIDs: Set<String>, own: [String: URL]) -> [String: GameProfile] {
+        var profiles = GameProfile.read(repo: repo, titleIDs: titleIDs.subtracting(own.keys))
+        for (id, checkout) in own where titleIDs.contains(id) {
+            profiles.merge(GameProfile.read(repo: checkout, titleIDs: [id])) { _, new in new }
+        }
+        return profiles
+    }
 }

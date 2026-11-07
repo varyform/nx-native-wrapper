@@ -207,6 +207,11 @@ no_local_commits() {
 }
 
 update_nxnative() {
+  # nothing to follow, which is what a game pinned to a local branch wants: not a failure to report on every play
+  if ! git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null; then
+    say "nxnative: no upstream to follow, staying on this code"
+    return 0
+  fi
   git -C "$repo" fetch --quiet || return 1
   local upstream tip
   upstream="$(git -C "$repo" rev-parse '@{u}')" || return 1
