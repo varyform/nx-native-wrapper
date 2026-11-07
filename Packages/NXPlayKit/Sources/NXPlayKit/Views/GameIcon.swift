@@ -74,6 +74,9 @@ enum IconCache {
     }
 
     static func version(of url: URL) -> Version {
+        // a URL remembers the date it read until the run loop next turns, so a replaced file could still look unchanged
+        var url = url
+        url.removeCachedResourceValue(forKey: .contentModificationDateKey)
         let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate
         return Version(url: url, modified: modified ?? .distantPast)

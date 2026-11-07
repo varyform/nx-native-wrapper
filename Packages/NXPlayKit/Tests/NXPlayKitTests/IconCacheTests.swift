@@ -78,6 +78,15 @@ import Testing
         #expect(second.image?.height == IconCache.thumbnailPixels / 2)
     }
 
+    @Test func aFileChangedJustNowHasANewVersion() throws {
+        let url = try writeJPEG("changed.jpg", width: 64, height: 64)
+        let before = IconCache.version(of: url)
+        try FileManager.default.setAttributes(
+            [.modificationDate: before.modified.addingTimeInterval(60)], ofItemAtPath: url.path)
+        // no await: the run loop can't turn in between and clear what the URL remembers
+        #expect(IconCache.version(of: url) != before)
+    }
+
     @Test func anUnchangedFileIsntDecodedAgain() async throws {
         let url = try writeJPEG("same.jpg", width: 512, height: 512)
         let first = await IconCache.loadThumbnail(at: url)
