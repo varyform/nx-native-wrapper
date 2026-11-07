@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Release NX Play from this Mac: version bump, a Developer ID build with the hardened runtime, notarized and stapled,
-# in a notarized DMG, then (after you confirm) the release commit, the tag and the GitHub release with the DMG and the
-# changelog's notes. Nothing is pushed or published before the confirmation; a failure before it restores the files.
+# in a notarized DMG, then (after you confirm) the release commit, the tag and the GitHub release with the DMG, the
+# changelog's notes and any new contributors. Nothing is pushed or published before the confirmation; a failure before
+# it restores the files.
 #
 # usage: bin/release <version> [name]   e.g. bin/release 1.7.12 "Stair Climber"
 #        the name, when given, follows the version in the GitHub release's title and the changelog's heading
@@ -24,6 +25,15 @@ dmg="$out/NX-Play-$version.dmg"
 
 say() { printf '\n\e[1m%s\e[0m\n' "$1"; }
 die() { echo "bin/release: $1" >&2; exit 1; }
+
+# Thanks first-time contributors on the release page: GitHub works out who, from the pull requests since the last tag.
+# The changelog stays about the app, so only the release's notes get this. "###" like the notes' other headings: the
+# app's What's New can fall back on these notes, and a "##" there would drop everything above it.
+new_contributors() {
+  gh api -X POST 'repos/{owner}/{repo}/releases/generate-notes' \
+    -f tag_name="v$version" -f target_commitish=main -f previous_tag_name="$(git describe --tags --abbrev=0)" --jq .body \
+    | tr -d '\r' | sed -n '/^## New Contributors/,/^$/p' | sed -E 's/^## /### /; s/^\* /- /'
+}
 
 say "Checks"
 [[ -z "$(git status --porcelain --untracked-files=no)" ]] || die "uncommitted changes: commit or stash them first"
@@ -107,6 +117,11 @@ shasum -a 256 "$dmg" | tee "$dmg.sha256"
 echo "  $dmg ($(du -h "$dmg" | cut -f1))"
 
 say "Publish"
+if contributors="$(new_contributors)"; then
+  if [[ -n "$contributors" ]]; then notes+=$'\n\n'"$contributors"; fi
+else
+  echo "  (GitHub didn't say who the new contributors are: the notes go without them)"
+fi
 printf '  %s\n' "${notes//$'\n'/$'\n  '}"
 read -r -p $'\nCommit, tag and publish NX Play '"$label"$' to GitHub? [y/N] ' answer
 if [[ "$answer" != [yY] ]]; then
