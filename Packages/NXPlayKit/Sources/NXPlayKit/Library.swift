@@ -929,6 +929,11 @@ public final class Library {
             if !choices.isEmpty {
                 environment["NXPLAY_SETTINGS"] = choices.keys.sorted().joined(separator: " ")
             }
+            // the game's mods: the enabled overlay roots in priority order — the first wins a file
+            // two mods change, and the rest of both still merge in (hle_fs.c rom_overlay_path)
+            if let overlay = modsArgument(for: game) {
+                environment["DM_ROMFS_OVERLAY"] = overlay
+            }
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
             environment["NXPLAY_UPDATE"] = updateBeforePlay.rawValue
