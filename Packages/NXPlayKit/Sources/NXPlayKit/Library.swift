@@ -759,6 +759,8 @@ public final class Library {
         // spelled out either way, so the shell's environment can't decide
         if kind == .play { command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app" }
         let job = Job(kind: kind, game: game, command: command)
+        // a build from a branch shows in the job's log (and in bug reports): where its nxnative came from
+        if let own = Library.ownRepo(in: game.folder) { job.note("nxnative: using \(own)") }
         job.onFinish = { [weak self] job in self?.finished(job) }
         job.onAsk = { [weak self] _ in self?.presentNextAsk() }
         jobs[game.id] = job
@@ -889,7 +891,8 @@ public final class Library {
 
     private func command(_ kind: Job.Kind, _ game: Game) -> NXPlayCommand? {
         let fm = FileManager.default
-        let repo = (nxnativePath as NSString).expandingTildeInPath
+        // a game pinned to its own checkout (<game>/nxnative) builds with it, on every job kind
+        let repo = nxnativeRepo(for: game)
         let keys = (keysPath as NSString).expandingTildeInPath
         guard let script = AppHome.script else {
             problem = "The nxplay script is missing from the app bundle."
