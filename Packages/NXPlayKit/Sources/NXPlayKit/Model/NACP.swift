@@ -1,8 +1,9 @@
 import Foundation
 import zlib
 
-/// The parts of a Switch control.nacp the library uses: 16 language entries of name (0x200 bytes)
-/// + publisher (0x100 bytes), the supported-language bits at 0x302C and the display version at 0x3060.
+/// The parts of a Switch control.nacp the library uses: language entries of name (0x200 bytes)
+/// + publisher (0x100 bytes), 16 of them or 32 when compressed (see `titles`), the
+/// supported-language bits at 0x302C and the display version at 0x3060.
 public struct NACP: Equatable, Sendable {
     public let title: String?
     public let publisher: String?
