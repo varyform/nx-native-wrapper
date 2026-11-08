@@ -23,9 +23,9 @@ import Testing
         return root
     }
 
-    static func game(in folder: URL) -> Game {
+    static func game(in folder: URL, titleID: String? = nil) -> Game {
         Game(
-            folder: folder, name: "G", titleID: nil, version: nil, languages: [], iconURL: nil,
+            folder: folder, name: "G", titleID: titleID, version: nil, languages: [], iconURL: nil,
             buildFolder: nil, ipaURL: nil, xcodeBuildFolder: nil, hasPackages: true, state: .ready)
     }
 
@@ -115,28 +115,30 @@ import Testing
             to: folder.appending(path: "game.tsv"), atomically: true, encoding: .utf8)
     }
 
-    @MainActor @Test func aPinnedGamesProfileComesFromItsOwnCheckout() throws {
+    @MainActor @Test func eachFoldersProfileComesFromTheCheckoutItBuildsWith() throws {
         let root = try Self.root()
         defer { try? FileManager.default.removeItem(at: root) }
         let shared = try Self.checkout("shared", in: root)
         let own = try Self.checkout("own", in: root)
-        try Self.profile("A000", named: "shared A", in: shared)  // not pinned
-        try Self.profile("B000", named: "shared B", in: shared)  // pinned, in both
-        try Self.profile("B000", named: "own B", in: own)
-        try Self.profile("C000", named: "shared C", in: shared)  // pinned, its branch has no profile
-        try Self.profile("D000", named: "own D", in: own)  // pinned, only its branch has a profile
-        let pinned = ["B000": own, "C000": own, "D000": own]
+        try Self.profile("A000", named: "shared A", in: shared)
+        try Self.profile("A000", named: "own A", in: own)
+        try Self.profile("D000", named: "own D", in: own)  // only the branch has a profile
+        // two folders of one game, one of them pinned
+        let plain = Self.game(in: root.appending(path: "plain"), titleID: "a000")
+        let pinned = Self.game(in: root.appending(path: "pinned"), titleID: "A000")
+        let onlyOwn = Self.game(in: root.appending(path: "only own"), titleID: "D000")
+        let none = Self.game(in: root.appending(path: "none"), titleID: "D000")
 
-        let known = Library.profiles(repo: shared.path, own: pinned)
-        #expect(known == ["A000", "B000", "D000"])
-        let profiles = Library.gameProfiles(repo: shared, titleIDs: known, own: pinned)
-        #expect(profiles["A000"]?.name == "shared A")
-        #expect(profiles["B000"]?.name == "own B")
-        #expect(profiles["C000"] == nil)
-        #expect(profiles["D000"]?.name == "own D")
+        let profiles = Library.gameProfiles(
+            of: [plain, pinned, onlyOwn, none], repo: shared,
+            own: [pinned.id: own, onlyOwn.id: own])
+        #expect(profiles[plain.id]?.name == "shared A")
+        #expect(profiles[pinned.id]?.name == "own A")
+        #expect(profiles[onlyOwn.id]?.name == "own D")
+        #expect(profiles[none.id] == nil)
     }
 
-    @Test func aPinnedGamesNewsComeFromItsOwnCheckout() throws {
+    @Test func eachFoldersNewsComeFromTheCheckoutItBuildsWith() throws {
         let root = try Self.root()
         defer { try? FileManager.default.removeItem(at: root) }
         /// A checkout where the game's profile changed once since `built`, its tree.
@@ -146,13 +148,11 @@ import Testing
                 _ = ProfileNews.git(repo, ["-c", "user.name=t", "-c", "user.email=t@t"] + args)
             }
             try Self.profile("A000", named: name, in: repo)
-            try Self.profile("B000", named: name, in: repo)
             git("init", "-q")
             git("add", "-A")
             git("commit", "-q", "-m", "first")
             let built = try #require(ProfileNews.git(repo, ["rev-parse", "HEAD^{tree}"]))
             try Self.profile("A000", named: "\(name) again", in: repo)
-            try Self.profile("B000", named: "\(name) again", in: repo)
             git("add", "-A")
             git("commit", "-q", "-m", subject)
             return (repo, built)
@@ -160,10 +160,15 @@ import Testing
         let shared = try checkout("shared", subject: "from shared")
         let own = try checkout("own", subject: "from own")
 
+        // two folders of one game, one of them pinned
         let news = ProfileNews.read(
-            repo: shared.repo, builds: ["A000": shared.built, "B000": own.built],
-            own: ["B000": own.repo])
-        #expect(news["A000"]?.map(\.subject) == ["from shared"])
-        #expect(news["B000"]?.map(\.subject) == ["from own"])
+            repo: shared.repo,
+            builds: [
+                "plain": .init(titleID: "A000", tree: shared.built),
+                "pinned": .init(titleID: "A000", tree: own.built),
+            ],
+            own: ["pinned": own.repo])
+        #expect(news["plain"]?.map(\.subject) == ["from shared"])
+        #expect(news["pinned"]?.map(\.subject) == ["from own"])
     }
 }

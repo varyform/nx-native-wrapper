@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- **Two copies of the same game no longer share one "new in nxnative" badge:** the badge, the list of nxnative's changes and nxnative Notes went by the game's title ID, so a freshly rebuilt copy could show the changes an older copy hadn't had yet. Each folder now shows its own, and a copy pinned to its own nxnative checkout no longer lends its notes to the other.
+
 ## 1.8.4 — 2026-11-07
 
 ### Added

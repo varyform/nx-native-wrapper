@@ -123,12 +123,17 @@ struct GameProfileTests {
         git("add", "-A")
         git("commit", "-q", "-m", "Zelda: fix the sky")
 
-        let news = ProfileNews.read(
-            repo: repo, builds: ["0100F2C0115B6000": built, "0100000000010000": built])
-        #expect(news["0100F2C0115B6000"]?.map(\.subject) == ["Zelda: fix the sky"])
-        #expect(news["0100000000010000"] == nil)  // no commits to its profile
-        // a build made from the tip has nothing new
         let tip = try #require(ProfileNews.git(repo, ["rev-parse", "HEAD^{tree}"]))
-        #expect(ProfileNews.read(repo: repo, builds: ["0100F2C0115B6000": tip]).isEmpty)
+        let news = ProfileNews.read(
+            repo: repo,
+            builds: [
+                "old copy": .init(titleID: "0100F2C0115B6000", tree: built),
+                // the same game rebuilt in another folder: nothing new for it
+                "fresh copy": .init(titleID: "0100F2C0115B6000", tree: tip),
+                "other game": .init(titleID: "0100000000010000", tree: built),
+            ])
+        #expect(news["old copy"]?.map(\.subject) == ["Zelda: fix the sky"])
+        #expect(news["fresh copy"] == nil)
+        #expect(news["other game"] == nil)  // no commits to its profile
     }
 }

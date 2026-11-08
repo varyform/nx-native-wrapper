@@ -359,12 +359,8 @@ public final class Library {
         readSettingsLists()
         writeMissingSettingsLists()
         let own = ownRepos
-        profiles = Self.profiles(repo: repo, own: own)
         let repoURL = URL(filePath: repo, directoryHint: .isDirectory)
-        gameProfiles = Self.gameProfiles(
-            repo: repoURL,
-            titleIDs: Set(games.compactMap { $0.titleID?.uppercased() }).intersection(profiles),
-            own: own)
+        gameProfiles = Self.gameProfiles(of: games, repo: repoURL, own: own)
         refreshNews(repo: repoURL, own: own)
         fetchBanners()
         watchCopies()
@@ -398,36 +394,34 @@ public final class Library {
     /// The games whose missing settings list was asked of nxplay this launch: once each.
     @ObservationIgnored var settingsListsTried: Set<Game.ID> = []
 
-    /// What nxnative says about the games here that it has a profile for, by title ID.
-    public private(set) var gameProfiles: [String: GameProfile] = [:]
+    /// What nxnative says about the games here that it has a profile for, by game: two folders of one game can build
+    /// with different checkouts.
+    public private(set) var gameProfiles: [Game.ID: GameProfile] = [:]
 
-    public func profile(_ game: Game) -> GameProfile? {
-        game.titleID.flatMap { gameProfiles[$0.uppercased()] }
-    }
+    public func profile(_ game: Game) -> GameProfile? { gameProfiles[game.id] }
 
-    /// nxnative's commits to a game's profile since its build, by title ID: what its next rebuild brings.
-    public private(set) var profileNews: [String: [ProfileCommit]] = [:]
+    /// nxnative's commits to a game's profile since its build, by game: what its next rebuild brings. Two folders of one
+    /// game have builds of their own ages.
+    public private(set) var profileNews: [Game.ID: [ProfileCommit]] = [:]
 
-    public func news(_ game: Game) -> [ProfileCommit] {
-        game.titleID.flatMap { profileNews[$0.uppercased()] } ?? []
-    }
+    public func news(_ game: Game) -> [ProfileCommit] { profileNews[game.id] ?? [] }
 
     @ObservationIgnored private var newsTask: Task<Void, Never>?
     @ObservationIgnored private var lastFetch: Date?
-    @ObservationIgnored private var newsBuilds: [String: String]?
-    @ObservationIgnored private var newsOwnRepos: [String: URL]?
+    @ObservationIgnored private var newsBuilds: [Game.ID: ProfileNews.Build]?
+    @ObservationIgnored private var newsOwnRepos: [Game.ID: URL]?
 
     /// Looks for profile news when the builds or the games' checkouts changed, and fetches nxnative at most hourly,
     /// never while a job runs (nxplay fetches then too). A refresh comes often (each activation, every few seconds
     /// while a copy runs): one that changes nothing runs no git.
-    private func refreshNews(repo: URL, own: [String: URL]) {
+    private func refreshNews(repo: URL, own: [Game.ID: URL]) {
         guard !isScreenshot, newsTask == nil else { return }
         let builds = Dictionary(
-            games.compactMap { game -> (String, String)? in
-                guard let id = game.titleID?.uppercased(), profiles.contains(id),
+            games.compactMap { game -> (Game.ID, ProfileNews.Build)? in
+                guard let id = game.titleID?.uppercased(), gameProfiles[game.id] != nil,
                     let tree = game.buildFolder.flatMap(ProfileNews.builtTree)
                 else { return nil }
-                return (id, tree)
+                return (game.id, ProfileNews.Build(titleID: id, tree: tree))
             }, uniquingKeysWith: { a, _ in a })
         let fetch = isIdle && (lastFetch.map { -$0.timeIntervalSinceNow > 3600 } ?? true)
         guard fetch || builds != newsBuilds || own != newsOwnRepos else { return }
@@ -448,8 +442,6 @@ public final class Library {
 
     /// Title IDs nxnative has a game profile for (dm/games/<title ID>/game.tsv). A game without one is surveyed and
     /// packed from a provisional profile guessed from its files, which may not boot.
-    public private(set) var profiles: Set<String> = []
-
     static func profiles(repo: String) -> Set<String> {
         let folder = URL(filePath: repo, directoryHint: .isDirectory).appending(path: "dm/games")
         let fm = FileManager.default

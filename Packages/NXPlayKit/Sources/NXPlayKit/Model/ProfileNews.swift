@@ -14,8 +14,14 @@ public struct ProfileCommit: Equatable, Hashable, Sendable, Identifiable {
 /// commit with that tree is where its news start, and they run to the upstream's tip, which NX Play fetches itself
 /// (only fetches: nxplay still moves the checkout when a game plays).
 enum ProfileNews {
-    /// The same, each game's from the checkout it builds with: `own` names the games pinned to theirs.
-    static func read(repo: URL, builds: [String: String], own: [String: URL]) -> [String: [ProfileCommit]] {
+    /// A build to look for news of: its game's profile and the nxnative tree it was made from.
+    struct Build: Hashable, Sendable {
+        let titleID: String
+        let tree: String
+    }
+
+    /// The same, each build's from the checkout its game builds with: `own` names the pinned ones, keyed as `builds`.
+    static func read(repo: URL, builds: [String: Build], own: [String: URL]) -> [String: [ProfileCommit]] {
         var news = read(repo: repo, builds: builds.filter { own[$0.key] == nil })
         for checkout in Set(own.values) {
             let pinned = builds.filter { own[$0.key] == checkout }
@@ -24,8 +30,8 @@ enum ProfileNews {
         return news
     }
 
-    /// Title ID → the commits since its build that changed dm/games/<title ID>, newest first.
-    static func read(repo: URL, builds: [String: String]) -> [String: [ProfileCommit]] {
+    /// The commits since each build that changed its game's dm/games/<title ID>, newest first, keyed as `builds` is.
+    static func read(repo: URL, builds: [String: Build]) -> [String: [ProfileCommit]] {
         guard !builds.isEmpty else { return [:] }
         let tip = git(repo, ["rev-parse", "--verify", "--quiet", "@{u}"]) != nil ? "@{u}" : "HEAD"
         // tree → its newest commit, over recent history (a build older than that has no news to show)
@@ -37,13 +43,13 @@ enum ProfileNews {
             if parts.count == 2, commits[parts[1]] == nil { commits[parts[1]] = parts[0] }
         }
         var out: [String: [ProfileCommit]] = [:]
-        for (titleID, tree) in builds {
-            guard let base = commits[tree],
+        for (key, build) in builds {
+            guard let base = commits[build.tree],
                 let log = git(
                     repo,
                     [
                         "log", "--no-merges", "--format=%h%x09%s%x09%ar", "\(base)..\(tip)", "--",
-                        "dm/games/\(titleID)",
+                        "dm/games/\(build.titleID)",
                     ])
             else { continue }
             let found = log.split(separator: "\n").compactMap { line -> ProfileCommit? in
@@ -51,7 +57,7 @@ enum ProfileNews {
                 return cells.count == 3
                     ? ProfileCommit(hash: cells[0], subject: cells[1], age: cells[2]) : nil
             }
-            if !found.isEmpty { out[titleID] = found }
+            if !found.isEmpty { out[key] = found }
         }
         return out
     }

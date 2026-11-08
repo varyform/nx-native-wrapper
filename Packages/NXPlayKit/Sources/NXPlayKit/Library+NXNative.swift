@@ -45,37 +45,33 @@ extension Library {
         return "nxnative: ignoring \(item.path): it isn't an nxnative checkout, so this uses the shared one"
     }
 
-    /// The games pinned to their own checkout, by title ID (uppercased, as the profiles are).
-    var ownRepos: [String: URL] {
-        var own: [String: URL] = [:]
+    /// The games pinned to their own checkout, by game: another folder of the same game may not be.
+    var ownRepos: [Game.ID: URL] {
+        var own: [Game.ID: URL] = [:]
         for game in games {
-            guard let id = game.titleID?.uppercased(), own[id] == nil,
-                let repo = Self.ownRepo(in: game.folder)
-            else { continue }
-            own[id] = URL(filePath: repo, directoryHint: .isDirectory)
+            guard let repo = Self.ownRepo(in: game.folder) else { continue }
+            own[game.id] = URL(filePath: repo, directoryHint: .isDirectory)
         }
         return own
     }
 
-    /// The title IDs nxnative has a profile for, a pinned game asking its own checkout.
-    static func profiles(repo: String, own: [String: URL]) -> Set<String> {
-        var profiles = Self.profiles(repo: repo)
-        for (id, checkout) in own {
-            if Self.profiles(repo: checkout.path).contains(id) {
-                profiles.insert(id)
-            } else {
-                profiles.remove(id)
-            }
+    /// What nxnative says about each game, by game, from the checkout it builds with: a pinned game's from its own.
+    static func gameProfiles(of games: [Game], repo: URL, own: [Game.ID: URL]) -> [Game.ID: GameProfile] {
+        var wanted: [URL: Set<String>] = [:]
+        for game in games {
+            guard let id = game.titleID?.uppercased() else { continue }
+            wanted[own[game.id] ?? repo, default: []].insert(id)
         }
-        return profiles
-    }
-
-    /// What nxnative says about these games, a pinned game's from its own checkout.
-    static func gameProfiles(repo: URL, titleIDs: Set<String>, own: [String: URL]) -> [String: GameProfile] {
-        var profiles = GameProfile.read(repo: repo, titleIDs: titleIDs.subtracting(own.keys))
-        for (id, checkout) in own where titleIDs.contains(id) {
-            profiles.merge(GameProfile.read(repo: checkout, titleIDs: [id])) { _, new in new }
+        var found: [URL: [String: GameProfile]] = [:]
+        for (checkout, ids) in wanted {
+            found[checkout] = GameProfile.read(
+                repo: checkout, titleIDs: ids.intersection(Self.profiles(repo: checkout.path)))
         }
-        return profiles
+        var byGame: [Game.ID: GameProfile] = [:]
+        for game in games {
+            guard let id = game.titleID?.uppercased() else { continue }
+            byGame[game.id] = found[own[game.id] ?? repo]?[id]
+        }
+        return byGame
     }
 }
