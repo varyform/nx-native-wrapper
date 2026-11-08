@@ -48,17 +48,31 @@ count() {
   ' "${files[@]}"
 }
 
+# rounded box-drawing lines; the padding stays in plain ASCII, as printf pads by bytes
+cell="│ %-10s │ %6s │ %7s │ %6s │ %6s │ %6s │ %5s │\n"
+widths=(12 8 9 8 8 8 7)
+
 row() {
   local per="-"
   (($6 > 0)) && per=$(($4 / $6))
-  printf "| %-10s | %6s | %7s | %6s | %6s | %6s | %5s |\n" "$1" "$2" "$3" "$4" "$5" "$6" "$per"
+  # shellcheck disable=SC2059 # the format is ours
+  printf "$cell" "$1" "$2" "$3" "$4" "$5" "$6" "$per"
 }
 
-rule() { printf "+%s+%s+%s+%s+%s+%s+%s+\n" "------------" "--------" "---------" "--------" "--------" "--------" "-------"; }
+# rule <left> <joint> <right>
+rule() {
+  local line=$1 width i
+  for width in "${widths[@]}"; do
+    for ((i = 0; i < width; i++)); do line+="─"; done
+    line+=$2
+  done
+  printf "%s\n" "${line%"$2"}$3"
+}
 
-rule
-printf "| %-10s | %6s | %7s | %6s | %6s | %6s | %5s |\n" Name Files Lines LOC Types Funcs "LOC/F"
-rule
+rule ╭ ┬ ╮
+# shellcheck disable=SC2059
+printf "$cell" Name Files Lines LOC Types Funcs "LOC/F"
+rule ├ ┼ ┤
 total=(0 0 0 0 0)
 code_loc=0
 test_loc=0
@@ -74,9 +88,9 @@ for group in "${groups[@]}"; do
     code_loc=$((code_loc + loc))  # what the tests are for: the Swift code; nxplay and bin are checked by shellcheck
   fi
 done
-rule
+rule ├ ┼ ┤
 row Total "${total[@]}"
-rule
+rule ╰ ┴ ╯
 
 tests=$(git ls-files --cached --others --exclude-standard -- Packages/NXPlayKit/Tests | xargs grep -ho '@Test' | wc -l | tr -d ' ')
 ratio=$(awk -v c="$code_loc" -v t="$test_loc" 'BEGIN { printf "%.1f", c ? t / c : 0 }')
