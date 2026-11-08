@@ -262,6 +262,7 @@ bin/build        # build/Build/Products/Release/NX Play.app
 bin/install      # build and install into /Applications (or: bin/install ~/Applications)
 mise run app     # build and open it
 mise run test    # NXPlayKit tests (swift test --package-path Packages/NXPlayKit)
+mise run stats   # lines of code, types and functions per part of the repo, as rails stats (bin/stats)
 bin/release 1.7.12 "Stair Climber"  # release (the name is optional): sign, notarize, DMG, then (after you confirm) commit, tag and publish
 ```
 

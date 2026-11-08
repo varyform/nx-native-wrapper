@@ -19,6 +19,10 @@ run = "xcodegen generate"
 description = "Run the NXPlayKit tests"
 run = "swift test --package-path Packages/NXPlayKit"
 
+[tasks.stats]
+description = "Lines of code, types and functions per part of the repo, as rails stats"
+run = "bin/stats"
+
 [tasks.build]
 description = "Build NX Play.app (Release) into build/"
 run = "bin/build"
