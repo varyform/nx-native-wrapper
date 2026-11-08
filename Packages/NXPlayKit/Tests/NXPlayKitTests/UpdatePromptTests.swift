@@ -29,7 +29,8 @@ import Testing
 
     @Test func theWindowShowsTheControllersRowOnceOneIsConnected() {
         let library = library()
-        #expect(!library.consoleMode && !library.showsControllerFocus)  // nothing to answer with but the mouse
+        // nothing to answer with but the mouse, unless the Mac running the tests has a controller connected
+        #expect(!library.consoleMode && library.showsControllerFocus == !library.gamepad.controllers.isEmpty)
         library.gamepad.sample = [(name: "Xbox Wireless Controller", battery: 1)]
         #expect(library.showsControllerFocus)
     }
