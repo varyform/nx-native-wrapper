@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Keep only the unpacked copy of NSZ and XCZ games:** nxnative unpacks a compressed game into its build folder and keeps both copies. With this new setting (Settings › General), once a game is built for the Mac, the unpacked NSP or XCI moves into the game folder and the NSZ or XCZ goes to the Trash, so the game takes its space once and is never unpacked again. Turning it on offers to tidy the games built already. It's off by default, since it changes your own files.
+
 ## 1.8.5 — 2026-11-08
 
 ### Added

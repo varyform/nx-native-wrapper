@@ -31,6 +31,7 @@ public final class Library {
         static let fullScreenGames = "fullScreenGames"
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
+        static let keepUnpackedOnly = "keepUnpackedOnly"
         static let cloudSaves = "cloudSaves"
         static let consoleMode = "consoleMode"
         static let controllerPlayers = "controllerPlayers"
@@ -94,6 +95,16 @@ public final class Library {
     public var allowOtherMetal: Bool {
         didSet { defaults.set(allowOtherMetal, forKey: Keys.allowOtherMetal) }
     }
+    /// After a build, an NSZ or XCZ gives way to the NSP or XCI nxnative unpacked it to (Library+Compressed.swift).
+    /// Off by default: it moves the player's own files. Turning it on offers the games built already.
+    public var keepUnpackedOnly: Bool {
+        didSet {
+            defaults.set(keepUnpackedOnly, forKey: Keys.keepUnpackedOnly)
+            if keepUnpackedOnly && !oldValue { offerUnpackedSweep() }
+        }
+    }
+    /// The games built already that Keep Only the Unpacked Copy can tidy, asked about once it's turned on.
+    public var unpackedSweep: UnpackedSweep?
     /// Preferred game language (a DM_LANG code), the global one; empty keeps each game's build language.
     public var language: String { globalChoices["DM_LANG"] ?? "" }
     /// The Apple team that signs device installs; empty picks the first paid one Xcode knows.
@@ -277,6 +288,7 @@ public final class Library {
             (defaults.dictionary(forKey: Keys.saveChoices) as? [String: String] ?? [:])
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
+        keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
         let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
         defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
@@ -779,6 +791,7 @@ public final class Library {
             presentNextAsk()
         }
         refresh()
+        if job.status == .succeeded, keepUnpackedOnly { keepUnpacked(of: job.game.id) }
         // what was made, in Finder
         let made = games.first { $0.id == job.game.id }
         if job.status == .succeeded,

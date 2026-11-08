@@ -174,9 +174,11 @@ Pick files one by one, a whole game, or a whole kind. Nothing is selected until 
 
 ![Free Up Space: game files, IPAs and Xcode builds per game, with their sizes](docs/free-up-space.webp)
 
+nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, and keeps that copy, so the game takes up its space about twice, and a build without the folder unpacks it again. **Settings › General › Keep only the unpacked copy of NSZ and XCZ games** stops that. Once a game is built for the Mac, its unpacked NSP or XCI moves into the game folder and the NSZ or XCZ goes to the Trash; from then on the game builds from the NSP. Only a file nxnative recorded as unpacked from exactly that NSZ moves, and nothing moves while the game builds or runs. Turning it on offers to do the same for the games built already. It's off by default, since it changes your own files.
+
 ### Settings
 
-Settings has a tab for each subject: **General** (the games folder, the keys file, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+Settings has a tab for each subject: **General** (the games folder, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
 
 <img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 

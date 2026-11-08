@@ -97,6 +97,7 @@ private struct GeneralSettings: View {
                     title: "prod.keys", path: $library.keysPath, directory: false,
                     isValid: exists(library.keysPath))
             }
+            UnpackedSettingsSection()
             Section {
                 PathField(
                     title: "nxnative repository",
