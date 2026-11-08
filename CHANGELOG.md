@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.5 — 2026-11-08
+
 ### Added
 
 - **Games on their own nxnative checkout are marked:** a game whose folder links to its own nxnative checkout gets a purple branch badge, with the checkout and its branch in the tooltip, and Console Mode names the branch. A link that isn't a checkout gets an orange badge, since that game builds with the shared checkout.
