@@ -1,5 +1,13 @@
 import Foundation
 
+/// A game's `nxnative` link as the library shows it.
+public enum NXNativeLink: Hashable, Sendable {
+    /// The game builds with this checkout; `branch` is nil when it isn't on one (a detached HEAD).
+    case checkout(path: String, branch: String?)
+    /// The link names no nxnative checkout, so the game builds with the shared one: `path` is where it points.
+    case broken(path: String)
+}
+
 /// A game pinned to its own nxnative checkout: a `nxnative` symlink (or folder) in the game's folder,
 /// used for every nxplay invocation of that game — extract, rebuild, play, IPA, Mac app and device
 /// install — instead of the shared checkout. Forks and branches both come through the same path: a
@@ -43,6 +51,30 @@ extension Library {
         // attributesOfItem looks at the link itself, so a dangling one counts as there
         guard (try? FileManager.default.attributesOfItem(atPath: item.path)) != nil else { return nil }
         return "nxnative: ignoring \(item.path): it isn't an nxnative checkout, so this uses the shared one"
+    }
+
+    /// The game's link for the library: its checkout and branch, or where a link that names no checkout points.
+    nonisolated static func nxnativeLink(in folder: URL) -> NXNativeLink? {
+        if let repo = ownRepo(in: folder) { return .checkout(path: repo, branch: branch(of: repo)) }
+        let item = folder.appending(path: ownNXNativeName)
+        guard (try? FileManager.default.attributesOfItem(atPath: item.path)) != nil else { return nil }
+        return .broken(path: (try? FileManager.default.destinationOfSymbolicLink(atPath: item.path)) ?? item.path)
+    }
+
+    /// The branch a checkout is on, read from its HEAD file rather than asked of git: every refresh scans every game.
+    /// A worktree's `.git` is a file naming its git folder. Nil for a detached HEAD or no readable HEAD.
+    nonisolated static func branch(of repo: String) -> String? {
+        let root = URL(filePath: repo, directoryHint: .isDirectory)
+        var gitDir = root.appending(path: ".git")
+        if let text = try? String(contentsOf: gitDir, encoding: .utf8), text.hasPrefix("gitdir: ") {
+            let path = text.dropFirst("gitdir: ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+            gitDir = path.hasPrefix("/") ? URL(filePath: path) : root.appending(path: path).standardized
+        }
+        guard let head = try? String(contentsOf: gitDir.appending(path: "HEAD"), encoding: .utf8) else {
+            return nil
+        }
+        let ref = head.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ref.hasPrefix("ref: refs/heads/") ? String(ref.dropFirst("ref: refs/heads/".count)) : nil
     }
 
     /// The games pinned to their own checkout, by game: another folder of the same game may not be.

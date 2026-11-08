@@ -204,6 +204,13 @@ struct Caption: View {
                 if news > 0 {
                     Pill(text: "\(news) new from nxnative", symbol: "sparkles", color: .blue)
                 }
+                switch game.nxnativeLink {
+                case .checkout(let path, let branch):
+                    Pill(text: "\(NXNativeBadge.name(path, branch))", symbol: "arrow.triangle.branch", color: .purple)
+                case .broken:
+                    Pill(text: "nxnative link broken", symbol: "exclamationmark.triangle.fill", color: .orange)
+                case nil: EmptyView()
+                }
                 if game.isKept { Pill(text: "Kept", symbol: "lock.fill", color: .orange) }
                 if game.macAppURL != nil, game.macAppOutdated {
                     Pill(

@@ -49,6 +49,9 @@ public struct Game: Identifiable, Hashable, Sendable {
     /// The Mac app runs older nxnative code than the build, so Play starts the build instead (nxplay's app_is_current):
     /// a rebuild packs it again, or Make Mac App when that couldn't (no game files, a failed pack).
     public var macAppOutdated = false
+    /// The game's own nxnative checkout, a `nxnative` link in its folder (Library+NXNative): the library marks the
+    /// games that don't build with the shared one, which a link made months ago doesn't say otherwise.
+    public var nxnativeLink: NXNativeLink? = nil
     public let state: State
 
     public var id: String { folder.path }

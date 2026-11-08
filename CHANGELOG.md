@@ -6,6 +6,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Games on their own nxnative checkout are marked:** a game whose folder links to its own nxnative checkout gets a purple branch badge, with the checkout and its branch in the tooltip, and Console Mode names the branch. A link that isn't a checkout gets an orange badge, since that game builds with the shared checkout.
+
+### Changed
+
+- **A card's badges fit however many a game has:** App, Xcode and IPA are icons now, all badges are one height, and the ones that don't fit on a narrow card collapse into a "+N" whose tooltip names them. Switch 2 moved off the artwork to the end of the line under the title, in red.
+
 - **Sort and filter the library:** a toolbar menu (also View › Sort By and View › Show) orders the grid and the list by name, last played or date added, and can show only Switch or Switch 2 games, the games that need attention, or kept builds. The list gets Last Played and Added columns, and its headers now sort the grid too.
 
 ### Fixed

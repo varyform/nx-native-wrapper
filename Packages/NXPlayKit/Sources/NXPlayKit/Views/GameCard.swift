@@ -11,8 +11,7 @@ struct GameCard: View {
             GameIcon(url: library.icon(for: game))
                 // under the badges, not around the card: a container's help hides theirs
                 .help(help)
-                .overlay(alignment: .topLeading) { ProfileBadges(game: game).padding(6) }
-                .overlay(alignment: .topTrailing) { IconBadges(game: game).padding(6) }
+                .overlay(alignment: .top) { CardBadges(game: game).padding(6) }
                 // on the artwork, so a build doesn't make the card taller
                 .overlay(alignment: .bottom) {
                     if let job, job.showsProgress {
@@ -23,10 +22,22 @@ struct GameCard: View {
                 Text(game.name)
                     .font(.headline)
                     .lineLimit(2, reservesSpace: true)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    // a fact about the game, and the widest badge the artwork had: here at the end of its line
+                    if game.isSwitch2 {
+                        Spacer(minLength: 0)
+                        Text("Switch 2")
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                            .fixedSize()
+                            .foregroundStyle(.red)
+                            .help(GameBadges.switch2Help)
+                    }
+                }
             }
             .help(help)
             GameStatus(game: game, job: job)

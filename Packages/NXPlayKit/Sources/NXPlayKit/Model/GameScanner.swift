@@ -75,6 +75,7 @@ public enum GameScanner {
             macAppOutdated: build.flatMap { build in
                 newest(entries.filter(isMacApp)).map { isOutdated(app: $0, build: build.folder) }
             } ?? false,
+            nxnativeLink: Library.nxnativeLink(in: folder),
             state: state
         )
     }

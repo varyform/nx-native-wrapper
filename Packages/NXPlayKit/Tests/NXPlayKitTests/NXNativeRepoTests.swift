@@ -107,6 +107,57 @@ import Testing
         #expect(Library.ownRepoNote(in: game) == "nxnative: using \(repo.path)")
     }
 
+    @Test func theLibraryShowsTheCheckoutsBranchOrABrokenLink() throws {
+        let root = try Self.root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let game = root.appending(path: "game")
+        let link = game.appending(path: "nxnative")
+        #expect(Library.nxnativeLink(in: game) == nil)
+
+        // a worktree: its .git is a file naming its git folder, relative here
+        let repo = try Self.checkout("worktree", in: root)
+        let gitDir = root.appending(path: "main/.git/worktrees/worktree")
+        try FileManager.default.createDirectory(at: gitDir, withIntermediateDirectories: true)
+        try "gitdir: ../main/.git/worktrees/worktree\n".write(
+            to: repo.appending(path: ".git"), atomically: true, encoding: .utf8)
+        try "ref: refs/heads/update-only-program\n".write(
+            to: gitDir.appending(path: "HEAD"), atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: repo)
+        #expect(
+            Library.nxnativeLink(in: game)
+                == .checkout(path: repo.path, branch: "update-only-program"))
+
+        // detached: no branch to name
+        try "1c482396b3b4e0f1a2c3d4e5f60718293a4b5c6d\n".write(
+            to: gitDir.appending(path: "HEAD"), atomically: true, encoding: .utf8)
+        #expect(Library.nxnativeLink(in: game) == .checkout(path: repo.path, branch: nil))
+
+        // a clone: .git is the folder itself
+        let clone = try Self.checkout("clone", in: root)
+        try FileManager.default.createDirectory(
+            at: clone.appending(path: ".git"), withIntermediateDirectories: true)
+        try "ref: refs/heads/main\n".write(
+            to: clone.appending(path: ".git/HEAD"), atomically: true, encoding: .utf8)
+        #expect(Library.branch(of: clone.path) == "main")
+
+        // a link to what isn't a checkout: the game builds with the shared one, and the library says so
+        try FileManager.default.removeItem(at: link)
+        let mistyped = root.appending(path: "mistyped")
+        try FileManager.default.createSymbolicLink(
+            atPath: link.path, withDestinationPath: mistyped.path)
+        #expect(Library.nxnativeLink(in: game) == .broken(path: mistyped.path))
+    }
+
+    @Test func aScannedGameCarriesItsLink() throws {
+        let root = try Self.root()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let game = root.appending(path: "game")
+        try Data([0]).write(to: game.appending(path: "game.nsp"))
+        try FileManager.default.createSymbolicLink(
+            at: game.appending(path: "nxnative"), withDestinationURL: try Self.checkout("own", in: root))
+        #expect(GameScanner.game(at: game)?.nxnativeLink != nil)
+    }
+
     /// A profile in a checkout, its name telling which checkout it came from.
     static func profile(_ id: String, named name: String, in repo: URL) throws {
         let folder = repo.appending(path: "dm/games/\(id)")
