@@ -16,7 +16,7 @@ struct DontPlayRow: View {
                     Text("Back to the games").font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if library.consoleMode {
+                if library.showsControllerFocus {
                     Image(systemName: library.gamepad.symbol(for: .back) ?? "escape")
                         .font(.title2)
                         .foregroundStyle(.secondary)
@@ -31,7 +31,7 @@ struct DontPlayRow: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(.tint, lineWidth: 2)
-                .opacity(library.consoleMode && highlighted ? 1 : 0)
+                .opacity(library.showsControllerFocus && highlighted ? 1 : 0)
         )
         .keyboardShortcut(.cancelAction)
     }

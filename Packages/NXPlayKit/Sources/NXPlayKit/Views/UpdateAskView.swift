@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Play's question when nxnative has new code for the game's build (nxplay's NXPLAY_UPDATE=ask): update first, or play
 /// the build as it is, the way a console offers a game's update at its start. In Console Mode the controller moves
-/// the highlight (Library.handleUpdatePrompt).
+/// the highlight (Library.handleUpdatePrompt), as it does in the window when a controller is connected.
 struct UpdateAskView: View {
     let prompt: UpdatePrompt
     @Environment(Library.self) private var library
@@ -74,7 +74,7 @@ struct UpdateAskView: View {
         .overlay(
             RoundedRectangle(cornerRadius: 8)
                 .strokeBorder(.tint, lineWidth: 2)
-                .opacity(library.consoleMode && library.updatePrompt?.focus == row ? 1 : 0)
+                .opacity(library.showsControllerFocus && library.updatePrompt?.focus == row ? 1 : 0)
         )
         .keyboardShortcut(isDefault ? .defaultAction : nil)
     }

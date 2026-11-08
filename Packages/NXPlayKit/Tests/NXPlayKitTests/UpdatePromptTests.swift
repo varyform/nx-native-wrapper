@@ -27,6 +27,13 @@ import Testing
         return library
     }
 
+    @Test func theWindowShowsTheControllersRowOnceOneIsConnected() {
+        let library = library()
+        #expect(!library.consoleMode && !library.showsControllerFocus)  // nothing to answer with but the mouse
+        library.gamepad.sample = [(name: "Xbox Wireless Controller", battery: 1)]
+        #expect(library.showsControllerFocus)
+    }
+
     @Test func theControllerReachesEveryRowAndStopsAtTheEnds() {
         let library = library()
         #expect(library.updatePrompt?.focus == .update)

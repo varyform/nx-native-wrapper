@@ -71,11 +71,11 @@ struct SaveChoiceView: View {
         .keyboardShortcut(row == .newer ? .defaultAction : nil)
     }
 
-    /// The controller's row, in Console Mode.
+    /// The controller's row, in Console Mode or with a controller connected.
     private func highlight(_ row: SaveQuestion.Row) -> some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(.tint, lineWidth: 2)
-            .opacity(library.consoleMode && library.saveQuestion?.focus == row ? 1 : 0)
+            .opacity(library.showsControllerFocus && library.saveQuestion?.focus == row ? 1 : 0)
     }
 
     private func choice(_ row: SaveQuestion.Row) -> SaveChoice? {

@@ -33,6 +33,10 @@ extension Library {
         presentNextAsk()
     }
 
+    /// Play's questions mark the controller's row wherever a controller can answer them: in the window too, where the
+    /// sheet has no other highlight and A would otherwise answer a row nobody can see.
+    var showsControllerFocus: Bool { consoleMode || !gamepad.players.isEmpty }
+
     /// The controller: up and down, or left and right, move through the rows; A answers; B doesn't play.
     func handleUpdatePrompt(_ command: Gamepad.Command) {
         guard var prompt = updatePrompt else { return }

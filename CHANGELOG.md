@@ -10,6 +10,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Fixed
 
+- **A controller can see what it picks in Play's questions outside Console Mode:** "Update first?" and the save question highlighted the controller's row only in Console Mode, so in the window A answered a row nobody could see. With a controller connected, the window shows the row and the button that backs out too.
+
 - **Two copies of the same game no longer share one "new in nxnative" badge:** the badge, the list of nxnative's changes and nxnative Notes went by the game's title ID, so a freshly rebuilt copy could show the changes an older copy hadn't had yet. Each folder now shows its own, and a copy pinned to its own nxnative checkout no longer lends its notes to the other.
 
 ## 1.8.4 — 2026-11-07
