@@ -38,6 +38,8 @@ struct NXPlayApp: App {
             CommandGroup(before: .toolbar) {
                 ViewStyleMenuItems()
                     .library(library)
+                SortFilterMenuItems()
+                    .library(library)
                 Divider()
                 LogMenuItem()
                     .library(library)

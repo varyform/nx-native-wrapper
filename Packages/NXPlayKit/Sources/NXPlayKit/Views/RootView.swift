@@ -116,6 +116,9 @@ public struct RootView: View {
         ToolbarItem(placement: .navigation) {
             ViewStylePicker()
         }
+        ToolbarItem(placement: .navigation) {
+            SortFilterMenu()
+        }
         ToolbarItemGroup {
             ConsoleToggle()
             LogToggle()

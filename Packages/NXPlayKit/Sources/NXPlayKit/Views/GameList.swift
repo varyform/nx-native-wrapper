@@ -1,15 +1,14 @@
 import SwiftUI
 
 /// The games as a list: extracted games, then the ones still to extract, as the grid shows them; each section
-/// sortable by any column, with the arrow keys moving the selection. Double-click and the context menu do what
-/// they do on a card.
+/// sortable by any column, the order the toolbar's menu sets too, with the arrow keys moving the selection.
+/// Double-click and the context menu do what they do on a card.
 struct GameList: View {
     @Environment(Library.self) private var library
-    @State private var order = [KeyPathComparator(\GameRow.name)]
 
     var body: some View {
         @Bindable var library = library
-        let rows = library.shownGames.map(GameRow.init).sorted(using: order)
+        let rows = library.shownGames.map(GameRow.init)
         let extracted = rows.filter(\.game.isExtracted)
         let remaining = rows.filter { !$0.game.isExtracted }
         if library.games.isEmpty {
@@ -17,9 +16,9 @@ struct GameList: View {
                 "No Games", systemImage: "gamecontroller",
                 description: Text("No subfolder here holds NSP, NSZ, XCI, XCZ or NUP files."))
         } else if rows.isEmpty {
-            ContentUnavailableView.search(text: library.search)
+            NoShownGames()
         } else {
-            Table(of: GameRow.self, selection: $library.selection, sortOrder: $order) {
+            Table(of: GameRow.self, selection: $library.selection, sortOrder: order) {
                 TableColumn("Game", value: \.name) { row in
                     HStack(spacing: 8) {
                         // beside the badges, not around them: a container's help hides theirs
@@ -60,6 +59,14 @@ struct GameList: View {
                     .padding(.vertical, 2)
                 }
                 .width(min: 120, ideal: 170)
+                TableColumn("Last Played", value: \.lastPlayed) { row in
+                    DateCell(date: row.game.lastPlayed)
+                }
+                .width(min: 80, ideal: 100)
+                TableColumn("Added", value: \.added) { row in
+                    DateCell(date: row.game.added)
+                }
+                .width(min: 80, ideal: 100)
                 TableColumn("") { row in
                     GameActionButton(game: row.game, job: library.job(for: row.game))
                         .controlSize(.small)
@@ -100,6 +107,32 @@ struct GameList: View {
             }
         }
     }
+
+    /// The library's order as the table's: a header click sorts the grid too.
+    private var order: Binding<[KeyPathComparator<GameRow>]> {
+        Binding(
+            get: {
+                [GameRow.comparator(library.sort, order: library.sortAscending ? .forward : .reverse)]
+            },
+            set: { comparators in
+                guard let first = comparators.first,
+                    let sort = Library.GameSort.allCases.first(where: {
+                        GameRow.comparator($0, order: .forward).keyPath == first.keyPath
+                    })
+                else { return }
+                library.sortGames(by: sort, ascending: first.order == .forward)
+            })
+    }
+}
+
+/// A date column's cell: blank for none.
+private struct DateCell: View {
+    let date: Date?
+
+    var body: some View {
+        Text(date?.formatted(date: .abbreviated, time: .omitted) ?? "")
+            .monospacedDigit().foregroundStyle(.secondary)
+    }
 }
 
 /// A section's title and count, as the grid's, with an optional button at the end.
@@ -124,19 +157,26 @@ extension SectionHeader where Trailing == EmptyView {
     }
 }
 
-/// A game with the values its columns sort by.
+/// A game with the key paths its columns sort by. The library does the sorting (Library+Sorting): these only tell
+/// the table which header shows the arrow.
 struct GameRow: Identifiable {
     let game: Game
     var id: Game.ID { game.id }
     var name: String { game.name }
     var version: String { game.version ?? "" }
     var titleID: String { game.titleID ?? "" }
-    /// Ready first, then extracted, then the rest, as the grid's sections go.
-    var statusRank: Int {
-        switch game.state {
-        case .ready: 0
-        case .extracted: 1
-        case .notExtracted: 2
+    var statusRank: Int { Library.statusRank(game) }
+    var lastPlayed: Date { game.lastPlayed ?? .distantPast }
+    var added: Date { game.added ?? .distantPast }
+
+    static func comparator(_ sort: Library.GameSort, order: SortOrder) -> KeyPathComparator<GameRow> {
+        switch sort {
+        case .name: KeyPathComparator(\.name, order: order)
+        case .lastPlayed: KeyPathComparator(\.lastPlayed, order: order)
+        case .dateAdded: KeyPathComparator(\.added, order: order)
+        case .version: KeyPathComparator(\.version, order: order)
+        case .titleID: KeyPathComparator(\.titleID, order: order)
+        case .status: KeyPathComparator(\.statusRank, order: order)
         }
     }
 }

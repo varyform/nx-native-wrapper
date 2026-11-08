@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Sort and filter the library:** a toolbar menu (also View › Sort By and View › Show) orders the grid and the list by name, last played or date added, and can show only Switch or Switch 2 games, the games that need attention, or kept builds. The list gets Last Played and Added columns, and its headers now sort the grid too.
+
 ### Fixed
 
 - **Two copies of the same game no longer share one "new in nxnative" badge:** the badge, the list of nxnative's changes and nxnative Notes went by the game's title ID, so a freshly rebuilt copy could show the changes an older copy hadn't had yet. Each folder now shows its own, and a copy pinned to its own nxnative checkout no longer lends its notes to the other.

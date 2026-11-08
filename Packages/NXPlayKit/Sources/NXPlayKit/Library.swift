@@ -26,6 +26,8 @@ public final class Library {
         static let showsLog = "showsLog"
         static let logHeight = "logHeight"
         static let viewStyle = "viewStyle"
+        static let gameSort = "gameSort"
+        static let gameSortAscending = "gameSortAscending"
         static let fullScreenGames = "fullScreenGames"
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
@@ -103,6 +105,15 @@ public final class Library {
     public var viewStyle: ViewStyle {
         didSet { defaults.set(viewStyle.rawValue, forKey: Keys.viewStyle) }
     }
+    /// The grid's and the list's order (Library+Sorting); sortGames(by:) sets both.
+    public internal(set) var sort: GameSort {
+        didSet { defaults.set(sort.rawValue, forKey: Keys.gameSort) }
+    }
+    public internal(set) var sortAscending: Bool {
+        didSet { defaults.set(sortAscending, forKey: Keys.gameSortAscending) }
+    }
+    /// The games the grid and the list show; every game again at the next launch, so none seems to have gone.
+    public var filter: GameFilter = .all
 
     public internal(set) var teams: [AppleTeam] = []
     public internal(set) var devices: [Device] = []
@@ -281,6 +292,9 @@ public final class Library {
         logHeight = defaults.object(forKey: Keys.logHeight) as? Double ?? 240
         viewStyle =
             defaults.string(forKey: Keys.viewStyle).flatMap(ViewStyle.init(rawValue:)) ?? .grid
+        let sort = defaults.string(forKey: Keys.gameSort).flatMap(GameSort.init(rawValue:)) ?? .name
+        self.sort = sort
+        sortAscending = defaults.object(forKey: Keys.gameSortAscending) as? Bool ?? sort.startsAscending
         terminationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification, object: nil, queue: .main
         ) { [weak self] _ in
@@ -609,18 +623,6 @@ public final class Library {
     public private(set) var searchRequests = 0
 
     public func findGames() { searchRequests += 1 }
-
-    /// The games the grid and the list show: those with every word of the search in their name, title ID or folder
-    /// name.
-    public var shownGames: [Game] {
-        let words = search.split(whereSeparator: \.isWhitespace).map(String.init)
-        guard !words.isEmpty else { return games }
-        return games.filter { game in
-            let fields = [game.name, game.titleID ?? "", game.folder.lastPathComponent]
-            return words.allSatisfy { word in fields.contains { $0.localizedStandardContains(word) }
-            }
-        }
-    }
 
     // MARK: - Navigation (controller, Console Mode keys)
 

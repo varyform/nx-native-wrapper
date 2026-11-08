@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Extracted games first, with their icons; then the ones still to extract.
+/// Extracted games first, with their icons; then the ones still to extract. Each in the library's order.
 struct GameGrid: View {
     @Environment(Library.self) private var library
 
@@ -32,7 +32,7 @@ struct GameGrid: View {
                     )
                     .padding(.top, 40)
                 } else if shown.isEmpty {
-                    ContentUnavailableView.search(text: library.search)
+                    NoShownGames()
                         .padding(.top, 40)
                 } else {
                     LazyVStack(alignment: .leading, spacing: 28) {

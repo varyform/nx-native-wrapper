@@ -66,6 +66,9 @@ public enum GameScanner {
                 try? $0.folder.appending(path: "run/last_played")
                     .resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate
             },
+            added: (try? folder.resourceValues(forKeys: [.addedToDirectoryDateKey, .creationDateKey])).flatMap {
+                $0.addedToDirectoryDate ?? $0.creationDate
+            },
             isKept: build.map {
                 FileManager.default.fileExists(atPath: $0.folder.appending(path: keepName).path)
             } ?? false,

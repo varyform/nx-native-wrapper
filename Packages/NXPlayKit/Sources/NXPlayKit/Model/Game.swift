@@ -40,6 +40,9 @@ public struct Game: Identifiable, Hashable, Sendable {
     public var isCopying = false
     /// When nxplay last started or ended the game (`run/last_played`); Console Mode puts the latest first.
     public var lastPlayed: Date? = nil
+    /// When the folder arrived in the games folder (Finder's Date Added), else when it was made; the library sorts by
+    /// it. A Finder copy keeps the source's creation date, so that one alone would date a new copy by its download.
+    public var added: Date? = nil
     /// Keep This Build: a `keep` file in the build folder, so nxplay plays the build as it is after an nxnative
     /// update instead of rebuilding it; only Rebuild replaces it.
     public var isKept = false
