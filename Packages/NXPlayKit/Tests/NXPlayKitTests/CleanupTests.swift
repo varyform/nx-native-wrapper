@@ -36,7 +36,7 @@ import Testing
         try write("Fresh/Fresh.ipa", size: 100)
     }
 
-    private var games: [Game] { GameScanner.scan(root: root) }
+    private var games: [Game] { GameScanner.scan(roots: [root]) }
     private func game(_ name: String) -> Game {
         games.first { $0.folder.lastPathComponent == name }!
     }

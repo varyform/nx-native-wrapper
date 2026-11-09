@@ -65,7 +65,7 @@ import Testing
             }
         }
         let library = library()
-        library.root = root
+        library.roots = [root]
         let names = { library.selectedGame?.folder.lastPathComponent }
 
         // extracted games first, as the grid's sections and the carousel show them
@@ -130,7 +130,7 @@ import Testing
             }
         }
         let library = library()
-        library.root = root
+        library.roots = [root]
         library.selection = library.games.first { $0.name == "A Never" }?.id
 
         // the grid keeps name order; the carousel puts the latest play first, the never played after by name
@@ -155,7 +155,7 @@ import Testing
             atPath: build.appending(path: "tools/dmhost").path, contents: nil,
             attributes: [.posixPermissions: 0o755])
         let library = library()
-        library.root = root
+        library.roots = [root]
         let keep = build.appending(path: "keep").path
 
         library.setKept(true, try #require(library.games.first))
@@ -248,6 +248,25 @@ import Testing
         #expect(!next.showsLog && next.logHeight == 333 && next.viewStyle == .list)
     }
 
+    /// The one folder chosen before there could be several is the first of the list; a folder that overlaps one
+    /// there already isn't added.
+    @Test func gamesFoldersComeFromTheOneFolderAndDontOverlap() {
+        let defaults = defaults()
+        defaults.set("/games", forKey: Library.Keys.root)
+        let library = Library(defaults: defaults, isScreenshot: true)
+        #expect(library.roots.map(\.path) == ["/games"])
+
+        #expect(library.addRoot(URL(filePath: "/Volumes/Switch")) == nil)
+        #expect(library.addRoot(URL(filePath: "/games/Celeste"))?.contains("overlaps") == true)
+        #expect(library.addRoot(URL(filePath: "/Volumes")) != nil)  // holds one
+        #expect(library.addRoot(URL(filePath: "/GAMES/")) != nil)  // the same, as the volume sees it
+        #expect(library.addRoot(URL(filePath: "/games-2")) == nil)  // a name that starts the same isn't inside
+        #expect(Library(defaults: defaults, isScreenshot: true).roots.map(\.path) == ["/games", "/Volumes/Switch", "/games-2"])
+
+        library.removeRoot(URL(filePath: "/Volumes/Switch"))
+        #expect(library.roots.map(\.path) == ["/games", "/games-2"])
+    }
+
     @Test func theLogStaysShownForSomeoneWhoAlreadyHadIt() {
         let defaults = defaults()
         defaults.set("/games", forKey: Library.Keys.root)  // chose a folder before the default changed
@@ -264,7 +283,7 @@ import Testing
             try Data([1]).write(to: root.appending(path: "\(folder)/\(folder).nsp"))
         }
         let library = library()
-        library.root = root
+        library.roots = [root]
         library.handle(.menu)
         let first = library.selection
 

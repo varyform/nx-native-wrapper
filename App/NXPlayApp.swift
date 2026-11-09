@@ -26,7 +26,7 @@ struct NXPlayApp: App {
                 UninstallMenuItem()
             }
             CommandGroup(replacing: .newItem) {
-                Button("Choose Games Folder…") { library.chooseRoot() }
+                Button("Add Games Folder…") { library.addRoot() }
                     .keyboardShortcut("o")
                 Button("Refresh") { library.refresh() }
                     .keyboardShortcut("r")

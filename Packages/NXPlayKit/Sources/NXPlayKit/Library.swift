@@ -17,7 +17,9 @@ extension View {
 @MainActor @Observable
 public final class Library {
     enum Keys {
+        /// The one games folder before there could be several: read once, into `roots`.
         static let root = "gamesRoot"
+        static let roots = "gamesRoots"
         static let nxnative = "nxnativePath"
         static let keys = "keysPath"
         static let metalHUD = "metalHUD"
@@ -55,10 +57,10 @@ public final class Library {
         case grid, list
     }
 
-    public var root: URL? {
+    /// The games folders (Library+Folders.swift): each a folder of games, or one game's own folder.
+    public var roots: [URL] {
         didSet {
-            defaults.set(root?.path, forKey: Keys.root)
-            selection = nil
+            defaults.set(roots.map(\.path), forKey: Keys.roots)
             refresh()
         }
     }
@@ -236,6 +238,8 @@ public final class Library {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var queue: [Job] = []
     @ObservationIgnored private var terminationObserver: (any NSObjectProtocol)?
+    /// A disk mounted or ejected: the games of a folder on it come or go (Library+Folders.swift).
+    @ObservationIgnored var volumeObservers: [any NSObjectProtocol] = []
     @ObservationIgnored private let saveBackup = SaveBackup()
     @ObservationIgnored private var installObservers: [any NSObjectProtocol] = []
     /// bin/install asked NX Play to quit once nothing is running, to replace it (quitWhenIdleNotification).
@@ -273,9 +277,8 @@ public final class Library {
         banners = artwork.cachedBanners()
         eshopIcons = artwork.cachedIcons()
         titleInfo = artwork.cachedInfo()
-        root = defaults.string(forKey: Keys.root).map {
-            URL(filePath: $0, directoryHint: .isDirectory)
-        }
+        roots = (defaults.stringArray(forKey: Keys.roots) ?? defaults.string(forKey: Keys.root).map { [$0] } ?? [])
+            .map { URL(filePath: $0, directoryHint: .isDirectory) }
         nxnativePath = defaults.string(forKey: Keys.nxnative) ?? AppHome.defaultNXNative
         keysPath = defaults.string(forKey: Keys.keys) ?? NSHomeDirectory() + "/.switch/prod.keys"
         saveBackupPath = defaults.string(forKey: Keys.saveBackup) ?? ""
@@ -322,6 +325,7 @@ public final class Library {
         gamepad.onCommand = { [weak self] in self?.handle($0) }
         if !isScreenshot {
             observeInstall()
+            observeVolumes()
             if let preview = AppUpdater.requestedPreview {
                 updater.preview(preview)
             } else {
@@ -333,7 +337,7 @@ public final class Library {
         applyControllerPlayers()  // didSet doesn't run for the value read in init
         applyRemote()
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
-        if defaults.bool(forKey: Keys.consoleMode), root != nil {
+        if defaults.bool(forKey: Keys.consoleMode), !roots.isEmpty {
             consoleMode = true
         }
     }
@@ -385,7 +389,7 @@ public final class Library {
             && (!fm.fileExists(atPath: repo + "/scripts/build_ipa_from_nsp.py")
                 || !fm.isExecutableFile(atPath: AppHome.venv.appending(path: "bin/python3").path)
                 || !AppHome.venvIsCurrent)
-        games = root.map(GameScanner.scan(root:)) ?? []
+        games = GameScanner.scan(roots: roots)
         readSettingsLists()
         writeMissingSettingsLists()
         let own = ownRepos
@@ -559,10 +563,6 @@ public final class Library {
             if !files.isEmpty { self?.screenshots[id] = files }
             self?.screenshotFetches.remove(id)
         }
-    }
-
-    public func chooseRoot() {
-        if let url = PathPicker.choose(directory: true, startingAt: root?.path) { root = url }
     }
 
     public var selectedGame: Game? {

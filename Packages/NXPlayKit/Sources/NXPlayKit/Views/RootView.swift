@@ -17,10 +17,7 @@ public struct RootView: View {
     public var body: some View {
         content
             .frame(minWidth: 720, minHeight: 540)
-            .navigationTitle(library.root?.lastPathComponent ?? "NX Play")
-            .navigationSubtitle(
-                library.root.map { ($0.path as NSString).abbreviatingWithTildeInPath } ?? ""
-            )
+            .navigationTitle("NX Play")
             .toolbar { toolbar }
             .searchable(
                 text: Bindable(library).search, placement: .toolbar, prompt: "Search Games"
@@ -96,15 +93,15 @@ public struct RootView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if library.root == nil {
+        if library.roots.isEmpty {
             ContentUnavailableView {
                 Label("No Games Folder", systemImage: "folder")
             } description: {
                 Text(
-                    "Choose the folder with one subfolder per game: its NSP, NSZ, XCI, XCZ or NUP files."
+                    "Add a folder with one subfolder per game, or a game\u{2019}s own folder: its NSP, NSZ, XCI, XCZ or NUP files. Settings can add more."
                 )
             } actions: {
-                Button("Choose Folder…") { library.chooseRoot() }
+                Button("Add Folder…") { library.addRoot() }
                     .buttonStyle(.borderedProminent)
             }
         } else if library.consoleMode {
@@ -126,11 +123,11 @@ public struct RootView: View {
             ConsoleToggle()
             LogToggle()
             Button {
-                library.chooseRoot()
+                library.addRoot()
             } label: {
-                Label("Choose Folder", systemImage: "folder")
+                Label("Add Folder", systemImage: "folder.badge.plus")
             }
-            .help("Choose the games folder")
+            .help("Add a games folder")
             Button {
                 library.refresh()
             } label: {
@@ -157,7 +154,7 @@ public struct RootView: View {
         public var body: some View {
             Button("Find Games…") { library.findGames() }
                 .keyboardShortcut("f")
-                .disabled(library.root == nil || library.consoleMode)
+                .disabled(library.roots.isEmpty || library.consoleMode)
         }
     }
 

@@ -66,7 +66,7 @@
             library.keysPath = "~/.switch/prod.keys"
             library.teams = [Self.team]
             library.devices = Self.devices
-            library.root = root
+            library.roots = [root]
             library.screenshotScene = scene
             library.allowOtherMetal = true
             library.showsLog = scene != .list

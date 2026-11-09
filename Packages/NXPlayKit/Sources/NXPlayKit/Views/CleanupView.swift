@@ -40,9 +40,9 @@ public struct CleanupView: View {
             ContentUnavailableView(
                 "Nothing to Remove", systemImage: "externaldrive",
                 description: Text(
-                    library.root == nil
-                        ? "Choose a games folder first."
-                        : "No game files, builds, IPAs or Xcode builds in \(library.root?.lastPathComponent ?? "")."
+                    library.roots.isEmpty
+                        ? "Add a games folder first."
+                        : "No game files, builds, IPAs or Xcode builds in your games folders."
                 )
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)

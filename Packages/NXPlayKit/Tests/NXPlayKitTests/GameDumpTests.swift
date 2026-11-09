@@ -41,7 +41,7 @@ import Testing
     }
 
     @Test func aDumpIsAGameNamedByItsNPDM() throws {
-        let game = try #require(GameScanner.scan(root: root).first)
+        let game = try #require(GameScanner.scan(roots: [root]).first)
         #expect(game.name == "FastFusion")
         #expect(game.titleID == Self.id)
         #expect(game.isDump && game.isSwitch2)
@@ -53,7 +53,7 @@ import Testing
         try write("Half/base/exefs/main.npdm", Self.npdm(programID: 1))  // no romfs
         try write("Odd/base/exefs/main.npdm", Data("not an npdm".utf8))
         try write("Odd/base/romfs/a.bin")
-        let games = GameScanner.scan(root: root)
+        let games = GameScanner.scan(roots: [root])
         #expect(games.map(\.name) == ["FastFusion", "Odd"])
         // a dump whose NPDM can't be read is still the game files; nxnative says what's wrong with it
         #expect(games[1].isDump && games[1].titleID == nil)

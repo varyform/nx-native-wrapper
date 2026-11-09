@@ -59,7 +59,7 @@ private struct SettingsPage<Content: View>: View {
     }
 }
 
-private struct Footer: View {
+struct Footer: View {
     let text: String
     init(_ text: String) { self.text = text }
 
@@ -80,19 +80,8 @@ private struct GeneralSettings: View {
     var body: some View {
         @Bindable var library = library
         SettingsPage {
+            GamesFoldersSection()
             Section {
-                LabeledContent("Games folder") {
-                    HStack {
-                        Text(
-                            library.root.map { ($0.path as NSString).abbreviatingWithTildeInPath }
-                                ?? "None"
-                        )
-                        .foregroundStyle(library.root == nil ? .secondary : .primary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        Button("Choose…") { library.chooseRoot() }
-                    }
-                }
                 PathField(
                     title: "prod.keys", path: $library.keysPath, directory: false,
                     isValid: exists(library.keysPath))

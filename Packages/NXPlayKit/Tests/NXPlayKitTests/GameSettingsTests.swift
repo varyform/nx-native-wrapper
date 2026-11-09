@@ -67,7 +67,7 @@ import Testing
         let library = Library(defaults: store(), isScreenshot: true)
         let choices = store()
         library.choicesStore = { _ in choices }
-        library.root = root
+        library.roots = [root]
         let found = try #require(library.games.first)
         #expect(library.settingsLists[found.id] != nil)
         return (library, found, choices)

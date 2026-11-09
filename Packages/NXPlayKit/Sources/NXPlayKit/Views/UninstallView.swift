@@ -55,9 +55,9 @@ public struct UninstallView: View {
 
             GroupBox("Kept") {
                 VStack(alignment: .leading, spacing: 4) {
-                    kept(
-                        "Your games folder: the games, their builds and the saves in them",
-                        library.root)
+                    ForEach(library.roots, id: \.self) { root in
+                        kept("Your games folder: the games, their builds and the saves in them", root)
+                    }
                     kept(
                         "prod.keys",
                         URL(filePath: (library.keysPath as NSString).expandingTildeInPath))

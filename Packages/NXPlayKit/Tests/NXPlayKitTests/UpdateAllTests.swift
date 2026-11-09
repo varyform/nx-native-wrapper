@@ -49,7 +49,7 @@ import Testing
         let suite = testDefaultsName()
         suites.append(suite)
         let library = Library(defaults: UserDefaults(suiteName: suite)!, isScreenshot: true)
-        library.root = root
+        library.roots = [root]
         return library
     }
 

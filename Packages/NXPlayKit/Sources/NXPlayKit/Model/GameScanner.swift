@@ -9,10 +9,19 @@ public enum GameScanner {
     /// nxplay's mark of a kept build (Keep This Build).
     static let keepName = "keep"
 
-    public static func scan(root: URL) -> [Game] {
-        children(of: root)
-            .compactMap(game(at:))
+    /// Every games folder's games, by name; a folder that isn't there (a disk not connected) has none.
+    public static func scan(roots: [URL]) -> [Game] {
+        var seen = Set<Game.ID>()
+        return roots.flatMap(games(in:))
+            .filter { seen.insert($0.id).inserted }
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    /// A folder of games, one per subfolder; or, with none, a game's own folder: its files at the top level.
+    static func games(in root: URL) -> [Game] {
+        let inside = children(of: root).compactMap(game(at:))
+        if inside.isEmpty, let game = game(at: root) { return [game] }
+        return inside
     }
 
     public static func game(at folder: URL) -> Game? {

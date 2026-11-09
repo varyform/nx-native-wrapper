@@ -64,13 +64,13 @@ import Testing
         // the Mac app's save stays too
         #expect(FileManager.default.fileExists(atPath: removal.appData!.path))
         // the saves and cheats left behind aren't a game in the library
-        #expect(GameScanner.scan(root: root).isEmpty)
+        #expect(GameScanner.scan(roots: [root]).isEmpty)
     }
 
     @Test func aGameBackWithItsFilesFindsItsSaves() throws {
         GameRemoval(game: game, removesSaves: false, home: home).perform()
         try write(root.appending(path: "Fake/Fake [\(Self.id)][v0].nsp"))
-        let back = try #require(GameScanner.scan(root: root).first)
+        let back = try #require(GameScanner.scan(roots: [root]).first)
         #expect(back.titleID == Self.id && back.state == .notExtracted)
         #expect(exists("Fake/\(Self.id)_build/run/save/progress.bin"))
         // its cheats wait for it too

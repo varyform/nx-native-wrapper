@@ -71,7 +71,7 @@ bin/setup
 
 ## Using NX Play
 
-Open NX Play and choose your games folder, with one subfolder per game:
+Open NX Play and add your games folder, with one subfolder per game:
 
 ```
 Switch/
@@ -86,6 +86,8 @@ Switch/
     └── updates/
         └── 458752/       exefs/ and romfs/ of the update
 ```
+
+Games spread over several places? **Settings › General › Games Folders** takes more folders, and their games show as one library. A folder there can also be a single game's own folder, with its files at the top level. Builds and saves stay in each game's folder, so nothing rebuilds when you add a folder whose games were built already. A folder on a disk that isn't connected stays in the list, marked "Not connected", and its games come back once the disk is mounted. One folder can't be inside another, so a game never shows twice.
 
 A Switch 2 game is one `.nup` file or a dump of its files, the way [nxnative builds one](https://github.com/seedds/nxnative#switch-2-games). A dump is `base/`, then optionally `updates/<version>/` and `dlc/<title ID>/`; `exefs/` and `romfs/` directly in the folder count as `base/`, and an update's folder can be the whole game. Neither needs `prod.keys`. A game shows its folder's name until it's built, and a dump stays that way, since it carries no icon or name; a NUP that holds them shows them once built. If NSPs sit beside a NUP or a dump, nxnative builds the NSPs, and those need `prod.keys`. A red **Switch 2** after a card's title ID (a badge in the list) marks these games. nxnative tests Switch 2 games on the Mac only. For a game it has no profile for, it guesses one from the game's files, and a **Guessed** badge says so: the game may not boot.
 
@@ -178,7 +180,7 @@ nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, a
 
 ### Settings
 
-Settings has a tab for each subject: **General** (the games folder, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+Settings has a tab for each subject: **General** (the games folders, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
 
 <img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 

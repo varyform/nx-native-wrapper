@@ -27,7 +27,7 @@ import Testing
         try touch(root.appending(path: "Music/01. Track.mp3"))
         try touch(root.appending(path: "Music/0100000000000000_notabuild/x"))
 
-        let games = GameScanner.scan(root: root)
+        let games = GameScanner.scan(roots: [root])
 
         #expect(games.map(\.name) == ["Metroid Dread", "Wonder", "Zelda (NSP)"])
         let metroid = try #require(games.first)
@@ -50,14 +50,14 @@ import Testing
         let copying = ISO8601DateFormatter().date(from: "1984-01-24T08:00:00Z")!
         try FileManager.default.setAttributes([.creationDate: copying], ofItemAtPath: nsp.path)
 
-        let game = try #require(GameScanner.scan(root: root).first)
+        let game = try #require(GameScanner.scan(roots: [root]).first)
         #expect(game.isCopying)
         #expect(!game.canExtract && !game.canBuildIPA)
         #expect(CleanupScanner.groups(games: [game]).first?.files.first?.blocked != nil)
 
         try FileManager.default.setAttributes(
             [.creationDate: Date(timeIntervalSince1970: 1_692_051_683)], ofItemAtPath: nsp.path)
-        let done = try #require(GameScanner.scan(root: root).first)
+        let done = try #require(GameScanner.scan(roots: [root]).first)
         #expect(!done.isCopying && done.canExtract)
     }
 
@@ -69,10 +69,10 @@ import Testing
         let copying = ISO8601DateFormatter().date(from: "1984-01-24T08:00:00Z")!
         try FileManager.default.setAttributes([.creationDate: copying], ofItemAtPath: folder.path)
 
-        #expect(GameScanner.scan(root: root).first?.isCopying == true)
+        #expect(GameScanner.scan(roots: [root]).first?.isCopying == true)
 
         try FileManager.default.setAttributes([.creationDate: Date.now], ofItemAtPath: folder.path)
-        #expect(GameScanner.scan(root: root).first?.isCopying == false)
+        #expect(GameScanner.scan(roots: [root]).first?.isCopying == false)
     }
 
     @Test func findsTheMacAppNxnativePacked() throws {
@@ -85,7 +85,7 @@ import Testing
             executable: true)
 
         #expect(
-            GameScanner.scan(root: root).first?.macAppURL?.lastPathComponent == "Metroid Dread.app")
+            GameScanner.scan(roots: [root]).first?.macAppURL?.lastPathComponent == "Metroid Dread.app")
     }
 
     /// nxplay's app_is_current, as the library shows it: the code app.tree records against the launcher's, else dates.
@@ -96,7 +96,7 @@ import Testing
         let app = root.appending(path: "Metroid/Metroid Dread.app")
         try touch(app.appending(path: "Contents/MacOS/dmhost"), executable: true)
         try touch(app.appending(path: "Contents/Info.plist"))
-        func outdated() -> Bool { GameScanner.scan(root: root).first?.macAppOutdated == true }
+        func outdated() -> Bool { GameScanner.scan(roots: [root]).first?.macAppOutdated == true }
 
         try Data("aaa\n".utf8).write(to: build.appending(path: "app.tree"))
         #expect(!outdated())
@@ -125,40 +125,40 @@ import Testing
     @Test func aLauncherWithoutTheMacHostIsNotReady() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
         try touch(folder.appending(path: "start_mac.sh"))
-        #expect(GameScanner.scan(root: root).first?.state == .extracted)
+        #expect(GameScanner.scan(roots: [root]).first?.state == .extracted)
     }
 
     @Test func iconFallsBackToAnOlderVersion() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
         try FileManager.default.createDirectory(
             at: folder.appending(path: "extract/v65536/RomFS"), withIntermediateDirectories: true)
-        #expect(GameScanner.scan(root: root).first?.iconURL?.path.hasSuffix("v0/icon.jpg") == true)
+        #expect(GameScanner.scan(roots: [root]).first?.iconURL?.path.hasSuffix("v0/icon.jpg") == true)
     }
 
     @Test func readsTheLastPlayFromTheMarkNxplayLeaves() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
-        #expect(GameScanner.scan(root: root).first?.lastPlayed == nil)
+        #expect(GameScanner.scan(roots: [root]).first?.lastPlayed == nil)
 
         let mark = folder.appending(path: "run/last_played")
         try touch(mark)
         let played = Date(timeIntervalSince1970: 1_790_000_000)
         try FileManager.default.setAttributes([.modificationDate: played], ofItemAtPath: mark.path)
-        #expect(GameScanner.scan(root: root).first?.lastPlayed == played)
+        #expect(GameScanner.scan(roots: [root]).first?.lastPlayed == played)
     }
 
     @Test func keepThisBuildMarksTheBuildFolder() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
-        let extracted = try #require(GameScanner.scan(root: root).first)
+        let extracted = try #require(GameScanner.scan(roots: [root]).first)
         #expect(!extracted.isKept && !extracted.canKeep)  // nothing that plays to keep yet
 
         try touch(folder.appending(path: "start_mac.sh"))
         try touch(folder.appending(path: "tools/dmhost"), executable: true)
-        let ready = try #require(GameScanner.scan(root: root).first)
+        let ready = try #require(GameScanner.scan(roots: [root]).first)
         #expect(!ready.isKept && ready.canKeep)
         #expect(ready.keepFile?.pathComponents.suffix(2) == [folder.lastPathComponent, "keep"])
 
         try touch(folder.appending(path: "keep"))
-        #expect(GameScanner.scan(root: root).first?.isKept == true)
+        #expect(GameScanner.scan(roots: [root]).first?.isKept == true)
     }
 
     // MARK: - Fixtures
@@ -178,6 +178,21 @@ import Testing
             }
         }
         return folder
+    }
+
+    /// Several folders make one library: a folder of games, a game's own folder, and one that isn't there.
+    @Test func gamesFromSeveralFoldersAndAGamesOwnFolder() throws {
+        try touch(root.appending(path: "Library/Celeste/Celeste.nsp"))
+        try touch(root.appending(path: "Library/stray.nsp"))  // a library with a loose file is still a library
+        try touch(root.appending(path: "Library/Hades/Hades.nsz"))
+        try touch(root.appending(path: "Elsewhere/Balatro/Balatro.nsp"))
+        let own = root.appending(path: "Elsewhere/Balatro", directoryHint: .isDirectory)
+        let library = root.appending(path: "Library", directoryHint: .isDirectory)
+        let missing = root.appending(path: "Unplugged", directoryHint: .isDirectory)
+
+        let games = GameScanner.scan(roots: [library, own, missing, library])
+        #expect(games.map(\.name) == ["Balatro", "Celeste", "Hades"])  // by name, each once
+        #expect(games.first?.folder.lastPathComponent == "Balatro")
     }
 
     private func touch(_ url: URL, executable: Bool = false) throws {

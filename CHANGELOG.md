@@ -6,6 +6,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Several games folders** ([#20](https://github.com/varyform/nx-native-wrapper/issues/20)): Settings › General › Games Folders takes more than one folder, and their games show as one library. A folder can also be a single game's own folder. Builds and saves stay where they are, so nothing rebuilds. A folder on a disk that isn't connected is marked as such, and its games come back when it's mounted. The window title is now always NX Play, and **Choose Games Folder…** is **Add Games Folder…**.
+
 - **Play asks which save to use when the cloud's and this Mac's both changed:** with cloud saves on, a game played on two devices without a sync in between no longer simply takes the newer save. Play shows when each was saved and on which device, and the other is kept in the save's backups. It needs a game built with a recent nxnative.
 
 - **Press a button to join:** with this nxnative setting on (Settings › Games › Controllers, next to Players), a controller becomes a player at its first button press, so players choose who is player 1. It shows once a game built with a recent nxnative offers it, and the controller list says how players join while it's on.
