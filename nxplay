@@ -22,6 +22,8 @@
 # env:   NXNATIVE (repository; default ./nxnative in this checkout, as bin/setup clones it, else ../nxnative beside it),
 #        NXPLAY_VENV (Python environment; default .venv in this checkout, made by bin/setup), NX_KEYS (default ~/.switch/prod.keys),
 #        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
+#        DM_SAVE_SYNC_CHOICE (the player's answer when the cloud's save and this one both changed: NX Play compares
+#        them before a play; passed on as it is),
 #        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
 #        NXPLAY_SAVE (app: play on from the Mac app's own save, ~/Library/Application Support/nxnative/<title ID>/save,
 #        instead of the build's run/save; NX Play asks which when the two differ),

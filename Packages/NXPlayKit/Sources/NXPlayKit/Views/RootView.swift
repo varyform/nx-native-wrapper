@@ -65,6 +65,9 @@ public struct RootView: View {
             .sheet(item: Bindable(library).saveQuestion) { question in
                 SaveChoiceView(question: question)
             }
+            .sheet(item: Bindable(library).cloudSaveQuestion) { question in
+                CloudSaveChoiceView(question: question)
+            }
             .sheet(item: updatePromptShown) { prompt in
                 UpdateAskView(prompt: prompt)
             }

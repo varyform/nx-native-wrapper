@@ -236,7 +236,7 @@ private struct CloudSavesSection: View {
             }
         } footer: {
             Footer(
-                "Each game's save syncs through one file in the folder, <title ID>/save.dmsync, so the game's iPhone app plays on from it: pick the same folder in its own Cloud saves. iCloud Drive is its nxnative Saves folder. When both sides changed, the newer save wins and the other is kept in the save's backups. A game uses this from its next play, a build made before nxnative had cloud saves once it rebuilds. A save made in the last seconds before quitting goes up at the game's next start."
+                "Each game's save syncs through one file in the folder, <title ID>/save.dmsync, so the game's iPhone app plays on from it: pick the same folder in its own Cloud saves. iCloud Drive is its nxnative Saves folder. When both sides changed since they were last the same, Play asks which save to use, and the other is kept in the save's backups. A game uses this from its next play, a build made before nxnative had cloud saves once it rebuilds. A save made in the last seconds before quitting goes up at the game's next start."
             )
         }
     }

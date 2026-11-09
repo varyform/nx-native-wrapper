@@ -160,6 +160,10 @@ public final class Library {
     public var transfer: SaveTransfer?
     /// A play waiting for the player to choose between NX Play's save and the Mac app's own (Library+AppSave.swift).
     public var saveQuestion: SaveQuestion?
+    /// A play waiting for the player to choose between the cloud's save and this Mac's (Library+CloudSave.swift).
+    public var cloudSaveQuestion: CloudSaveQuestion?
+    /// The games whose play is comparing the cloud's save with this Mac's.
+    @ObservationIgnored var checkingCloudSaves: Set<Game.ID> = []
     /// A play whose nxplay asks whether to update nxnative first (Library+UpdateAsk.swift).
     public var updatePrompt: UpdatePrompt?
     /// What Play does when nxnative has new code for a game built with older code (Settings › General).
@@ -714,6 +718,10 @@ public final class Library {
             handleSaveQuestion(command)
             return
         }
+        if cloudSaveQuestion != nil {
+            handleCloudSaveQuestion(command)
+            return
+        }
         if updatePrompt != nil {
             handleUpdatePrompt(command)
             return
@@ -760,8 +768,12 @@ public final class Library {
         game.isExtracted ? play(game) : extract(game)
     }
 
-    /// `appSave`: a play with the Mac app's own save (NXPLAY_SAVE=app), the folder its backup follows.
-    func run(_ kind: Job.Kind, _ game: Game, select: Bool = true, appSave: URL? = nil) {
+    /// `appSave`: a play with the Mac app's own save (NXPLAY_SAVE=app), the folder its backup follows. `cloudChoice`:
+    /// the player's answer when the cloud's save and this Mac's both changed (Library+CloudSave.swift).
+    func run(
+        _ kind: Job.Kind, _ game: Game, select: Bool = true, appSave: URL? = nil,
+        cloudChoice: CloudSave.Choice = .none
+    ) {
         guard !isBusy(game) else { return }
         if game.isKept, kind.rewritesTheMacBuild {
             problem = Self.keptBuildProblem
@@ -769,7 +781,13 @@ public final class Library {
         }
         guard var command = command(kind, game) else { return }
         // spelled out either way, so the shell's environment can't decide
-        if kind == .play { command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app" }
+        if kind == .play {
+            command.environment["NXPLAY_SAVE"] = appSave == nil ? "nxplay" : "app"
+            // with cloud saves on, every play says NX Play asks: the host then never picks between two changed saves
+            if command.environment["DM_SAVE_SYNC"] != "0" {
+                command.environment["DM_SAVE_SYNC_CHOICE"] = cloudChoice.environment
+            }
+        }
         let job = Job(kind: kind, game: game, command: command)
         if let note = Library.ownRepoNote(in: game.folder) { job.note(note) }
         job.onFinish = { [weak self] job in self?.finished(job) }

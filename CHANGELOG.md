@@ -6,6 +6,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **Play asks which save to use when the cloud's and this Mac's both changed:** with cloud saves on, a game played on two devices without a sync in between no longer simply takes the newer save. Play shows when each was saved and on which device, and the other is kept in the save's backups. It needs a game built with a recent nxnative.
+
 - **Press a button to join:** with this nxnative setting on (Settings › Games › Controllers, next to Players), a controller becomes a player at its first button press, so players choose who is player 1. It shows once a game built with a recent nxnative offers it, and the controller list says how players join while it's on.
 
 - **A build that finishes without part of what it makes says so:** the log panel shows "done, with a warning" in orange, and the step's line in the log is orange too. nxnative now packs a Mac app or an IPA even when its pipeline archive fails, and that app builds the pipelines on its first start.

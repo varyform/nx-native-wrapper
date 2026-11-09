@@ -19,13 +19,14 @@ public struct SaveQuestion: Identifiable, Sendable {
 extension Library {
     public func play(_ game: Game) {
         guard !isBusy(game) else { return }
-        guard let appSave = AppSave(game: game) else { return run(.play, game) }
+        guard !checkingCloudSaves.contains(game.id) else { return }
+        guard let appSave = AppSave(game: game) else { return playChecked(game, appSave: nil) }
         if let choice = saveChoice(for: game) {
-            run(.play, game, appSave: appSave.usesApp(choice) ? appSave.folder : nil)
+            playChecked(game, appSave: appSave.usesApp(choice) ? appSave.folder : nil)
         } else if appSave.differs {
             saveQuestion = SaveQuestion(game: game, appSave: appSave)
         } else {
-            run(.play, game)
+            playChecked(game, appSave: nil)
         }
     }
 
@@ -48,9 +49,7 @@ extension Library {
         if question.remember, let id = question.game.titleID?.uppercased() {
             saveChoices[id] = choice
         }
-        run(
-            .play, question.game,
-            appSave: question.appSave.usesApp(choice) ? question.appSave.folder : nil)
+        playChecked(question.game, appSave: question.appSave.usesApp(choice) ? question.appSave.folder : nil)
     }
 
     /// The controller: up and down move through the rows, A picks the save, ticks "Don't ask again" or doesn't play,
