@@ -236,7 +236,7 @@ Environment variables: `NXNATIVE` (the nxnative checkout; default `./nxnative`, 
 | ⌃⌘F | Toggle full screen |
 | ⌘Q | Quit the game |
 
-Controllers are detected automatically, with buttons by position (right A, bottom B, top X, left Y). Extra controllers become extra players for local co-op.
+Controllers are detected automatically, with buttons by position (right A, bottom B, top X, left Y). Extra controllers become extra players for local co-op, in the order they connected. **Settings › Games › Controllers** can make the keyboard a player of its own or every controller player 1. Once a game built with a recent nxnative offers it, **Press a button to join** lets players choose their numbers instead: a controller becomes a player at its first button press, taking the lowest player free. Press on every controller before the game asks how many play.
 
 ## Troubleshooting
 

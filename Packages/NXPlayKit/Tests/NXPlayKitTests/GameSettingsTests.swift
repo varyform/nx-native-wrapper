@@ -120,6 +120,27 @@ import Testing
         #expect(store.string(forKey: "launcher.DM_NOT_LISTED") == "1")  // only the list's keys go
     }
 
+    /// Settings › Games › Controllers shows it once a built game's list has it, and a play passes it only to those.
+    @Test func pressToJoinComesWithTheGamesThatOfferIt() throws {
+        let (library, game, _) = try library()
+        #expect(!library.offersPressToJoin)
+        library.pressesToJoin = true
+        #expect(library.playEnvironment(for: game)["DM_PAD_PRESS_TO_JOIN"] == nil)  // not in its list
+
+        let row = #"{"env": "DM_PAD_PRESS_TO_JOIN", "kind": "toggle", "section": "Controls", "label": "Press a button to join", "note": "", "default": "0", "on": "1", "off": "0", "level": "basic"},"#
+        let json = Self.json.replacingOccurrences(
+            of: #"{"env": "DM_RUMBLE", "#, with: row + "\n " + #"{"env": "DM_RUMBLE", "#)
+        let build = try #require(game.buildFolder)
+        try Data(json.utf8).write(to: build.appending(path: LauncherSettings.fileName))
+        library.refresh()
+        #expect(library.offersPressToJoin)
+        #expect(library.playEnvironment(for: game)["DM_PAD_PRESS_TO_JOIN"] == "1")
+
+        library.pressesToJoin = false
+        #expect(library.globalChoices["DM_PAD_PRESS_TO_JOIN"] == nil)  // each game's default again: off
+        #expect(library.playEnvironment(for: game)["DM_PAD_PRESS_TO_JOIN"] == nil)
+    }
+
     @Test func theLanguagePlaysItsRegionalTwin() throws {
         let (library, found, _) = try library()
         let lang = try #require(library.settingsLists[found.id]?["DM_LANG"])

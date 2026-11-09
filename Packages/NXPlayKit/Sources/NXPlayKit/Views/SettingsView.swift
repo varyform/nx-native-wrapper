@@ -137,21 +137,31 @@ struct ControllerSettings: View {
                     Library.ControllerPlayers.keyboardOwn)
                 Text("Every controller is player 1").tag(Library.ControllerPlayers.merged)
             }
+            let merged = library.controllerPlayers == .merged
+            if library.offersPressToJoin {
+                Toggle("Press a button to join", isOn: $library.pressesToJoin)
+                    .disabled(merged)
+            }
+            let joinsByPress = library.pressesToJoin && library.offersPressToJoin && !merged
             let players = library.gamepad.players
             if players.isEmpty {
                 Text("No controller connected").foregroundStyle(.secondary)
             }
             ForEach(players) { player in
                 LabeledContent(player.name) {
-                    Text(player.number.map { "Player \($0)" } ?? "Not used (8 players at most)")
-                        .foregroundStyle(.secondary)
+                    Text(
+                        joinsByPress
+                            ? "Joins at its first button press"
+                            : player.number.map { "Player \($0)" } ?? "Not used (8 players at most)"
+                    )
+                    .foregroundStyle(.secondary)
                 }
             }
         } header: {
             Text("Controllers")
         } footer: {
             Footer(
-                "In a game each controller is a player of its own, in the order they connected: the first is player 1, together with the keyboard, the next player 2, up to 8. A controller that disconnects gets its player back when it returns. A one-player game sees every controller as player 1. The setting applies from a game's next start (nxnative's DM_PAD_MERGE and DM_KBD_PLAYER)."
+                "In a game each controller is a player of its own, in the order they connected: the first is player 1, together with the keyboard, the next player 2, up to 8. A controller that disconnects gets its player back when it returns. A one-player game sees every controller as player 1. With Press a button to join, a controller becomes a player at its first button press instead, taking the lowest player free, so you choose who is player 1: press on every controller before the game asks how many play. It shows once a game built with a recent nxnative offers it, and doesn't apply when every controller is player 1. The settings apply from a game's next start (nxnative's DM_PAD_MERGE, DM_KBD_PLAYER and DM_PAD_PRESS_TO_JOIN)."
             )
         }
     }

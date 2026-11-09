@@ -49,6 +49,19 @@ extension Library {
         globalChoices[env] = value
     }
 
+    /// nxnative's Press a button to join: a controller becomes a player at its first press, the lowest free, instead
+    /// of in the order it connected. Shown with the Players setting it changes, not among the other game settings.
+    static let pressToJoin = "DM_PAD_PRESS_TO_JOIN"
+
+    /// Whether any built game's list has Press a button to join (nxnative from 2026-11-07 on).
+    public var offersPressToJoin: Bool { globalSettings.contains { $0.env == Self.pressToJoin } }
+
+    /// The global Press a button to join; off follows each game's default, which is off.
+    public var pressesToJoin: Bool {
+        get { globalChoices[Self.pressToJoin] == "1" }
+        set { setGlobal(newValue ? "1" : nil, for: Self.pressToJoin) }
+    }
+
     /// The environment a play passes: every setting the game's list has, at its value when that isn't the tested
     /// default (the host has those already). Without a list, the global language, display mode and HUD, as before
     /// the lists.

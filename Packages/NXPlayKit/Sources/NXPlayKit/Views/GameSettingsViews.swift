@@ -7,7 +7,10 @@ struct GlobalGameSettings: View {
     var body: some View {
         let settings = library.globalSettings
         Form {
-            SettingSections(settings: settings, current: { value($0) }) { setting in
+            // press to join sits with the players it decides (ControllerSettings)
+            SettingSections(
+                settings: settings.filter { $0.env != Library.pressToJoin }, current: { value($0) }
+            ) { setting in
                 let follows = library.sharedDefault(for: setting.env)
                 let followsLabel = setting.env == "DM_LANG" ? "As built" : "Each game's default"
                 SettingRow(
