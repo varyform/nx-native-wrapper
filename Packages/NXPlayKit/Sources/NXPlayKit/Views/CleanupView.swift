@@ -155,6 +155,10 @@ public struct CleanupView: View {
             text +=
                 " Without its game files a game can't be rebuilt: it keeps its current build when nxnative updates, and Install on Device and Build IPA need the files back. If this folder holds your only copy of a game, keep a backup elsewhere."
         }
+        if kinds.contains(.shaderCaches) {
+            text +=
+                " A game without its shader compile cache plays as before, but its next rebuild compiles every shader again, which can take hours for a big game."
+        }
         if kinds.contains(.builds) {
             text +=
                 " A game without its build is built again from its game files the next time you play it, which takes as long as its first build. Its saves and cheats stay."
@@ -187,6 +191,7 @@ extension CleanupKind {
         switch self {
         case .gameFiles: "Game files"
         case .builds: "Builds"
+        case .shaderCaches: "Shader compile caches"
         case .ipas: "IPAs"
         case .xcodeBuilds: "Xcode builds"
         case .macApps: "Mac apps"
@@ -198,6 +203,8 @@ extension CleanupKind {
         case .gameFiles:
             "NSP, NSZ, XCI, XCZ, NUP of games built for the Mac: they keep playing, but can't be rebuilt."
         case .builds: "Play builds them again from the game files; saves and cheats stay."
+        case .shaderCaches:
+            "Each nxnative update that changes the shaders adds a set, and the old ones stay. Games play without them; the next rebuild compiles every shader again."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
         case .macApps:

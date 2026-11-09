@@ -91,6 +91,7 @@ struct FileRow: View {
         switch file.role {
         case .xcodeBuild: "Xcode build (for Install on Device)"
         case .build: "Build (\(file.url.lastPathComponent))"
+        case .shaderCache: "Shader compile cache (cas.db)"
         default: file.url.lastPathComponent
         }
     }
@@ -103,6 +104,8 @@ struct FileRow: View {
         return switch file.role {
         case .converted: "Converted from NSZ by the build, in \(build)/nsp"
         case .build: "The extracted and built game; its saves and cheats stay"
+        case .shaderCache:
+            "\(file.url.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().lastPathComponent)/shader/cache: the game plays without it"
         case .xcodeBuild:
             "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
         case .macApp: "Made of APFS clones of the build: the size is what only the app takes"

@@ -8,6 +8,9 @@ public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     /// `<id>_build` without its saves, its converted NSPs or its Xcode build: the extracted and built game, which
     /// Play builds again from the game files.
     case builds
+    /// `<id>_build/shader/cache/cas.db`: the shader build's compile cache, which keeps the Metal compiles of every
+    /// nxnative version that changed the shaders. Playing doesn't read it; a rebuild compiles from it.
+    case shaderCaches
     case ipas
     /// `<id>_build/xcode-derived-data`: Install on Device's build, a full copy of the game.
     case xcodeBuilds
@@ -24,6 +27,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case converted
         /// A game's build folder, what `buildContents` lists of it.
         case build
+        case shaderCache
         case ipa
         case xcodeBuild
         case macApp
@@ -44,6 +48,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         switch role {
         case .original, .converted: .gameFiles
         case .build: .builds
+        case .shaderCache: .shaderCaches
         case .ipa: .ipas
         case .xcodeBuild: .xcodeBuilds
         case .macApp: .macApps
@@ -157,7 +162,14 @@ public final class Cleanup {
     var selectable: Set<URL> { Set(files.filter { $0.blocked == nil }.map(\.url)) }
 
     public var selectedFiles: [CleanupFile] { files.filter { selection.contains($0.url) } }
-    public var selectedSize: Int64 { selectedFiles.reduce(0) { $0 + $1.size } }
+    /// A selected build frees its shader cache too, which its own size leaves out.
+    public var selectedSize: Int64 {
+        let caches = groups.flatMap { group in
+            group.files.contains { $0.role == .build && selection.contains($0.url) }
+                ? group.files.filter { $0.role == .shaderCache && !selection.contains($0.url) } : []
+        }
+        return (selectedFiles + caches).reduce(0) { $0 + $1.size }
+    }
     public var totalSize: Int64 { groups.reduce(0) { $0 + $1.size } }
 
     public func files(_ kind: CleanupKind) -> [CleanupFile] { files.filter { $0.kind == kind } }
@@ -186,6 +198,8 @@ public final class Cleanup {
             return "Its build is selected: these files are needed to build it again."
         case .build where selected.contains { $0.role == .original }:
             return "Its game files are selected: the build is how it plays without them."
+        case .shaderCache where selected.contains { $0.role == .build }:
+            return "Goes with its build, which is selected."
         default:
             return nil
         }
@@ -215,6 +229,10 @@ public final class Cleanup {
         for file in files.sorted(by: { ($0.role == .build ? 0 : 1) < ($1.role == .build ? 0 : 1) })
         where isAvailable(file) {
             selection.insert(file.url)
+            // the build takes its shader cache with it
+            if file.role == .build, let group = groups.first(where: { $0.files.contains(file) }) {
+                selection.subtract(group.files.filter { $0.role == .shaderCache }.map(\.url))
+            }
         }
     }
 
@@ -241,6 +259,11 @@ public final class Cleanup {
                         let key = CleanupScanner.appKey(file.url)
                         if FileManager.default.fileExists(atPath: key.path) {
                             try FileManager.default.removeItem(at: key)
+                        }
+                    } else if file.role == .shaderCache {
+                        try FileManager.default.removeItem(at: file.url)
+                        for suffix in CleanupScanner.shaderCacheSidecars {
+                            try? FileManager.default.removeItem(atPath: file.url.path + suffix)
                         }
                     } else {
                         try FileManager.default.removeItem(at: file.url)

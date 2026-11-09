@@ -230,6 +230,40 @@ import Testing
         #expect(alone.files.first { $0.role == .build }?.blocked != nil)
     }
 
+    /// The shader compile cache on its own: not in its build's size, gone with the build, kept while a build that
+    /// hasn't finished still needs it.
+    @Test func aShaderCacheIsListedOnItsOwnAndGoesWithItsBuild() async throws {
+        let withoutCache = try #require(CleanupScanner.groups(games: games).last?.files.first { $0.role == .build })
+        try write("Ready/0100000000010000_build/shader/cache/cas.db", size: 9000)
+        try write("Ready/0100000000010000_build/shader/cache/cas.db-wal", size: 10)
+        try write("Extracted/0100000000020000_build/shader/cache/cas.db", size: 100)
+        let cleanup = Cleanup()
+        await cleanup.scan(games: games, busy: [])
+        let ready = try #require(cleanup.groups.last)
+        #expect(ready.files.map(\.role) == [.original, .converted, .build, .shaderCache, .ipa, .xcodeBuild])
+        let build = ready.files[2], cache = ready.files[3]
+        #expect(cache.size >= 9000 + 10 && cache.blocked == nil)  // with SQLite's file beside it
+        let measured = CleanupScanner.groups(games: games).last?.files.first { $0.role == .build }
+        #expect(measured?.size == withoutCache.size)  // not counted twice
+        let unfinished = try #require(cleanup.groups.first?.files.first { $0.role == .shaderCache })
+        #expect(unfinished.blocked != nil)
+
+        cleanup.toggle(cache)
+        cleanup.toggle(build)  // takes the cache with it
+        #expect(!cleanup.selection.contains(cache.url) && cleanup.conflict(cache) != nil)
+        #expect(cleanup.selectedSize == build.size + cache.size)  // the build's own, while measured or not
+        cleanup.toggle(build)
+
+        cleanup.toggle(.shaderCaches)
+        #expect(cleanup.selection == [cache.url])
+        cleanup.confirmation = Cleanup.phrase
+        await cleanup.delete()
+        #expect(cleanup.phase == .done(count: 1, size: cache.size))
+        #expect(!FileManager.default.fileExists(atPath: cache.url.path))
+        #expect(!FileManager.default.fileExists(atPath: cache.url.path + "-wal"))
+        #expect(GameScanner.game(at: ready.game.folder)?.state == .ready)  // still plays
+    }
+
     @Test func measuresAFolderOnceAndRemembersIt() throws {
         let xcode = root.appending(path: "Ready/0100000000010000_build/xcode-derived-data")
         // a hard link counts once, as du counts it

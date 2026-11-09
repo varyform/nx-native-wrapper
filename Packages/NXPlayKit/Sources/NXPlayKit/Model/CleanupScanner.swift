@@ -22,7 +22,10 @@ public enum CleanupScanner {
         } else {
             file.size =
                 switch file.role {
-                case .build: buildContents(file.url).reduce(0) { $0 + size(of: $1) }
+                // its shader cache is listed on its own
+                case .build:
+                    buildContents(file.url).reduce(0) { $0 + size(of: $1) }
+                        - shaderCacheSize(shaderCache(of: file.url))
                 // a Mac app is APFS clones of its build's files: what deleting it frees is what isn't shared
                 case .macApp: size(of: file.url, ownOnly: true) + size(of: appKey(file.url))
                 default: size(of: file.url)
@@ -68,6 +71,14 @@ public enum CleanupScanner {
         if let build = game.buildFolder, !buildContents(build).isEmpty {
             files.append(big(build, .build))
         }
+        if let cache = game.buildFolder.map(shaderCache(of:)),
+            FileManager.default.fileExists(atPath: cache.path)
+        {
+            files.append(
+                CleanupFile(
+                    url: cache, size: shaderCacheSize(cache), role: .shaderCache,
+                    blocked: blocked(.shaderCache, game, busy: busy)))
+        }
         files += list(game.folder, ["ipa"], .ipa)
         if let xcode = game.buildFolder?.appending(
             path: "xcode-derived-data", directoryHint: .isDirectory),
@@ -93,6 +104,20 @@ public enum CleanupScanner {
             }
     }
 
+    /// nxnative's shader compile cache in a build (shader_cache.py).
+    static func shaderCache(of build: URL) -> URL {
+        build.appending(path: "shader/cache/cas.db")
+    }
+
+    /// SQLite's files beside the cache, left by a build that stopped while writing: they go with it.
+    static let shaderCacheSidecars = ["-wal", "-shm", "-journal"]
+
+    static func shaderCacheSize(_ cache: URL) -> Int64 {
+        ([cache.path] + shaderCacheSidecars.map { cache.path + $0 })
+            .filter { FileManager.default.fileExists(atPath: $0) }
+            .reduce(0) { $0 + size(of: URL(filePath: $1)) }
+    }
+
     /// `<name>.app.key` beside an app: nxnative's record of what it packed.
     static func appKey(_ app: URL) -> URL {
         app.deletingLastPathComponent().appending(path: app.lastPathComponent + ".key")
@@ -110,6 +135,11 @@ public enum CleanupScanner {
             }
             if game.isCopying { return "Its game files are still being copied in." }
             return game.isKept ? "Kept: turn off Keep This Build first." : nil
+        }
+        // an unfinished build picks up from the shaders it compiled already
+        if role == .shaderCache {
+            return game.state == .ready || game.isKept
+                ? nil : "Not built for the Mac yet: its build goes on from it."
         }
         guard role == .original || role == .converted else { return nil }
         if game.isCopying { return "Still being copied into the folder." }
@@ -213,7 +243,7 @@ final class SizeCache: @unchecked Sendable {
 
     static var defaultFile: URL {
         FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-            .appending(path: "com.varyform.nxplay/sizes.json")
+            .appending(path: "com.varyform.nxplay/sizes-2.json")  // 2: a build's size leaves its shader cache out
     }
 
     func size(of url: URL, stamp: Double) -> Int64? {
