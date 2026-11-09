@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.6 — 2026-11-09
+
 ### Added
 
 - **Several games folders** ([#20](https://github.com/varyform/nx-native-wrapper/issues/20)): Settings › General › Games Folders takes more than one folder, and their games show as one library. A folder can also be a single game's own folder. Builds and saves stay where they are, so nothing rebuilds. A folder on a disk that isn't connected is marked as such, and its games come back when it's mounted. The window title is now always NX Play, and **Choose Games Folder…** is **Add Games Folder…**.
