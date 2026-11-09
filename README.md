@@ -253,7 +253,7 @@ Not sure? Run nxnative's build script on the game yourself (`python3 scripts/bui
 
 - **Start with `bin/setup --check`.** It finds most problems.
 - **A game that played well breaks after an nxnative update:** report it to nxnative, Rebuild once a fix lands, and use Keep This Build on games that work to avoid it.
-- **A build fails:** the panel shows the error, and **Open Build Logs** has each step's full output. Games and the build steps themselves are nxnative's: see its [README](https://github.com/seedds/nxnative#readme) and [known issues](https://github.com/seedds/nxnative#known-issues).
+- **A build fails:** the panel shows the error, and **Open Build Logs** has each step's full output. A build that finishes without part of what it makes says **done, with a warning** in orange, with that step's line in the log in orange too. So far that's a Mac app or an IPA whose pipeline archive failed: it's packed without one and builds the pipelines on its first start, which makes that start slower. Games and the build steps themselves are nxnative's: see its [README](https://github.com/seedds/nxnative#readme) and [known issues](https://github.com/seedds/nxnative#known-issues).
 - **No device in Install on Device:** connect it once by cable, trust the Mac, and turn on Developer Mode (Settings › Privacy & Security). **Look Again** refreshes the list.
 - **"No Apple developer team":** sign in under Xcode › Settings › Apple Accounts. A free Personal Team works, but without the Increased Memory Limit, so bigger games may be closed by iOS.
 

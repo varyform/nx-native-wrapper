@@ -126,6 +126,23 @@ import Testing
         #expect(reader.progress?.isLastStageDone == true && reader.progress?.fraction == 1)
     }
 
+    /// A pipeline archive that failed: the stage is done, the app is packed without it, and the job says so.
+    @Test func aStageThatFinishedWithoutWhatItMakesWarns() {
+        var reader = BuildOutputReader()
+        _ = reader.read(
+            #"{"ev": "stage", "k": 7, "n": 8, "name": "pipeline archive", "step": "", "t": \#(t)}"#)
+        let line = reader.read(
+            #"{"ev": "stage_end", "k": 7, "name": "pipeline archive", "ok": true, "warn": true, "summary": "skipped", "elapsed": 3, "t": \#(t)}"#
+        )
+        let clock = BuildOutputReader.clock(t)
+        #expect(line == ["\u{1B}[38;5;208m\(clock)⚠ [7/8] pipeline archive (0:03): skipped\u{1B}[0m"])
+        #expect(reader.progress?.finished == true)  // the build goes on
+        #expect(reader.warnings == ["pipeline archive"])
+        _ = reader.read(
+            #"{"ev": "stage_end", "k": 8, "name": "pack", "ok": true, "warn": false, "summary": "", "t": \#(t)}"#)
+        #expect(reader.warnings == ["pipeline archive"])  // only a true warn counts
+    }
+
     @Test func countsAsTheScriptWordsThem() {
         #expect(
             BuildOutputReader.count(done: 1203, total: 19592, unit: "shaders", estimate: false)

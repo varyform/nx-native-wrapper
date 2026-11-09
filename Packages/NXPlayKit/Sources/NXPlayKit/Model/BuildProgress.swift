@@ -58,6 +58,9 @@ public struct BuildProgress: Equatable, Sendable {
 /// left out when missing or odd (a later version may drop or change one), so a change shows less, never garbage.
 struct BuildOutputReader {
     private(set) var progress: BuildProgress?
+    /// The stages that ended without what they make, the build going on without it (stage_end's warn: a pipeline
+    /// archive that failed, so the app is packed without one and builds the pipelines on its first start).
+    private(set) var warnings: [String] = []
     /// nxplay's question before a play, until the job takes it (takeAsk).
     private var ask: UpdateAsk?
     private var stage = 0, stages = 0
@@ -111,10 +114,13 @@ struct BuildOutputReader {
                 ?? ""
             let summary = Self.text(event["summary"]).flatMap { $0.isEmpty ? nil : ": \($0)" } ?? ""
             let ended = Self.text(event["name"]) ?? name
+            let warned = ok && event["warn"] as? Bool == true
+            if warned { warnings.append(ended) }
             step = ""
             restartStep()
             publish(finished: ok)
-            return ["\(clock)\(ok ? "✓" : "✗") [\(k)/\(stages)] \(ended)\(elapsed)\(summary)"]
+            let line = "\(clock)\(warned ? "⚠" : ok ? "✓" : "✗") [\(k)/\(stages)] \(ended)\(elapsed)\(summary)"
+            return [warned ? "\u{1B}[38;5;208m\(line)\u{1B}[0m" : line]  // orange, as the header's "done, with a warning"
         case "ask":
             guard let question = UpdateAsk(event: event) else { return [] }
             ask = question

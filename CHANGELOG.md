@@ -6,6 +6,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ### Added
 
+- **A build that finishes without part of what it makes says so:** the log panel shows "done, with a warning" in orange, and the step's line in the log is orange too. nxnative now packs a Mac app or an IPA even when its pipeline archive fails, and that app builds the pipelines on its first start.
+
 - **Keep only the unpacked copy of NSZ and XCZ games:** nxnative unpacks a compressed game into its build folder and keeps both copies. With this new setting (Settings › General), once a game is built for the Mac, the unpacked NSP or XCI moves into the game folder and the NSZ or XCZ goes to the Trash, so the game takes its space once and is never unpacked again. Turning it on offers to tidy the games built already. It's off by default, since it changes your own files.
 
 ## 1.8.5 — 2026-11-08

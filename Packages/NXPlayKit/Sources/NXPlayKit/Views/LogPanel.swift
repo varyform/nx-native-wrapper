@@ -34,7 +34,10 @@ struct LogPanel: View {
         HStack(spacing: 10) {
             Text(game?.name ?? "Log").font(.headline).lineLimit(1)
             if let job {
-                Text(statusText(job)).foregroundStyle(.secondary).lineLimit(1)
+                Text(statusText(job))
+                    .foregroundStyle(job.status == .succeeded && !job.warnings.isEmpty ? .orange : .secondary)
+                    .lineLimit(1)
+                    .help(warningHelp(job))
                 if job.status == .running, job.kind != .play || job.isBuilding,
                     let progress = job.progress
                 {
@@ -83,10 +86,16 @@ struct LogPanel: View {
             switch job.status {
             case .queued: "waiting"
             case .running: job.kind == .play && !job.isBuilding ? "running" : "in progress"
+            case .succeeded where !job.warnings.isEmpty: "done, with a warning"
             case .succeeded: "done"
             case .failed(let code): "failed (exit \(code))"
             case .cancelled: "cancelled"
             }
         return "\(action) · \(state)"
+    }
+
+    private func warningHelp(_ job: Job) -> String {
+        guard job.status == .succeeded, !job.warnings.isEmpty else { return "" }
+        return "Finished without what \(job.warnings.joined(separator: ", ")) makes: the log says why."
     }
 }

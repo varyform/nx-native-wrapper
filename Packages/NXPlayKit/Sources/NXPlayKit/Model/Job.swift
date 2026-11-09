@@ -34,6 +34,8 @@ public final class Job: Identifiable {
     public let game: Game
     public private(set) var status: Status = .queued
     public private(set) var progress: BuildProgress?
+    /// The stages that finished without what they make (BuildOutputReader.warnings): a success to look at.
+    public private(set) var warnings: [String] = []
     public private(set) var log = LogBuffer()
 
     @ObservationIgnored let command: NXPlayCommand
@@ -213,6 +215,7 @@ public final class Job: Identifiable {
                 }
             }
             if output.progress != progress { progress = output.progress }
+            if output.warnings != warnings { warnings = output.warnings }
             if let question = output.takeAsk() {
                 ask = question
                 onAsk?(self)
