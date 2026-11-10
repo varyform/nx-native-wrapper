@@ -13,6 +13,7 @@ public struct ControlsView: View {
     static let controls: [Control] = [
         Control(keys: ["W", "A", "S", "D"], action: "Left stick"),
         Control(keys: ["←", "↑", "↓", "→"], action: "D-pad"),
+        Control(keys: ["⇧", "←", "↑", "↓", "→"], action: "Right stick (arrows with Shift held)"),
         Control(keys: ["J", "K", "U", "I"], action: "A / B / X / Y"),
         Control(keys: ["Q", "E"], action: "L / R"),
         Control(keys: ["Z", "C"], action: "ZL / ZR"),

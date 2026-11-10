@@ -8,6 +8,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Free Up Space removes shader compile caches** ([#21](https://github.com/varyform/nx-native-wrapper/issues/21)): a build's `shader/cache/cas.db` keeps the compiled shaders of every nxnative version that changed them, and can reach tens of GB. Games play without it. The next rebuild compiles the shaders again.
 
+### Fixed
+
+- **Game Controls lists the right stick** ([#22](https://github.com/varyform/nx-native-wrapper/issues/22)): the arrow keys with Shift held move it, which the window didn't say.
+
 ## 1.8.6 — 2026-11-09
 
 ### Added
