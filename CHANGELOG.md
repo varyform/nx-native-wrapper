@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- **Settings fit a small screen:** a tab taller than the screen, such as General, now scrolls, so its last settings are no longer out of reach under the Dock.
+
 ## 1.8.7 — 2026-11-10
 
 ### Added
