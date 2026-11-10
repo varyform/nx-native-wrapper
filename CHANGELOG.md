@@ -8,6 +8,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **60 or 120 fps for games nxnative has no profile for:** nxnative's **Frame rate** comes only with a game it has tested, so a game without a profile runs at the rate it asks for, often 30. Game Settings now offers such a game **Frame rate (untested)**: 60 fps, or 120 fps on a Mac with a 120 Hz screen, a frame each display refresh. That's right for a game that keeps time by the clock (Wreckfest) and too fast for one that counts frames, so it's each game's own choice, and the game's own rate by default.
 
+### Changed
+
+- **Setup no longer installs .NET:** nxnative's game extractor and shader translator are native programs now, so Setup's Install Missing no longer installs the .NET SDK or asks for your password for it. Setup asks for .NET only while your nxnative is older than that change. **Uninstall NX Play…** still offers to remove a .NET SDK Setup installed before.
+
 ### Fixed
 
 - **Settings fit a small screen:** a tab taller than the screen, such as General, now scrolls, so its last settings are no longer out of reach under the Dock.

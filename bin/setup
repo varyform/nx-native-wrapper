@@ -13,7 +13,7 @@
 #   NXPLAY_PROJECT  the folder with the Brewfile, pyproject.toml and uv.lock (default: this checkout)
 #   NXPLAY_VENV     the Python environment (default: .venv in the project folder)
 #   NXNATIVE        the nxnative checkout (default: ./nxnative, else ../nxnative)
-#   SUDO_ASKPASS    a password prompt: the .NET SDK's installer and Xcode's first launch then run without a terminal
+#   SUDO_ASKPASS    a password prompt: Xcode's first launch then runs without a terminal
 set -euo pipefail
 # the checkout keeps the Brewfile above bin/; the app's bundled copy (Resources/Setup) keeps it beside the script
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -95,8 +95,6 @@ if (( !app_run )) && [[ -f mise.toml ]] && command -v mise > /dev/null; then
   if (( check )); then ok "mise: $(mise --version 2>/dev/null | awk '{print $1}') (mise.toml)"
   else mise trust --quiet 2>/dev/null; step "mise tools (mise.toml)" "mise install failed" mise install --quiet; fi
 fi
-if dotnet --list-sdks 2>/dev/null | grep -qE '^(1[0-9]|[2-9][0-9])\.'; then ok ".NET SDK $(dotnet --list-sdks | tail -1 | awk '{print $1}')"
-else fail "no .NET 10 SDK (nx_extract needs it): brew install --cask dotnet-sdk"; fi
 
 section "Python (.venv)"
 if ! command -v uv > /dev/null; then
@@ -124,6 +122,12 @@ if [[ -f "$repo/scripts/build_ipa_from_nsp.py" ]]; then
   # nxnative builds shaders only with the Metal compiler it tested (dmsh_chain.lock), unless allowed
   tested="$(awk -F'\t' '$1 == "metal_macosx" { print $2 }' "$repo/dm/gfx/tools/dmsh_chain.lock" 2>/dev/null)"
   here="$(xcrun metal --version 2>/dev/null | head -1)"
+  # nxnative's extractor and shader translator are native executables from 641636e2 (2026-11-10) on; an older
+  # checkout builds the extractor with .NET 10 at every run
+  if [[ ! -x "$repo/dm/tools/nx_extract_bin/nx_extract" ]]; then
+    if dotnet --list-sdks 2>/dev/null | grep -qE '^(1[0-9]|[2-9][0-9])\.'; then ok ".NET SDK $(dotnet --list-sdks | tail -1 | awk '{print $1}') (this nxnative still needs it)"
+    else fail "this nxnative is from before 2026-11-10 and needs the .NET 10 SDK: update nxnative, or brew install --cask dotnet-sdk"; fi
+  fi
   if [[ -n "$tested" && -n "$here" && "$here" != "$tested" ]]; then
     warn "Metal compiler ${here#Apple metal version } isn't the one nxnative tested (${tested#Apple metal version }): builds stop unless you allow it in NX Play's Settings (Allow a Metal compiler nxnative didn't test), or pass nxplay --allow-other-metal"
   elif [[ -n "$tested" && -n "$here" ]]; then

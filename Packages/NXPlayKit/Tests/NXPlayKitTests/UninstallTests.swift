@@ -37,7 +37,8 @@ import Testing
             # comment
             brew "uv"            # Python
             brew "zstd"
-            cask "dotnet-sdk"    # nx_extract
+            # retired: cask "dotnet-sdk"   no longer installed, still removed
+            # brew "commented"
 
             """.utf8
         ).write(to: brewfile)

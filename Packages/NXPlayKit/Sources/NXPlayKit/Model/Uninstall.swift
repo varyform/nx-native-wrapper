@@ -169,7 +169,8 @@ public final class Uninstaller {
 
     // MARK: - Homebrew
 
-    /// The Brewfile bundled with the setup: its formulae and casks.
+    /// The Brewfile bundled with the setup: its formulae and casks, and the ones marked `# retired:` that Setup no
+    /// longer installs but did before (Homebrew skips them as comments).
     nonisolated static func brewfileTools(
         _ brewfile: URL? = AppHome.setupProject?.appending(path: "Brewfile")
     )
@@ -179,7 +180,9 @@ public final class Uninstaller {
             return []
         }
         return text.split(separator: "\n").compactMap { line in
-            guard let match = line.firstMatch(of: /^(brew|cask)\s+"([^"]+)"/) else { return nil }
+            guard let match = line.firstMatch(of: /^(?:#\s*retired:\s*)?(brew|cask)\s+"([^"]+)"/) else {
+                return nil
+            }
             return (String(match.2), match.1 == "cask")
         }
     }

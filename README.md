@@ -47,7 +47,7 @@ NX Play takes the other route: one app for all your games, everything portable a
 2. Install [Homebrew](https://brew.sh) if you don't have it: one command in Terminal.
 3. Open NX Play. **Setup** opens by itself (later: NX Play › Setup…). It checks the Mac and Xcode and says what to fix. **Install Missing** then:
    - downloads Xcode's Metal Toolchain, which every build needs to compile the game's shaders;
-   - installs the tools with Homebrew (uv, xcodegen, zstd, glslang, the .NET SDK), asking for your password for the .NET SDK;
+   - installs the tools with Homebrew (uv, xcodegen, zstd, glslang);
    - installs Python and nxnative's packages with [uv](https://docs.astral.sh/uv/), leaving any other Python alone;
    - clones nxnative.
 

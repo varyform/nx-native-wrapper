@@ -1,6 +1,6 @@
 #!/bin/sh
-# sudo's password prompt for NX Play's setup (SUDO_ASKPASS, sudo -A): Homebrew's .NET SDK installer and Xcode's
-# first launch need an administrator, and the app has no terminal to ask in. Prints the password; cancel fails.
+# sudo's password prompt for NX Play's setup (SUDO_ASKPASS, sudo -A): Xcode's first launch (and, for an nxnative
+# from before 2026-11-10, Homebrew's .NET SDK installer) needs an administrator, and the app has no terminal to ask in. Prints the password; cancel fails.
 exec /usr/bin/osascript \
   -e 'set prompt to "NX Play is installing the tools Switch games need. Enter your password to allow it."' \
   -e 'text returned of (display dialog prompt with title "NX Play Setup" default answer "" with hidden answer with icon caution buttons {"Cancel", "OK"} default button "OK")'
