@@ -179,7 +179,9 @@ extension Library {
 
     /// The list nxplay wrote for the game; nil before its first build.
     public func gameSettings(for game: Game) -> LauncherSettings? {
-        settingsFile(for: game).flatMap(LauncherSettings.read).map(Self.withFrameRateTrial)
+        settingsFile(for: game).flatMap(LauncherSettings.read).map {
+            profile(game) == nil ? Self.withFrameRateTrial($0) : $0
+        }
     }
 
     func readSettingsLists() {

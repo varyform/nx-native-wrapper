@@ -1,8 +1,9 @@
 import AppKit
 
-/// 60 or 120 fps for a game whose build sets no frame rate. nxnative lists **Frame rate** only for a game its profile has a
-/// tested one for; a game without a profile, or with the provisional one the NSP script makes, runs at the rate it
-/// asks for, often 30. Display mode (`DM_PRESENT_INTERVAL=display`) shows a frame each display refresh whatever
+/// 60 or 120 fps for a game nxnative has no profile for. nxnative lists **Frame rate** only for a game its profile has a
+/// tested one for; a game without a profile, packed from the provisional one the NSP script makes, runs at the rate it
+/// asks for, often 30. A game with a profile but no Frame rate runs at the rate nxnative tested, often 60 already
+/// (Streets of Rage 4), and one that counts frames would only run too fast, so it gets none. Display mode (`DM_PRESENT_INTERVAL=display`) shows a frame each display refresh whatever
 /// interval the game sets. That is right for a game that steps its logic by the time passed (Red Dead Redemption,
 /// Wreckfest), and twice as fast for one that steps a fixed 1/30 s each frame, which only playing the game tells. So
 /// it's a game's own choice in NX Play, off until the player turns it on, never a global value, and kept in NX Play
@@ -27,7 +28,8 @@ extension Library {
             defaultValue: "0", isBasic: true, needs: nil)
     }
 
-    /// The list with NX Play's row, when the build has no Frame rate of its own.
+    /// The list with NX Play's row, when the build has no Frame rate of its own (the caller leaves out the games
+    /// nxnative has a profile for).
     static func withFrameRateTrial(_ list: LauncherSettings) -> LauncherSettings {
         guard list["DM_FPS_TARGET"] == nil, list[frameRateTrial] == nil else { return list }
         return LauncherSettings(titleID: list.titleID, settings: list.settings + [frameRateTrialSetting])

@@ -169,6 +169,19 @@ import Testing
         let at120 = Library.frameRateTrialEnvironment("120")
         #expect(at120["DM_PRESENT_HZ"] == "120" && at120["DM_PRESENT_LINK"] == "2" && at120["DM_FPS_TARGET"] == nil)
 
+        // nor a game nxnative has a profile for: it runs at the rate nxnative tested (Streets of Rage 4's own 60)
+        let repo = root.appending(path: "nxnative", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(
+            at: repo.appending(path: "dm/games/010020D01AD24000"), withIntermediateDirectories: true)
+        try Data("name\tANIMAL WELL\n".utf8).write(to: repo.appending(path: "dm/games/010020D01AD24000/game.tsv"))
+        library.nxnativePath = repo.path
+        library.refresh()
+        #expect(library.profile(game) != nil)
+        #expect(library.settingsLists[game.id]?[Library.frameRateTrial] == nil)
+        library.nxnativePath = root.appending(path: "none").path
+        library.refresh()
+        #expect(library.settingsLists[game.id]?[Library.frameRateTrial] != nil)
+
         // a build with a Frame rate of its own has no such row
         let fps = #"{"env": "DM_FPS_TARGET", "kind": "choice", "section": "Game", "label": "Frame rate", "note": "", "default": "60", "options": [["30", "30 fps"], ["60", "60 fps"]], "level": "basic"},"#
         let json = Self.json.replacingOccurrences(
