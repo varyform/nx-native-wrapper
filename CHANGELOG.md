@@ -8,6 +8,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 - **Free Up Space removes shader compile caches** ([#21](https://github.com/varyform/nx-native-wrapper/issues/21)): a build's `shader/cache/cas.db` keeps the compiled shaders of every nxnative version that changed them, and can reach tens of GB. Games play without it. The next rebuild compiles the shaders again.
 
+- **Old device install copies are removed** ([#22](https://github.com/varyform/nx-native-wrapper/issues/22)): for each device, Xcode's device service keeps a copy of the app it installed, as big as the game, on the Mac's own disk. It also keeps the copies of older builds of the game. After each Install on Device, NX Play now removes the older ones, and Free Up Space lists every game's copies. Both need Full Disk Access for NX Play, since macOS opens that folder only to apps with it. Free Up Space's **Give Access…** opens System Settings at Full Disk Access, with NX Play's icon beside it to drag into the list.
+
 ### Fixed
 
 - **Game Controls lists the right stick** ([#22](https://github.com/varyform/nx-native-wrapper/issues/22)): the arrow keys with Shift held move it, which the window didn't say.

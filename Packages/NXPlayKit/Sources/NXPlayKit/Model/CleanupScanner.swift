@@ -4,11 +4,14 @@ import Foundation
 /// What Free Up Space can delete, per game, with sizes: run it off the main thread.
 public enum CleanupScanner {
     /// Without `measuring`, the big folders (builds, Xcode builds) are listed unmeasured, for `measure` to fill in.
-    public static func groups(games: [Game], busy: Set<Game.ID> = [], measuring: Bool = true)
-        -> [CleanupGroup]
-    {
-        games.compactMap { game in
-            let files = files(of: game, busy: busy.contains(game.id), measuring: measuring)
+    /// `installCopies`: the device service's folder (DeviceInstallCopies), to list each game's copies there too.
+    public static func groups(
+        games: [Game], busy: Set<Game.ID> = [], measuring: Bool = true, installCopies: URL? = nil
+    ) -> [CleanupGroup] {
+        let apps = installCopies.flatMap(DeviceInstallCopies.apps(in:)) ?? []
+        return games.compactMap { game in
+            let files = files(
+                of: game, busy: busy.contains(game.id), measuring: measuring, installCopies: apps)
             return files.isEmpty ? nil : CleanupGroup(game: game, files: files)
         }
     }
@@ -36,7 +39,9 @@ public enum CleanupScanner {
         return file
     }
 
-    static func files(of game: Game, busy: Bool, measuring: Bool = true) -> [CleanupFile] {
+    static func files(of game: Game, busy: Bool, measuring: Bool = true, installCopies: [URL] = [])
+        -> [CleanupFile]
+    {
         func list(_ folder: URL?, _ extensions: Set<String>, _ role: CleanupFile.Role)
             -> [CleanupFile]
         {
@@ -86,6 +91,9 @@ public enum CleanupScanner {
         {
             files.append(big(xcode, .xcodeBuild))
         }
+        if let id = game.titleID {
+            files += DeviceInstallCopies.apps(of: id, in: installCopies).map { big($0, .installCopies) }
+        }
         files += macApps(in: game.folder).map { big($0, .macApp) }
         return files
     }
@@ -125,7 +133,8 @@ public enum CleanupScanner {
 
     /// Game files go only once the game is built for the Mac: it keeps playing from its build. A build goes only while
     /// the game files are there to build it again (and not while kept). IPAs and Xcode builds can always go: Build IPA
-    /// and Install on Device make them again. Nothing goes while the game is building or running.
+    /// and Install on Device make them again, as the next install does the device service's copies. Nothing goes while
+    /// the game is building or running.
     static func blocked(_ role: CleanupFile.Role, _ game: Game, busy: Bool) -> String? {
         if busy { return "Busy: wait until its build or game finishes." }
         if role == .build {

@@ -6,7 +6,7 @@ public struct CleanupView: View {
     public static let windowID = "free-up-space"
 
     @Environment(Library.self) private var library
-    @State private var cleanup = Cleanup(cache: SizeCache())
+    @State private var cleanup = Cleanup(cache: SizeCache(), installCopies: DeviceInstallCopies.folder)
 
     public init() {}
 
@@ -67,10 +67,27 @@ public struct CleanupView: View {
                     .monospacedDigit()
                     .foregroundStyle(files.isEmpty ? .tertiary : .primary)
                     .gridColumnAlignment(.trailing)
-                    Text(kind.note).font(.callout).foregroundStyle(.secondary)
+                    if kind == .installCopies, cleanup.installCopiesHidden {
+                        fullDiskAccess
+                    } else {
+                        Text(kind.note).font(.callout).foregroundStyle(.secondary)
+                    }
                 }
             }
         }
+    }
+
+    /// The device service's folder is open only to apps with Full Disk Access.
+    private var fullDiskAccess: some View {
+        HStack(spacing: 6) {
+            Text("NX Play needs Full Disk Access to see them.")
+            Button("Give Access…") {
+                FullDiskAccessGuide.shared.show { Task { await rescan() } }
+            }
+            .buttonStyle(.link)
+        }
+        .font(.callout)
+        .foregroundStyle(.secondary)
     }
 
     private var list: some View {
@@ -194,6 +211,7 @@ extension CleanupKind {
         case .shaderCaches: "Shader compile caches"
         case .ipas: "IPAs"
         case .xcodeBuilds: "Xcode builds"
+        case .installCopies: "Device install copies"
         case .macApps: "Mac apps"
         }
     }
@@ -207,6 +225,8 @@ extension CleanupKind {
             "Each nxnative update that changes the shaders adds a set, and the old ones stay. Games play without them; the next rebuild compiles every shader again."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
+        case .installCopies:
+            "Kept on this Mac by Xcode's device service, one per device, for a faster next install. Without them, Install on Device copies the whole game."
         case .macApps:
             "Make Mac App makes them again. Their own saves, in ~/Library/Application Support/nxnative, stay."
         }

@@ -92,6 +92,7 @@ struct FileRow: View {
         case .xcodeBuild: "Xcode build (for Install on Device)"
         case .build: "Build (\(file.url.lastPathComponent))"
         case .shaderCache: "Shader compile cache (cas.db)"
+        case .installCopies: "Device install copies (\(file.url.lastPathComponent))"
         default: file.url.lastPathComponent
         }
     }
@@ -109,6 +110,7 @@ struct FileRow: View {
         case .xcodeBuild:
             "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
         case .macApp: "Made of APFS clones of the build: the size is what only the app takes"
+        case .installCopies: "Kept by Xcode's device service, on this Mac's disk: the next install copies the whole game"
         default: nil
         }
     }

@@ -818,7 +818,11 @@ public final class Library {
             NSWorkspace.shared.activateFileViewerSelecting([file])
         }
         if case .install(let device) = job.kind {
-            if job.status == .succeeded, let id = job.game.titleID { remember([id], on: device.id) }
+            if job.status == .succeeded, let id = job.game.titleID {
+                remember([id], on: device.id)
+                // the copy the device service kept of this install replaces the ones of older builds
+                Task.detached(priority: .utility) { DeviceInstallCopies.removeOlder(of: id) }
+            }
             refreshDevices()
         }
         // a failure's reason is in its output: show it

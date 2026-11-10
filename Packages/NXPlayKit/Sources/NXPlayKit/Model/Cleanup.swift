@@ -14,6 +14,9 @@ public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     case ipas
     /// `<id>_build/xcode-derived-data`: Install on Device's build, a full copy of the game.
     case xcodeBuilds
+    /// The copies of a game's app that Apple's device service keeps on this Mac for its next Install on Device, all
+    /// devices and builds of it (DeviceInstallCopies): seen only with Full Disk Access.
+    case installCopies
     /// `<game name>.app` that Make Mac App packed into the game folder, with nxnative's `<name>.app.key` beside it.
     case macApps
 
@@ -30,6 +33,8 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case shaderCache
         case ipa
         case xcodeBuild
+        /// `AppInstallationBinaryDeltas/org.nxnative.<team>.<title ID>`.
+        case installCopies
         case macApp
     }
 
@@ -51,6 +56,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case .shaderCache: .shaderCaches
         case .ipa: .ipas
         case .xcodeBuild: .xcodeBuilds
+        case .installCopies: .installCopies
         case .macApp: .macApps
         }
     }
@@ -84,6 +90,10 @@ public final class Cleanup {
     @ObservationIgnored private var measuring: Task<Void, Never>?
     /// Sizes kept across launches; none in tests.
     @ObservationIgnored private let cache: SizeCache?
+    /// Where the device service keeps its copies; none in tests.
+    @ObservationIgnored private let installCopies: URL?
+    /// macOS doesn't let NX Play see the device service's copies: it needs Full Disk Access.
+    public private(set) var installCopiesHidden = false
 
     /// Folders measured at once: walking is mostly waiting on the disk, and more than a few at a time no longer
     /// helps (an external SSD went from 130 s one at a time to under a minute at 4–6).
@@ -91,7 +101,10 @@ public final class Cleanup {
 
     public convenience init() { self.init(cache: nil) }
 
-    init(cache: SizeCache?) { self.cache = cache }
+    init(cache: SizeCache?, installCopies: URL? = nil) {
+        self.cache = cache
+        self.installCopies = installCopies
+    }
 
     /// Files and sizes again from disk; the selection keeps only what can still be removed. Everything is listed
     /// at once; the builds and Xcode builds are measured after, one at a time, a size already known shown meanwhile.
@@ -103,10 +116,15 @@ public final class Cleanup {
         let known = Dictionary(
             files.filter { !$0.measuring }.map { ($0.url, $0.size) },
             uniquingKeysWith: { a, _ in a })
-        let listed = await Task.detached {
-            CleanupScanner.groups(games: games, busy: busy, measuring: false)
+        let folder = installCopies
+        let (listed, hidden) = await Task.detached {
+            (
+                CleanupScanner.groups(games: games, busy: busy, measuring: false, installCopies: folder),
+                folder.map { DeviceInstallCopies.apps(in: $0) == nil } ?? false
+            )
         }.value
         guard scan == scans else { return }  // a newer scan started meanwhile
+        installCopiesHidden = hidden
         apply(
             listed.map { group in
                 CleanupGroup(
