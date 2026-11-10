@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.8 — 2026-11-10
+
 ### Added
 
 - **60 or 120 fps for games nxnative has no profile for:** nxnative's **Frame rate** comes only with a game it has tested, so a game without a profile runs at the rate it asks for, often 30. Game Settings now offers such a game **Frame rate (untested)**: 60 fps, or 120 fps on a Mac with a 120 Hz screen, a frame each display refresh. That's right for a game that keeps time by the clock (Wreckfest) and too fast for one that counts frames, so it's each game's own choice, and the game's own rate by default.
