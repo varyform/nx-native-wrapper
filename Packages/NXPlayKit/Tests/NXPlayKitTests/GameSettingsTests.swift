@@ -141,6 +141,43 @@ import Testing
         #expect(library.playEnvironment(for: game)["DM_PAD_PRESS_TO_JOIN"] == nil)
     }
 
+    /// A build that sets no frame rate gets NX Play's 60 or 120 fps: each game's own, kept in NX Play, a play in
+    /// display mode.
+    @Test func aFrameRateForAGameWithoutOneIsItsOwnChoice() throws {
+        let (library, game, store) = try library()
+        let row = try #require(library.settingsLists[game.id]?[Library.frameRateTrial])
+        #expect(library.value(row, for: game) == "0" && library.playEnvironment(for: game)["DM_PRESENT_INTERVAL"] == nil)
+        #expect(!library.globalSettings.contains { $0.env == Library.frameRateTrial })
+
+        library.setGlobal("60", for: Library.frameRateTrial)  // no global value counts
+        #expect(library.value(row, for: game) == "0")
+        library.setOwn("60", row, for: game)
+        #expect(store.object(forKey: "launcher.\(Library.frameRateTrial)") == nil)  // not in nxnative's store
+        let environment = library.playEnvironment(for: game)
+        #expect(environment["DM_PRESENT_INTERVAL"] == "display" && environment["DM_FPS_TARGET"] == "60")
+        #expect(environment[Library.frameRateTrial] == nil)
+
+        library.setOwn("0", row, for: game)  // the game's own again
+        #expect(library.own(row, for: game) == nil)
+        library.setOwn("60", row, for: game)
+        library.clearOwn(try #require(library.settingsLists[game.id]), for: game)
+        #expect(library.playEnvironment(for: game)["DM_PRESENT_INTERVAL"] == nil)
+
+        // 120 only on a 120 Hz screen, and not as a cap, which nxnative holds at 60 without the profile's fps_max 120
+        #expect(!Library.frameRateTrialSetting(offers120: false).accepts("120"))
+        #expect(Library.frameRateTrialSetting(offers120: true).accepts("120"))
+        let at120 = Library.frameRateTrialEnvironment("120")
+        #expect(at120["DM_PRESENT_HZ"] == "120" && at120["DM_PRESENT_LINK"] == "2" && at120["DM_FPS_TARGET"] == nil)
+
+        // a build with a Frame rate of its own has no such row
+        let fps = #"{"env": "DM_FPS_TARGET", "kind": "choice", "section": "Game", "label": "Frame rate", "note": "", "default": "60", "options": [["30", "30 fps"], ["60", "60 fps"]], "level": "basic"},"#
+        let json = Self.json.replacingOccurrences(
+            of: #"{"env": "DM_RUMBLE", "#, with: fps + "\n " + #"{"env": "DM_RUMBLE", "#)
+        try Data(json.utf8).write(to: try #require(game.buildFolder).appending(path: LauncherSettings.fileName))
+        library.refresh()
+        #expect(library.settingsLists[game.id]?[Library.frameRateTrial] == nil)
+    }
+
     @Test func theLanguagePlaysItsRegionalTwin() throws {
         let (library, found, _) = try library()
         let lang = try #require(library.settingsLists[found.id]?["DM_LANG"])

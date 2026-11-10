@@ -13,6 +13,7 @@ extension Library {
 
     /// The game's own value, when it has one this build offers.
     public func own(_ setting: LauncherSetting, for game: Game) -> String? {
+        if setting.env == Self.frameRateTrial { return frameRateTrial(for: game, in: setting) }
         _ = choicesRevision
         return choices(for: game)?.value(for: setting)
     }
@@ -20,7 +21,7 @@ extension Library {
     /// The global value this game gets, nil when there's none it offers. The language follows NX Play's rule: the same
     /// language for another region when the game lacks the one asked for.
     public func globalValue(_ setting: LauncherSetting, for game: Game) -> String? {
-        guard let value = globalChoices[setting.env] else { return nil }
+        guard setting.env != Self.frameRateTrial, let value = globalChoices[setting.env] else { return nil }
         if setting.env == "DM_LANG", let near = GameLanguage.choose(value, for: game),
             setting.accepts(near)
         {
@@ -31,6 +32,9 @@ extension Library {
 
     /// A game's own value, or nil to follow the global one again.
     public func setOwn(_ value: String?, _ setting: LauncherSetting, for game: Game) {
+        if setting.env == Self.frameRateTrial {
+            return setFrameRateTrial(value.flatMap { setting.accepts($0) ? $0 : nil }, for: game)
+        }
         guard let choices = choices(for: game) else { return }
         choices.set(value.flatMap { setting.accepts($0) ? $0 : nil }, for: setting.env)
         choicesRevision += 1
@@ -41,6 +45,7 @@ extension Library {
     public func clearOwn(_ settings: LauncherSettings, for game: Game) {
         guard let choices = choices(for: game) else { return }
         settings.settings.forEach { choices.set(nil, for: $0.env) }
+        if settings[Self.frameRateTrial] != nil { setFrameRateTrial(nil, for: game) }
         choicesRevision += 1
     }
 
@@ -75,7 +80,11 @@ extension Library {
         var environment: [String: String] = [:]
         for setting in list.settings {
             let value = value(setting, for: game)
-            if !setting.same(value, setting.defaultValue) { environment[setting.env] = value }
+            if setting.env == Self.frameRateTrial {
+                environment.merge(Self.frameRateTrialEnvironment(value)) { $1 }
+            } else if !setting.same(value, setting.defaultValue) {
+                environment[setting.env] = value
+            }
         }
         return environment
     }
@@ -86,7 +95,9 @@ extension Library {
     /// lists every language NX Play knows. Language, display mode and the HUD are there before any game has a list.
     public var globalSettings: [LauncherSetting] {
         var rows: [LauncherSetting] = []
-        for setting in games.compactMap({ settingsLists[$0.id] }).flatMap(\.settings) {
+        // NX Play's 60 fps is each game's own: no global value (Library+FrameRateTrial.swift)
+        for setting in games.compactMap({ settingsLists[$0.id] }).flatMap(\.settings)
+        where setting.env != Self.frameRateTrial {
             guard let index = rows.firstIndex(where: { $0.env == setting.env }) else {
                 rows.append(setting)
                 continue
@@ -168,7 +179,7 @@ extension Library {
 
     /// The list nxplay wrote for the game; nil before its first build.
     public func gameSettings(for game: Game) -> LauncherSettings? {
-        settingsFile(for: game).flatMap(LauncherSettings.read)
+        settingsFile(for: game).flatMap(LauncherSettings.read).map(Self.withFrameRateTrial)
     }
 
     func readSettingsLists() {

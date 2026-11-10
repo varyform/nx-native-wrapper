@@ -43,6 +43,7 @@ public final class Library {
         static let remoteEnabled = "remoteEnabled"
         static let remoteToken = "remoteToken"
         static let deviceGames = "deviceGames"
+        static let frameRateTrials = "frameRateTrials"
     }
 
     /// How a game's players map to the controllers (nxnative's dm/host/front_mac.m): each controller a player of its
@@ -235,7 +236,7 @@ public final class Library {
     /// The Settings tab shown; Check for Updates… opens Updates.
     public var settingsTab = SettingsTab.general
 
-    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored private var queue: [Job] = []
     @ObservationIgnored private var terminationObserver: (any NSObjectProtocol)?
     /// A disk mounted or ejected: the games of a folder on it come or go (Library+Folders.swift).
