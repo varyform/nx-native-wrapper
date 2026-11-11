@@ -30,8 +30,7 @@ struct GlobalGameSettings: View {
             }
             ControllerSettings()
         }
-        .formStyle(.grouped)
-        .frame(width: 600, height: 560)
+        .settingsPage()
     }
 
     private func value(_ setting: LauncherSetting) -> String {

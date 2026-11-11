@@ -26,6 +26,7 @@ public struct SettingsView: View {
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
                 .tag(SettingsTab.updates)
         }
+        .background(VerticallyResizableWindow())
     }
 }
 
@@ -44,33 +45,6 @@ public struct CheckForUpdatesMenuItem: View {
             openSettings()
             Task { await library.updater.check() }
         }
-    }
-}
-
-/// A tab's page: a grouped form at the window's width, as tall as its content but no taller than the screen has room
-/// for, scrolling beyond that. The Settings window can't be resized, so a page taller than a laptop's screen left its
-/// last settings under the Dock with no way to reach them.
-private struct SettingsPage<Content: View>: View {
-    @ViewBuilder let content: Content
-    @State private var contentHeight: CGFloat?
-
-    /// The window's title bar and tab bar, above the page.
-    static var chrome: CGFloat { 100 }
-
-    var body: some View {
-        Form { content }
-            .formStyle(.grouped)
-            .onScrollGeometryChange(for: CGFloat.self) {
-                $0.contentSize.height + $0.contentInsets.top + $0.contentInsets.bottom
-            } action: { _, height in
-                contentHeight = height
-            }
-            .frame(width: 600, height: min(contentHeight ?? 400, Self.room))
-    }
-
-    /// The tallest page the screen shows whole: its visible part, below the menu bar and above the Dock.
-    static var room: CGFloat {
-        max(300, (NSScreen.main?.visibleFrame.height ?? 800) - chrome)
     }
 }
 
