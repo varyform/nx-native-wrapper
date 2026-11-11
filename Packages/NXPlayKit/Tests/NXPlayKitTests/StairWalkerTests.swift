@@ -3,7 +3,8 @@ import Testing
 
 @testable import NXPlayKit
 
-/// Console Mode's figure on the build staircase.
+/// Console Mode's figure on the build staircase. Each walker has a fixed seed: its pacing, pauses and aim are random,
+/// and with the system's generator a minute of waiting gave no aim upward in about one run in 35.
 @MainActor @Suite struct StairWalkerTests {
     let stairs = StairGeometry(stages: 9, width: 52, gap: 6)
 
@@ -25,7 +26,7 @@ import Testing
     }
 
     @Test func theSuitRollsUpAStepAsTheMorphBallAndStandsAgain() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         var now = run(walker, from: .now, seconds: 0.1, goal: 20, step: 0, metroid: true)
         var rolled = false
         var ballThroughStep = false
@@ -45,12 +46,12 @@ import Testing
     }
 
     @Test func waitingTheSuitTakesAimAndFires() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         let goal = stairs.start(2) + 20
         var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 2, metroid: true)
         var fired = false
         var aimedUp = false
-        // its aim is picked at random, two times in three upward: a minute gives it a dozen or so tries
+        // its aim is picked at random, two times in three upward, between pacing legs
         now = run(walker, from: now, seconds: 60, goal: goal, step: 2, metroid: true) { walker in
             if !walker.shots.isEmpty { fired = true }
             if walker.pose.ball == nil, walker.aim > 0.5 { aimedUp = true }
@@ -63,7 +64,7 @@ import Testing
     }
 
     @Test func atTheTopTheSuitFiresUp() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         let goal = stairs.start(8) + 40
         var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 8, metroid: true)
         now = run(walker, from: now, seconds: 2, goal: goal, step: 8, finished: true, metroid: true)
@@ -104,7 +105,7 @@ import Testing
     }
 
     @Test func itWalksUpToTheBuildAndClimbs() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         var now = run(walker, from: .now, seconds: 0.1, goal: 20, step: 0)
         let lowHip = walker.hipY
         let goal = stairs.start(2) + 26
@@ -122,7 +123,7 @@ import Testing
     }
 
     @Test func itPacesItsStepWhileTheBuildDoesntMove() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         let goal = stairs.start(3) + 10
         var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 3)
         now = run(walker, from: now, seconds: 3, goal: goal, step: 3)
@@ -136,7 +137,7 @@ import Testing
     }
 
     @Test func aStageWithoutACountPacesAtOnce() {
-        let walker = StairWalker()
+        let walker = StairWalker(seed: 1)
         let goal = stairs.start(0) + 26
         var now = run(walker, from: .now, seconds: 0.1, goal: goal, step: 0, countable: false)
         var moved = false

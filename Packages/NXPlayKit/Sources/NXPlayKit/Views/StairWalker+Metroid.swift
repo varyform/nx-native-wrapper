@@ -9,7 +9,7 @@ extension StairWalker {
     func suit(dt: Double, stairs: StairGeometry, target: Double, rolled: Double) {
         if pacingTo != lastPaceTarget {
             lastPaceTarget = pacingTo
-            rollsThisLeg = pacingTo != nil && Double.random(in: 0..<1) < 0.35
+            rollsThisLeg = pacingTo != nil && Double.random(in: 0..<1, using: &random) < 0.35
         }
         let climbing = stairs.step(at: target) != stairs.step(at: x)
         let wantsBall =
@@ -53,13 +53,13 @@ extension StairWalker {
             fireAt = nil
         } else if idling {
             if fireAt == nil, clock >= nextShot {
-                aimTarget = mirrored([0, .pi / 4, .pi / 2.3].randomElement()!)
+                aimTarget = mirrored([0, .pi / 4, .pi / 2.3].randomElement(using: &random)!)
                 fireAt = clock + 0.45  // time to bring the cannon round
             }
             if let fireAt, clock >= fireAt {
                 fire()
                 self.fireAt = nil
-                nextShot = clock + .random(in: 1.8...3.6)
+                nextShot = clock + .random(in: 1.8...3.6, using: &random)
             }
         } else {
             aimTarget = mirrored(-0.12)

@@ -78,6 +78,13 @@ struct StairGeometry {
     var fireAt: Double?
     var lastPaceTarget: Double?
     var rollsThisLeg = false
+    /// Its random choices (where to pace, how long to pause, the suit's aim and its rolls), from a seed: a test replays
+    /// one walk, the same every run.
+    var random: SeededRandom
+
+    init(seed: UInt64 = .random(in: .min ... .max)) {
+        random = SeededRandom(seed: seed)
+    }
 
     struct Shot {
         var x, y, vx, vy, life: Double
@@ -151,10 +158,10 @@ struct StairGeometry {
         if paceTarget != nil {
             // there: a breather, then somewhere else on the step
             paceTarget = nil
-            pauseUntil = clock + .random(in: 0.8...2.6)
+            pauseUntil = clock + .random(in: 0.8...2.6, using: &random)
             return x
         }
-        var next = Double.random(in: range)
+        var next = Double.random(in: range, using: &random)
         if abs(next - x) < 6 {
             next =
                 x < (range.lowerBound + range.upperBound) / 2 ? range.upperBound : range.lowerBound
@@ -252,5 +259,20 @@ struct StairGeometry {
             let spot = stairs.landing(x + offset, facing: facing)
             feet[index] = Foot(x: spot, y: stairs.ground(spot))
         }
+    }
+}
+
+/// SplitMix64: a small generator that gives the same numbers for the same seed, which the system's doesn't.
+struct SeededRandom: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) { state = seed }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }
