@@ -7,6 +7,11 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 ### Changed
 
 - **Console Mode's game details fade out at the bottom** while there's more below, as they do at the top. The screenshot row was cut straight across there and looked cropped; Down still brings the whole row into view. (Issue #25)
+- **A game's app gets the store's icon through nxnative's own `--fallback-icon`**: nxnative gives it only when the game has no icon of its own, from its update or its base game, instead of NX Play guessing from the extracted files. A game that hasn't been extracted yet when it's packed gets it too. A game pinned to an older nxnative checkout keeps the way before.
+
+### Fixed
+
+- **With cloud saves on, a play whose cloud save can't be read** (offline, or iCloud couldn't download it) no longer waits another 10 seconds for it once the game starts. NX Play tells nxnative the cloud wasn't read, as nxnative's front-end guide now asks, and as before neither save is replaced when both changed: the next Play asks.
 
 ## 1.8.10 — 2026-11-11
 

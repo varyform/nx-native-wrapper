@@ -451,19 +451,24 @@ if [[ $ipa -eq 1 || $mac_app -eq 1 || -n "$device" ]]; then
 fi
 
 # A packed app's icon is the game's own, from its control data; a game packed from a NUP may have none, and its app
-# then had a blank one (issue #24). NX Play keeps the eShop's icon of each game (the store's for a Switch 2 game): an
-# extracted game without its own icon gets that one (--icon), unless one was asked for. Before each pack, since a
-# build may just have extracted the game.
+# then had a blank one (issue #24). NX Play keeps the eShop's icon of each game (the store's for a Switch 2 game) and
+# gives it as --fallback-icon, which nxnative uses only when the game has no icon of its own (the update's or the base
+# game's); nothing when an icon was asked for. A checkout from before that option gets it as --icon when the
+# extracted game has no icon.jpg. Before each pack, since a build may just have extracted the game.
 icon=()
 eshop_icon() {
-  local a b own eshop
+  local a b own eshop fallback=0
   icon=()
-  for a in "$@"; do [[ "$a" == --icon || "$a" == --icon=* ]] && return 0; done
+  for a in "$@"; do [[ "$a" == --icon || "$a" == --icon=* || "$a" == --fallback-icon* ]] && return 0; done
+  grep -q -e '--fallback-icon' "$repo/scripts/build_ipa_from_nsp.py" 2> /dev/null && fallback=1
   for b in "$game"/*_build; do
+    [[ -d "$b" ]] || continue
+    eshop="$HOME/Library/Caches/com.varyform.nxplay/Banners/icons/$(basename "$b" _build).jpg"
+    [[ -s "$eshop" ]] || continue
+    if (( fallback )); then icon=(--fallback-icon "$eshop"); continue; fi
     [[ -d "$b/extract" ]] || continue
     own="$(find "$b/extract" -maxdepth 2 -name icon.jpg -print -quit 2>/dev/null)"
-    eshop="$HOME/Library/Caches/com.varyform.nxplay/Banners/icons/$(basename "$b" _build).jpg"
-    if [[ -z "$own" && -s "$eshop" ]]; then icon=(--icon "$eshop"); fi
+    if [[ -z "$own" ]]; then icon=(--icon "$eshop"); fi
   done
 }
 

@@ -102,6 +102,22 @@ import Testing
         #expect(CloudSave.check(save: save, cloud: cloud, titleID: id) == .nothingToChoose)
         try FileManager.default.removeItem(at: cloud)  // nothing in the cloud
         #expect(CloudSave.check(save: save, cloud: cloud, titleID: id) == .nothingToChoose)
+        // there, and not readable (as one iCloud can't download): the play says offline, not ask
+        try packed(hash: other, saved: 1, title: id, device: "").write(to: cloud)
+        try FileManager.default.setAttributes([.posixPermissions: 0], ofItemAtPath: cloud.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: cloud.path) }
+        #expect(CloudSave.check(save: save, cloud: cloud, titleID: id) == .cloudUnread)
+    }
+
+    @Test func aCloudThatDoesntAnswerIsUnread() async throws {
+        let save = try save()
+        let fifo = root.appending(path: "slow.dmsync")  // a read that never ends
+        #expect(mkfifo(fifo.path, 0o644) == 0)
+        let check = await Library.checkCloud(save: save, cloud: fifo, titleID: "0100C6F01C4F8000", timeout: 0.2)
+        #expect(check == .cloudUnread)
+        // unblock the reader left waiting on the pipe
+        let writer = open(fifo.path, O_WRONLY | O_NONBLOCK)
+        if writer >= 0 { close(writer) }
     }
 
     @Test func theCloudFileAndTheChoiceAsTheHostReadsThem() {
@@ -114,6 +130,7 @@ import Testing
         #expect(CloudSave.file(target: "/s/01ab", titleID: "01AB", home: home)?.path == "/s/01ab/save.dmsync")
 
         #expect(CloudSave.Choice.none.environment == "ask")
+        #expect(CloudSave.Choice.offline.environment == "offline")
         #expect(CloudSave.Choice.cloud("ab").environment == "cloud:ab")
         #expect(CloudSave.Choice.here("ab").environment == "local:ab")
         #expect(CloudSave.Choice.here("").environment == "local:none")

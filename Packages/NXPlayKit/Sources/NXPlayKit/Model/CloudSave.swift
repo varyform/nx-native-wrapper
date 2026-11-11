@@ -14,11 +14,13 @@ public enum CloudSave {
         public var device = ""
     }
 
-    /// What the start has to decide: nothing (the host goes the one way there is), or a save on each side that
-    /// changed since they were last the same.
+    /// What the start has to decide: nothing (the host goes the one way there is), a save on each side that changed
+    /// since they were last the same, or nothing it can know: the cloud's save is there but couldn't be read (iCloud
+    /// couldn't download it, offline).
     public enum Check: Equatable, Sendable {
         case nothingToChoose
         case bothChanged(here: Snapshot, cloud: Snapshot)
+        case cloudUnread
     }
 
     /// DM_SAVE_SYNC_CHOICE: set at every start, which tells the host the player is asked, so it never picks between
@@ -26,10 +28,14 @@ public enum CloudSave {
     /// check, the host uses neither.
     public enum Choice: Equatable, Sendable {
         case none, cloud(String), here(String)
+        /// The cloud's save couldn't be read before the play: the host doesn't wait for it again, and with both saves
+        /// changed replaces neither, so the next play asks. `ask` is only for a play that compared the two.
+        case offline
 
         var environment: String {
             switch self {
             case .none: "ask"
+            case .offline: "offline"
             case .cloud(let hash): "cloud:\(hash)"
             case .here(let hash): "local:\(hash.isEmpty ? "none" : hash)"
             }
@@ -52,9 +58,11 @@ public enum CloudSave {
     }
 
     /// ss_decide's "both": each side has a save, they differ, and neither is the one last synced (or there's no
-    /// sync yet). A cloud file that can't be read or isn't this game's leaves nothing to choose: the host decides.
+    /// sync yet). A cloud file that isn't this game's leaves nothing to choose: the host decides.
     static func check(save: URL, cloud: URL, titleID: String) -> Check {
-        guard let remote = header(of: cloud, titleID: titleID), let here = scan(save) else {
+        let bytes: Data?
+        do { bytes = try headerBytes(of: cloud) } catch { return .cloudUnread }
+        guard let bytes, let remote = header(bytes, titleID: titleID), let here = scan(save) else {
             return .nothingToChoose
         }
         let base = self.base(of: save)
@@ -69,10 +77,11 @@ public enum CloudSave {
     /// The header of a packed save: "DMSYNC1\n", u32 version 1, u32 entries, 32 hex digits of the hash, i64 saved,
     /// char title[24], char device[64]. Only the header is read: the rest is the host's to check.
     static func header(of file: URL, titleID: String) -> Snapshot? {
-        guard let handle = try? FileHandle(forReadingFrom: file) else { return nil }
-        defer { try? handle.close() }
-        guard let data = try? handle.read(upToCount: 144), data.count == 144,
-            data.prefix(8) == Data("DMSYNC1\n".utf8), integer(data, at: 8, UInt32.self) == 1
+        (try? headerBytes(of: file)).flatMap { $0 }.flatMap { header($0, titleID: titleID) }
+    }
+
+    private static func header(_ data: Data, titleID: String) -> Snapshot? {
+        guard data.count == 144, data.prefix(8) == Data("DMSYNC1\n".utf8), integer(data, at: 8, UInt32.self) == 1
         else { return nil }
         let title = text(data, 56..<80)
         guard title.caseInsensitiveCompare(titleID) == .orderedSame else { return nil }
@@ -82,6 +91,20 @@ public enum CloudSave {
         return Snapshot(
             hash: hash, saved: saved > 0 ? Date(timeIntervalSince1970: TimeInterval(saved)) : nil,
             device: text(data, 80..<144))
+    }
+
+    /// A packed save's first 144 bytes (fewer for a file that isn't one); nil when there's no file. Throws when the
+    /// file is there and can't be read: reading one iCloud keeps only listed downloads it, and fails offline.
+    static func headerBytes(of file: URL) throws -> Data? {
+        let handle: FileHandle
+        do {
+            handle = try FileHandle(forReadingFrom: file)
+        } catch {
+            if !FileManager.default.fileExists(atPath: file.path) { return nil }
+            throw error
+        }
+        defer { try? handle.close() }
+        return try handle.read(upToCount: 144) ?? Data()
     }
 
     /// `<save>.sync`'s `base` line: the hash of the save last the same here and in the cloud, "" for none.

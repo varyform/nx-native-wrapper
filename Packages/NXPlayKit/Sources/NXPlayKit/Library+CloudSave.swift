@@ -49,6 +49,8 @@ extension Library {
             switch check {
             case .nothingToChoose:
                 run(.play, game, appSave: appSave)
+            case .cloudUnread:
+                run(.play, game, appSave: appSave, cloudChoice: .offline)
             case .bothChanged(let here, let remote):
                 cloudSaveQuestion = CloudSaveQuestion(game: game, appSave: appSave, here: here, cloud: remote)
             }
@@ -83,7 +85,8 @@ extension Library {
     }
 
     /// Off the main thread, as reading a file iCloud keeps only listed downloads it first. A cloud that doesn't answer
-    /// within the host's own wait (FETCH_MS) leaves the choice to the host, which keeps both saves when both changed.
+    /// within the host's own wait (FETCH_MS) is unread: the host doesn't wait for it again, and keeps both saves when
+    /// both changed.
     nonisolated static func checkCloud(save: URL, cloud: URL, titleID: String, timeout: TimeInterval = 10)
         async -> CloudSave.Check
     {
@@ -99,7 +102,7 @@ extension Library {
             DispatchQueue.global(qos: .userInitiated).async {
                 finish(CloudSave.check(save: save, cloud: cloud, titleID: titleID))
             }
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { finish(.nothingToChoose) }
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) { finish(.cloudUnread) }
         }
     }
 }
