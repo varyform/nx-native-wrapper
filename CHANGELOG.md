@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.9 — 2026-11-11
+
 ### Changed
 
 - **Settings resizes:** drag the Settings window's edge to make it taller or shorter; every tab scrolls in the height you give it, and Settings opens at that height next time. Its width stays as it was.
