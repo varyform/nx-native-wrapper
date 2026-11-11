@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.11 — 2026-11-11
+
 ### Changed
 
 - **Console Mode's game details fade out at the bottom** while there's more below, as they do at the top. The screenshot row was cut straight across there and looked cropped; Down still brings the whole row into view. (Issue #25)
