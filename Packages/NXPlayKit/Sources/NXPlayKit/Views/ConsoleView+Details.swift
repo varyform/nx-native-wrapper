@@ -61,11 +61,20 @@ struct DetailsPanel: View {
         } action: { _, new in
             scroll = new
         }
-        // a soft edge where the text scrolls away under the name
+        // a soft edge where the text scrolls away under the name, and one at the bottom while more is below: a hard
+        // edge there cut the screenshot row straight across, and the tiles looked cropped rather than scrolled
+        // (issue #25)
         .mask {
+            let moreBelow = scroll.content - scroll.offset - scroll.visible > 1
             LinearGradient(
-                stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.06)],
-                startPoint: .top, endPoint: .bottom)
+                stops: [
+                    .init(color: .clear, location: 0), .init(color: .black, location: 0.06),
+                    .init(color: .black, location: moreBelow ? 0.86 : 1),
+                    .init(color: moreBelow ? .clear : .black, location: 1),
+                ],
+                startPoint: .top, endPoint: .bottom
+            )
+            .animation(.easeInOut(duration: 0.3), value: moreBelow)
         }
         .foregroundStyle(.white)
         .onChange(of: library.detailsScroll) { _, request in
