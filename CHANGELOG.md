@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.8.10 — 2026-11-11
+
 ### Added
 
 - **Artwork for Switch 2 games:** the community list NX Play takes the eShop's artwork and details from has no Switch 2 games, so they had no banner, icon, description or screenshots. A game the list lacks now gets them from its page on Nintendo's US store, which also covers Switch games newer than the list. A game whose files have no icon of its own (one packed from a `.nup` may not) shows that icon in the library and behind Console Mode, and its Mac app, iPhone app or device install gets it as its app icon. (Issue #24)
