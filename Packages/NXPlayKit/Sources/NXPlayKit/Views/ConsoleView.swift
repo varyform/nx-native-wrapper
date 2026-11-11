@@ -85,7 +85,7 @@ struct ConsoleView: View {
                 .padding(.horizontal, 56)
                 .padding(.bottom, 36)
         }
-        .background { Backdrop(game: selected) }
+        .background { Backdrop(game: selected, icon: selected.flatMap(library.icon(for:))) }
         .overlay {
             if library.viewingShot, let selected {
                 ShotViewer(

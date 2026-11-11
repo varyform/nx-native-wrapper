@@ -450,10 +450,28 @@ if [[ $ipa -eq 1 || $mac_app -eq 1 || -n "$device" ]]; then
   done
 fi
 
+# A packed app's icon is the game's own, from its control data; a game packed from a NUP may have none, and its app
+# then had a blank one (issue #24). NX Play keeps the eShop's icon of each game (the store's for a Switch 2 game): an
+# extracted game without its own icon gets that one (--icon), unless one was asked for. Before each pack, since a
+# build may just have extracted the game.
+icon=()
+eshop_icon() {
+  local a b own eshop
+  icon=()
+  for a in "$@"; do [[ "$a" == --icon || "$a" == --icon=* ]] && return 0; done
+  for b in "$game"/*_build; do
+    [[ -d "$b/extract" ]] || continue
+    own="$(find "$b/extract" -maxdepth 2 -name icon.jpg -print -quit 2>/dev/null)"
+    eshop="$HOME/Library/Caches/com.varyform.nxplay/Banners/icons/$(basename "$b" _build).jpg"
+    if [[ -z "$own" && -s "$eshop" ]]; then icon=(--icon "$eshop"); fi
+  done
+}
+
 if [[ $ipa -eq 1 ]]; then
   # the script's own default output (<game folder>/<the profile's IPA name>); it reuses every step a Mac build made
+  eshop_icon "$@"
   cd "$repo"
-  exec python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@"
+  exec python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} "$@"
 fi
 
 # Packs <game name>.app into the game folder, its files APFS clones of the extracted ones; it reuses every step a Mac
@@ -463,7 +481,8 @@ fi
 pack_app() {
   local out status=0 app build
   out="$(mktemp -t nxplay-macapp)"
-  pack() { (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@") 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
+  eshop_icon "$@"
+  pack() { (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} "$@") 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
   if ! pack "$@"; then
     # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
     # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
@@ -508,7 +527,8 @@ stage_done() {
 }
 
 if [[ -n "$device" ]]; then
-  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@")
+  eshop_icon "$@"
+  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} "$@")
 
   project=""
   for p in "$game"/*_build/xcode/DmIOS.xcodeproj; do

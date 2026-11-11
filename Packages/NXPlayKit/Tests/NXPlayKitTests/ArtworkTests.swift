@@ -5,6 +5,8 @@ import Testing
 
 @Suite struct ArtworkTests {
     let root: URL
+    /// Nintendo's store, never reached from a test (StorePageTests serves its pages from disk).
+    let noStore: @Sendable (String) -> URL? = { _ in nil }
 
     init() throws {
         root = FileManager.default.temporaryDirectory.appending(
@@ -52,7 +54,7 @@ import Testing
             banner: image("totk.jpg", "banner"), icon: image("icon.jpg", "icon"),
             shot: image("shot.jpg", "shot"))
         let store = ArtworkStore(
-            directory: root.appending(path: "Banners"), titleList: list, allowsFileURLs: true)
+            directory: root.appending(path: "Banners"), titleList: list, storePage: noStore, allowsFileURLs: true)
 
         let got = await store.fetch(["0100F2C0115B6000", "01007EF00011E000"])
         let totk = try #require(got["0100F2C0115B6000"])
@@ -79,18 +81,18 @@ import Testing
         // all on disk: nothing to fetch, not even the list
         try FileManager.default.removeItem(at: list)
         let again = ArtworkStore(
-            directory: root.appending(path: "Banners"), titleList: list, allowsFileURLs: true)
+            directory: root.appending(path: "Banners"), titleList: list, storePage: noStore, allowsFileURLs: true)
         #expect(await again.fetch(["0100F2C0115B6000"]).isEmpty)
     }
 
     @Test func aTitleTheListLacksDoesntFetchItAgain() async throws {
         let list = try titleList(banner: image("totk.jpg", "banner"))
         let directory = root.appending(path: "Banners")
-        _ = await ArtworkStore(directory: directory, titleList: list, allowsFileURLs: true)
+        _ = await ArtworkStore(directory: directory, titleList: list, storePage: noStore, allowsFileURLs: true)
             .fetch(["0100F2C0115B6000", "0100000000000099"])
         // the next launch: the index knows the missing title, so the list (gone now) isn't needed
         try FileManager.default.removeItem(at: list)
-        let next = ArtworkStore(directory: directory, titleList: list, allowsFileURLs: true)
+        let next = ArtworkStore(directory: directory, titleList: list, storePage: noStore, allowsFileURLs: true)
         let got = await next.fetch(["0100F2C0115B6000", "0100000000000099"])
         #expect(got["0100F2C0115B6000"]?.info?.publisher == "Nintendo")
         #expect(got["0100000000000099"] == nil)
@@ -105,7 +107,7 @@ import Testing
             "2": ["id": "0100000000000002", "bannerUrl": b.absoluteString],
         ]).write(to: list)
         let store = ArtworkStore(
-            directory: root.appending(path: "Banners"), titleList: list, allowsFileURLs: true)
+            directory: root.appending(path: "Banners"), titleList: list, storePage: noStore, allowsFileURLs: true)
         let order = Order()
         // the game Console Mode opens on first, whatever the title IDs' order; a repeat is asked once
         let got = await store.fetch(["0100000000000002", "0100000000000001", "0100000000000002"]) {
@@ -122,7 +124,7 @@ import Testing
 
     @Test func takesImagesOnlyFromNintendosCDN() async throws {
         let list = try titleList(banner: root.appending(path: "missing.jpg"))
-        let store = ArtworkStore(directory: root.appending(path: "Banners"), titleList: list)
+        let store = ArtworkStore(directory: root.appending(path: "Banners"), titleList: list, storePage: noStore)
         // a file URL and another host: neither is downloaded, the details still are
         let got = await store.fetch(["0100F2C0115B6000", "010093801237C000"])
         #expect(got.values.allSatisfy { $0.banner == nil && $0.icon == nil })

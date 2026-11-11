@@ -1,74 +1,31 @@
 import Foundation
 
-/// What the eShop says about a game, from the community title database blawar/titledb (the source NX2Apple's front end
-/// uses too): its banner (1920×1080), its square icon, screenshots and the store page's text and facts. Images come
-/// only from Nintendo's CDN.
-public struct TitleInfo: Codable, Equatable, Sendable {
-    public var banner: String?
-    public var icon: String?
-    public var screenshots: [String] = []
-    /// The store page's tagline ("STEP INTO A WORLD OF ADVENTURE").
-    public var intro: String?
-    public var description: String?
-    public var publisher: String?
-    /// yyyymmdd, as titledb writes it.
-    public var releaseDate: Int?
-    public var players: Int?
-    public var categories: [String] = []
-    /// The US list's age rating (ESRB): 6, 10, 13, 17, 18.
-    public var rating: Int?
-    public var ratingContent: [String] = []
-
-    public var released: Date? {
-        guard let date = releaseDate, date > 1900_00_00 else { return nil }
-        return DateComponents(
-            calendar: Calendar(identifier: .gregorian), year: date / 10000, month: date / 100 % 100,
-            day: date % 100
-        ).date
-    }
-
-    /// "E10+" for the ESRB ages the US list gives.
-    public var ratingLabel: String? {
-        guard let rating else { return nil }
-        switch rating {
-        case ...6: return "E"
-        case 10: return "E10+"
-        case 13: return "T"
-        case 17: return "M"
-        case 18: return "AO"
-        default: return "\(rating)+"
-        }
-    }
-
-    /// "1 player", "Up to 4 players".
-    public var playersLabel: String? {
-        guard let players, players > 0 else { return nil }
-        return players == 1 ? "1 player" : "Up to \(players) players"
-    }
-}
-
 /// The eShop artwork and details of the games here: banners (Console Mode's backdrop) and icons (its tiles) downloaded
 /// ahead, screenshots when a game's details are opened. The title list is large (about 90 MB), so it is fetched only
 /// while a game lacks something, reduced to the details of the games asked about and kept beside the images; each
-/// image is downloaded once.
+/// image is downloaded once. A game the list lacks is looked up on Nintendo's store, once for each list.
 actor ArtworkStore {
     static let titleListURL = URL(
         string: "https://raw.githubusercontent.com/blawar/titledb/master/US.en.json")!
-    /// The list is third-party data: images only come from Nintendo's CDN, over HTTPS.
-    static let imageHost = "img-eshop.cdn.nintendo.net"
+    /// The list is third-party data: images only come from Nintendo's servers, over HTTPS: the eShop's CDN titledb
+    /// links to, and the asset server of the store's pages.
+    static let imageHosts: Set = ["img-eshop.cdn.nintendo.net", StorePage.imageHost, StorePage.eshopImageHost]
     static let indexLifetime: TimeInterval = 7 * 86_400
 
     nonisolated let directory: URL
     private let titleList: URL
-    private let allowsFileURLs: Bool  // tests serve the list and the images from disk
+    private let storePage: @Sendable (String) -> URL?
+    private let allowsFileURLs: Bool  // tests serve the list, the store's pages and the images from disk
     private var listTried = false  // one download of the list per launch, even when it fails
+    private var storeTried: Set<String> = []  // one look at the store per title and launch, even when it fails
 
     init(
         directory: URL = ArtworkStore.defaultDirectory, titleList: URL = ArtworkStore.titleListURL,
-        allowsFileURLs: Bool = false
+        storePage: @escaping @Sendable (String) -> URL? = StorePage.url(for:), allowsFileURLs: Bool = false
     ) {
         self.directory = directory
         self.titleList = titleList
+        self.storePage = storePage
         self.allowsFileURLs = allowsFileURLs
     }
 
@@ -122,7 +79,9 @@ actor ArtworkStore {
         let wanted = titleIDs.filter {
             (banners[$0] == nil || icons[$0] == nil || info[$0] == nil) && seen.insert($0).inserted
         }
-        guard !wanted.isEmpty, let titles = await index(for: wanted) else { return [:] }
+        guard !wanted.isEmpty, await index(for: wanted) != nil, let titles = await lookUpInStore(wanted) else {
+            return [:]
+        }
         try? FileManager.default.createDirectory(
             at: iconDirectory, withIntermediateDirectories: true)
         var got: [String: Found] = [:]
@@ -173,6 +132,8 @@ actor ArtworkStore {
         var titles: [String: TitleInfo]?
         /// Titles asked about that the list doesn't have: no new download for them until the index is stale.
         var missing: [String]?
+        /// The missing titles looked up on Nintendo's store since the list was fetched, found or not.
+        var inStore: [String]?
     }
 
     private struct Entry: Decodable {
@@ -239,13 +200,47 @@ actor ArtworkStore {
                 Self.titles(fromTitleList: data, wanted: asked)
             }).value
         else { return saved?.titles }
-        let index = Index(
-            fetched: .now, titles: found, missing: asked.subtracting(found.keys).sorted())
+        save(Index(fetched: .now, titles: found, missing: asked.subtracting(found.keys).sorted()))
+        return found
+    }
+
+    private func save(_ index: Index) {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         if let encoded = try? JSONEncoder().encode(index) {
             try? encoded.write(to: indexFile, options: .atomic)
         }
-        return found
+    }
+
+    /// The saved index's titles, with the wanted ones the list lacks looked up on Nintendo's store: each once a launch,
+    /// and once for each list (a list fetched again forgets them, so a game's details refresh with it). Every Switch 2
+    /// game is one of them: titledb has none.
+    private func lookUpInStore(_ wanted: [String]) async -> [String: TitleInfo]? {
+        guard var index = savedIndex(), var titles = index.titles else { return nil }
+        let looked = Set(index.inStore ?? [])
+        let ask = wanted.filter { titles[$0] == nil && !looked.contains($0) && storeTried.insert($0).inserted }
+        guard !ask.isEmpty else { return titles }
+        for id in ask {
+            if let info = await storeInfo(id) { titles[id] = info }
+        }
+        index.titles = titles
+        index.missing = (index.missing ?? []).filter { titles[$0] == nil }
+        index.inStore = looked.union(ask).sorted()
+        save(index)
+        return titles
+    }
+
+    /// The game's store page, through the eShop's link to it → its details.
+    private func storeInfo(_ id: String) async -> TitleInfo? {
+        guard let url = storePage(id), let (data, response) = try? await URLSession.shared.data(from: url)
+        else { return nil }
+        if !(allowsFileURLs && url.isFileURL) {
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+                http.url?.scheme == "https", http.url?.host == StorePage.host
+            else { return nil }
+        }
+        return await Task.detached {
+            StorePage.titleInfo(fromPage: String(decoding: data, as: UTF8.self), titleID: id)
+        }.value
     }
 
     /// titledb's region list: {nsuid: {id, bannerUrl, …}} → the details of the wanted titles; a title listed twice
@@ -266,7 +261,7 @@ actor ArtworkStore {
 
     private func allowed(_ url: URL) -> Bool {
         if allowsFileURLs, url.isFileURL { return true }
-        return url.scheme == "https" && url.host == Self.imageHost
+        return url.scheme == "https" && url.host.map(Self.imageHosts.contains) == true
     }
 
     private func download(_ url: URL) async -> Data? {

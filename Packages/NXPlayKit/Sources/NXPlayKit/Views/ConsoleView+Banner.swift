@@ -4,12 +4,14 @@ import SwiftUI
 /// carries the game's colours rather than black. It cross-fades as the selection moves.
 struct Backdrop: View {
     let game: Game?
+    /// The eShop's icon, else the game's own: a game packed from a NUP may have none.
+    let icon: URL?
 
     var body: some View {
         // the artwork as an overlay of a flexible colour: scaledToFill would otherwise size the layout to the image
         Color.black
             .overlay {
-                if let url = game?.iconURL, let image = IconCache.image(at: url) {
+                if let url = icon, let image = IconCache.image(at: url) {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFill()
