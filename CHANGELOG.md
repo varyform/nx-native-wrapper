@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.0 — 2026-11-12
+
 Shader compilation says 90 minutes to go? MacBook fans spinning up like it's about to take off? Hand the build to another Mac.
 
 **Introducing remote builds.** Turn on **Allow remote builds** on the Mac that does the heavy lifting, a Mac mini on a shelf or a Studio under the desk, and pair your laptop with its one-time code. Its games show up in a tab in your toolbar: Build, Rebuild or Stop, with live progress and the full log, while your laptop stays cool and quiet. Keep your games in a folder both Macs share, and your laptop shows that build right on the game's card and won't start the same build twice. When it's done, the game is built: just press Play.
