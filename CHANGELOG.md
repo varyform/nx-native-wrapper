@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- **The log** no longer shows a new nxnative commit in red when its description quotes a problem, such as `[RED]`.
+
 ## 1.9.0 — 2026-11-12
 
 ### Added

@@ -86,7 +86,9 @@ enum LogStyle {
     /// build_ipa_from_nsp.py marks problems with [RED] and stage ends with ✓ / ✗.
     static func attributes(for line: String) -> [NSAttributedString.Key: Any] {
         let color: NSColor =
-            if line.contains("[RED]") || line.contains("✗") || line.hasPrefix("nxplay: failed")
+            if isCommit(line) {
+                .labelColor  // nxplay's list of new nxnative commits: a subject can quote "[RED]" or "✗"
+            } else if line.contains("[RED]") || line.contains("✗") || line.hasPrefix("nxplay: failed")
                 || line.hasPrefix("Traceback")
             {
                 .systemRed
@@ -98,6 +100,11 @@ enum LogStyle {
                 .labelColor
             }
         return [.font: font, .foregroundColor: color]
+    }
+
+    /// "  <short hash> <subject>", as nxplay lists the commits an nxnative update brought.
+    static func isCommit(_ line: String) -> Bool {
+        line.wholeMatch(of: /\ \ [0-9a-f]{7,40} .*/) != nil
     }
 
     /// A terminal style on top of a line's own color: an ANSI color wins over it.
