@@ -6,14 +6,15 @@ public struct CleanupView: View {
     public static let windowID = "free-up-space"
 
     @Environment(Library.self) private var library
-    @State private var cleanup = Cleanup(cache: SizeCache(), installCopies: DeviceInstallCopies.folder)
+    @State private var cleanup = Cleanup(
+        cache: SizeCache(), installCopies: DeviceInstallCopies.folder, metalState: MetalLeftovers.folder)
 
     public init() {}
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Free Up Space").font(.title2.bold())
-            if cleanup.groups.isEmpty {
+            if cleanup.groups.isEmpty && cleanup.extras.isEmpty {
                 empty
             } else {
                 kinds
@@ -92,6 +93,17 @@ public struct CleanupView: View {
 
     private var list: some View {
         List {
+            if !cleanup.extras.isEmpty {
+                Section {
+                    ForEach(cleanup.extras) { file in
+                        FileRow(file: file, isOn: cleanup.selection.contains(file.url), unavailable: file.blocked) {
+                            cleanup.toggle(file)
+                        }
+                    }
+                } header: {
+                    Text("Not one game's").font(.headline).foregroundStyle(.primary).padding(.vertical, 4)
+                }
+            }
             ForEach(cleanup.groups) { group in
                 Section {
                     ForEach(group.files) { file in
@@ -213,6 +225,7 @@ extension CleanupKind {
         case .xcodeBuilds: "Xcode builds"
         case .installCopies: "Device install copies"
         case .macApps: "Mac apps"
+        case .metalState: "Metal's leftovers"
         }
     }
 
@@ -229,6 +242,8 @@ extension CleanupKind {
             "Kept on this Mac by Xcode's device service, one per device, for a faster next install. Without them, Install on Device copies the whole game."
         case .macApps:
             "Make Mac App makes them again. Their own saves, in ~/Library/Application Support/nxnative, stay."
+        case .metalState:
+            "Compiler state Metal keeps for each game run's pipeline capture and never removes. Nothing reads it again; only folders untouched for a day go."
         }
     }
 }

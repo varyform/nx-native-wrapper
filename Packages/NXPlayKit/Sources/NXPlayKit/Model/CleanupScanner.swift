@@ -20,7 +20,8 @@ public enum CleanupScanner {
     static func measure(_ file: CleanupFile, cache: SizeCache? = nil) -> CleanupFile {
         var file = file
         let stamp = SizeCache.stamp(of: file)
-        if let cache, let stamp, let size = cache.size(of: file.url, stamp: stamp) {
+        // Metal's leftovers: which count changes with their age, not only with the folder
+        if file.role != .metalState, let cache, let stamp, let size = cache.size(of: file.url, stamp: stamp) {
             file.size = size
         } else {
             file.size =
@@ -31,9 +32,10 @@ public enum CleanupScanner {
                         - shaderCacheSize(shaderCache(of: file.url))
                 // a Mac app is APFS clones of its build's files: what deleting it frees is what isn't shared
                 case .macApp: size(of: file.url, ownOnly: true) + size(of: appKey(file.url))
+                case .metalState: MetalLeftovers.size(in: file.url)
                 default: size(of: file.url)
                 }
-            if let cache, let stamp { cache.store(file.size, of: file.url, stamp: stamp) }
+            if file.role != .metalState, let cache, let stamp { cache.store(file.size, of: file.url, stamp: stamp) }
         }
         file.measuring = false
         return file

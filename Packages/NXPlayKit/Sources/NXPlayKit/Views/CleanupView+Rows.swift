@@ -93,6 +93,7 @@ struct FileRow: View {
         case .build: "Build (\(file.url.lastPathComponent))"
         case .shaderCache: "Shader compile cache (cas.db)"
         case .installCopies: "Device install copies (\(file.url.lastPathComponent))"
+        case .metalState: "Metal's pipeline capture leftovers (com.apple.gpuarchiver)"
         default: file.url.lastPathComponent
         }
     }
@@ -111,6 +112,7 @@ struct FileRow: View {
             "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
         case .macApp: "Made of APFS clones of the build: the size is what only the app takes"
         case .installCopies: "Kept by Xcode's device service, on this Mac's disk: the next install copies the whole game"
+        case .metalState: "Folders untouched for a day, in the user cache folder; Metal makes new ones as games run"
         default: nil
         }
     }

@@ -19,6 +19,9 @@ public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     case installCopies
     /// `<game name>.app` that Make Mac App packed into the game folder, with nxnative's `<name>.app.key` beside it.
     case macApps
+    /// Metal's compiler state that games' pipeline capture leaves in the user cache folder (MetalLeftovers): not one
+    /// game's, listed apart.
+    case metalState
 
     public var id: String { rawValue }
 }
@@ -36,6 +39,8 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         /// `AppInstallationBinaryDeltas/org.nxnative.<team>.<title ID>`.
         case installCopies
         case macApp
+        /// `com.apple.gpuarchiver`, standing for its finished `gpuarchiver-*` folders.
+        case metalState
     }
 
     public let url: URL
@@ -58,6 +63,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case .xcodeBuild: .xcodeBuilds
         case .installCopies: .installCopies
         case .macApp: .macApps
+        case .metalState: .metalState
         }
     }
 }
@@ -83,6 +89,8 @@ public final class Cleanup {
     public static let phrase = "yes, I'm sure"
 
     public private(set) var groups: [CleanupGroup] = []
+    /// What belongs to no game: Metal's leftovers.
+    public private(set) var extras: [CleanupFile] = []
     public var selection: Set<URL> = []
     public var confirmation = ""
     public private(set) var phase: Phase = .idle
@@ -92,6 +100,8 @@ public final class Cleanup {
     @ObservationIgnored private let cache: SizeCache?
     /// Where the device service keeps its copies; none in tests.
     @ObservationIgnored private let installCopies: URL?
+    /// Metal's `com.apple.gpuarchiver` (MetalLeftovers); none in tests.
+    @ObservationIgnored private let metalState: URL?
     /// macOS doesn't let NX Play see the device service's copies: it needs Full Disk Access.
     public private(set) var installCopiesHidden = false
 
@@ -101,9 +111,10 @@ public final class Cleanup {
 
     public convenience init() { self.init(cache: nil) }
 
-    init(cache: SizeCache?, installCopies: URL? = nil) {
+    init(cache: SizeCache?, installCopies: URL? = nil, metalState: URL? = nil) {
         self.cache = cache
         self.installCopies = installCopies
+        self.metalState = metalState
     }
 
     /// Files and sizes again from disk; the selection keeps only what can still be removed. Everything is listed
@@ -117,14 +128,22 @@ public final class Cleanup {
             files.filter { !$0.measuring }.map { ($0.url, $0.size) },
             uniquingKeysWith: { a, _ in a })
         let folder = installCopies
-        let (listed, hidden) = await Task.detached {
+        let metal = metalState
+        let (listed, hidden, extra) = await Task.detached {
             (
                 CleanupScanner.groups(games: games, busy: busy, measuring: false, installCopies: folder),
-                folder.map { DeviceInstallCopies.apps(in: $0) == nil } ?? false
+                folder.map { DeviceInstallCopies.apps(in: $0) == nil } ?? false,
+                MetalLeftovers.file(in: metal, gameRunning: !busy.isEmpty).map { [$0] } ?? []
             )
         }.value
         guard scan == scans else { return }  // a newer scan started meanwhile
         installCopiesHidden = hidden
+        extras = extra.map { file in
+            guard let size = known[file.url] else { return file }
+            var shown = file
+            shown.size = size
+            return shown
+        }
         apply(
             listed.map { group in
                 CleanupGroup(
@@ -139,7 +158,7 @@ public final class Cleanup {
         if phase == .scanning { phase = previous == .scanning ? .idle : previous }
         // in the background: a scan returns once everything is listed (Delete rescans before it deletes)
         measuring?.cancel()
-        let big = listed.flatMap(\.files).filter(\.measuring)
+        let big = (listed.flatMap(\.files) + extra).filter(\.measuring)
         let cache = cache
         measuring = Task { [weak self] in
             await withTaskGroup(of: CleanupFile.self) { group in
@@ -162,6 +181,7 @@ public final class Cleanup {
     }
 
     private func replace(_ file: CleanupFile) {
+        extras = extras.map { $0.url == file.url ? file : $0 }
         groups = groups.map { group in
             CleanupGroup(
                 game: group.game, files: group.files.map { $0.url == file.url ? file : $0 })
@@ -176,7 +196,7 @@ public final class Cleanup {
         selection.formIntersection(selectable)
     }
 
-    var files: [CleanupFile] { groups.flatMap(\.files) }
+    var files: [CleanupFile] { groups.flatMap(\.files) + extras }
     var selectable: Set<URL> { Set(files.filter { $0.blocked == nil }.map(\.url)) }
 
     public var selectedFiles: [CleanupFile] { files.filter { selection.contains($0.url) } }
@@ -188,7 +208,7 @@ public final class Cleanup {
         }
         return (selectedFiles + caches).reduce(0) { $0 + $1.size }
     }
-    public var totalSize: Int64 { groups.reduce(0) { $0 + $1.size } }
+    public var totalSize: Int64 { files.reduce(0) { $0 + $1.size } }
 
     public func files(_ kind: CleanupKind) -> [CleanupFile] { files.filter { $0.kind == kind } }
     public func size(_ kind: CleanupKind) -> Int64 { files(kind).reduce(0) { $0 + $1.size } }
@@ -202,61 +222,6 @@ public final class Cleanup {
     }
 
     public var canDelete: Bool { !selection.isEmpty && isConfirmed && phase != .deleting }
-
-    /// Why a file can't join the selection as it is: a game's build and its game files never go together, since
-    /// without both nothing could play or build it again. Converted NSPs can go with the build: the next build
-    /// converts the NSZ again.
-    public func conflict(_ file: CleanupFile) -> String? {
-        guard !selection.contains(file.url),
-            let group = groups.first(where: { $0.files.contains(file) })
-        else { return nil }
-        let selected = group.files.filter { selection.contains($0.url) }
-        switch file.role {
-        case .original where selected.contains { $0.role == .build }:
-            return "Its build is selected: these files are needed to build it again."
-        case .build where selected.contains { $0.role == .original }:
-            return "Its game files are selected: the build is how it plays without them."
-        case .shaderCache where selected.contains { $0.role == .build }:
-            return "Goes with its build, which is selected."
-        default:
-            return nil
-        }
-    }
-
-    public func isAvailable(_ file: CleanupFile) -> Bool {
-        file.blocked == nil && conflict(file) == nil
-    }
-
-    /// true: all of its files that can be picked, false: none, nil: some.
-    public func isSelected(_ files: [CleanupFile]) -> Bool? {
-        let candidates = files.filter { selection.contains($0.url) || isAvailable($0) }
-        let count = candidates.filter { selection.contains($0.url) }.count
-        return count == 0 ? false : count == candidates.count ? true : nil
-    }
-
-    public func isSelected(_ group: CleanupGroup) -> Bool? { isSelected(group.files) }
-    public func isSelected(_ kind: CleanupKind) -> Bool? { isSelected(files(kind)) }
-
-    /// Selects every file of them that can be picked, or none when all are selected. One at a time, builds first: a
-    /// game picked whole keeps its game files, so it can be built again.
-    public func toggle(_ files: [CleanupFile]) {
-        if isSelected(files) == true {
-            selection.subtract(files.map(\.url))
-            return
-        }
-        for file in files.sorted(by: { ($0.role == .build ? 0 : 1) < ($1.role == .build ? 0 : 1) })
-        where isAvailable(file) {
-            selection.insert(file.url)
-            // the build takes its shader cache with it
-            if file.role == .build, let group = groups.first(where: { $0.files.contains(file) }) {
-                selection.subtract(group.files.filter { $0.role == .shaderCache }.map(\.url))
-            }
-        }
-    }
-
-    public func toggle(_ group: CleanupGroup) { toggle(group.files) }
-    public func toggle(_ kind: CleanupKind) { toggle(files(kind)) }
-    public func toggle(_ file: CleanupFile) { toggle([file]) }
 
     /// Deletes the selected files and folders for good (not to the Trash: the point is the space). Scan
     /// first, so a game that became busy meanwhile is skipped.
@@ -278,6 +243,8 @@ public final class Cleanup {
                         if FileManager.default.fileExists(atPath: key.path) {
                             try FileManager.default.removeItem(at: key)
                         }
+                    } else if file.role == .metalState {
+                        try MetalLeftovers.delete(in: file.url)
                     } else if file.role == .shaderCache {
                         try FileManager.default.removeItem(at: file.url)
                         for suffix in CleanupScanner.shaderCacheSidecars {
