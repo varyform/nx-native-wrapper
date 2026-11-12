@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 1.9.0 — 2026-11-12
+
 ### Added
 
 - **Mods.** A game's file mods (textures, models, text, sounds) load without a rebuild, through nxnative's RomFS overlay. **Game › Open Mods Folder** opens the game's `Mods` folder, one folder for each mod, as mods come for a Switch SD card. In **Game Settings**, turn each one on or off and drag them into order: the higher one wins a file two of them change, and each row says how many of its files come from a mod above it. The list follows the folder while it's open. The log lists the mods each play loads, and the game's Mac app loads them too. Code mods (`exefs`) can't work, as nxnative builds the game's code beforehand. (Issue #27, after PR #18)
