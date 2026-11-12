@@ -140,6 +140,18 @@ curl -H "Authorization: Bearer <code>" http://<mac>.local:47474/v1/games
 curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/games/<folder>/install?device=<udid>"
 ```
 
+### Building on another Mac
+
+One Mac can build another's games, a desktop for a laptop for example, over the local network:
+
+1. On the Mac that builds, turn on **Settings › Remote › Allow remote builds**. It shows a pairing code, and NX Play shows up on the network over Bonjour (`_nxplay-mac._tcp`, port 47475).
+2. On the other Mac, click **Pair with Another Mac…** in the same tab, pick the Mac and enter its code. Each code works once, and **Remove** under This Mac unpairs a Mac.
+3. Tabs in the middle of the toolbar, **This Mac** and one for each paired Mac with a dot for its connection, switch the main window to that Mac's games. The **+** menu pairs another Mac or unpairs one. Each of its games has **Build**, **Rebuild** or **Stop**, also in its right-click menu, and the selected one's build log shows below. A paired Mac can only build there: it can't play, change settings or reach the files.
+
+Games in a games folder both Macs have, such as one on a file server, are the same games on both: each games folder gets a hidden `.nxplay-folder-id` file, so a game is recognised under any path. While the other Mac builds one of them, its card here shows that build's progress and log, **Cancel** stops it there, and it doesn't build or play here until that's done, since two builds into one folder would spoil each other. The two Macs talk over TLS with a key from the pairing, which nobody who sees the code later can work out.
+
+A folder shared from a Mac with File Sharing works. If it's on an external drive, turn off **Ignore ownership on this volume** in its Get Info first, or the other Mac is told the share doesn't exist. A NAS that strips the execute permission from files, such as a UniFi one, builds a game once, but a rebuild can fail with `Permission denied` when the build runs one of its own tools there a second time.
+
 ### Saves
 
 **Save backup** (Settings › Saves): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
@@ -188,7 +200,7 @@ nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, a
 
 ### Settings
 
-Settings has a tab for each subject: **General** (the games folders, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+Settings has a tab for each subject: **General** (the games folders, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)), **Remote** ([building on another Mac](#building-on-another-mac)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
 
 <img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 

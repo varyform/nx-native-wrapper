@@ -4,8 +4,15 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+Shader compilation says 90 minutes to go? MacBook fans spinning up like it's about to take off? Hand the build to another Mac.
+
+**Introducing remote builds.** Turn on **Allow remote builds** on the Mac that does the heavy lifting, a Mac mini on a shelf or a Studio under the desk, and pair your laptop with its one-time code. Its games show up in a tab in your toolbar: Build, Rebuild or Stop, with live progress and the full log, while your laptop stays cool and quiet. Keep your games in a folder both Macs share, and your laptop shows that build right on the game's card and won't start the same build twice. When it's done, the game is built: just press Play.
+
+**And fully hands-free:** with **Install updates automatically when idle**, the building Mac installs NX Play updates by itself and opens again once nothing is building or playing. It keeps up with every release without anyone walking over to it.
+
 ### Added
 
+- **Building on another Mac.** Settings › Remote › **Allow remote builds** lets another Mac on the network pair with a one-time code and build this Mac's games. On that Mac, a tab in the middle of the toolbar shows this one's games, to build, rebuild or stop one (its button or its right-click menu) and follow its log. It can't play, change settings or reach the files. A game in a games folder both Macs have shows the other Mac's build in its card and doesn't build here while that runs.
 - **Install updates automatically when idle** (Settings › Updates): a downloaded update installs by itself once no game or build runs and NX Play is in the background or hasn't been used for 10 minutes, then NX Play opens again.
 
 ### Fixed

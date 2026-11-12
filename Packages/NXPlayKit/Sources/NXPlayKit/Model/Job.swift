@@ -21,7 +21,7 @@ public final class Job: Identifiable {
         }
     }
 
-    public enum Status: Equatable, Sendable {
+    public enum Status: Equatable, Sendable, Codable {
         case queued, running, succeeded
         case failed(Int32)
         case cancelled
@@ -32,11 +32,11 @@ public final class Job: Identifiable {
     public let id = UUID()
     public let kind: Kind
     public let game: Game
-    public private(set) var status: Status = .queued
-    public private(set) var progress: BuildProgress?
+    public internal(set) var status: Status = .queued
+    public internal(set) var progress: BuildProgress?
     /// The stages that finished without what they make (BuildOutputReader.warnings): a success to look at.
-    public private(set) var warnings: [String] = []
-    public private(set) var log = LogBuffer()
+    public internal(set) var warnings: [String] = []
+    public internal(set) var log = LogBuffer()
 
     @ObservationIgnored let command: NXPlayCommand
     @ObservationIgnored var onFinish: ((Job) -> Void)?
@@ -48,6 +48,8 @@ public final class Job: Identifiable {
     @ObservationIgnored private var output = BuildOutputReader()
     /// Seconds between the escalating stop signals.
     @ObservationIgnored var stopGrace: TimeInterval = 5
+    /// A build on another Mac, mirrored here without a process (Job+Mirror.swift).
+    public internal(set) var remote: RemoteBuild?
 
     init(kind: Kind, game: Game, command: NXPlayCommand) {
         self.kind = kind
@@ -61,9 +63,9 @@ public final class Job: Identifiable {
     }
 
     /// nxplay has handed over to the game (its "nxplay: starting the game" line).
-    public private(set) var gameStarted = false
+    public internal(set) var gameStarted = false
     /// What nxplay last said about getting ready ("nxnative updated: 3 new commits, rebuilding").
-    public private(set) var note: String?
+    public internal(set) var note: String?
     /// nxplay asks whether to update nxnative before the play (NXPLAY_UPDATE=ask), until answered.
     public private(set) var ask: UpdateAsk?
     @ObservationIgnored var onAsk: ((Job) -> Void)?
@@ -87,6 +89,12 @@ public final class Job: Identifiable {
 
     /// "4/6 shader split · splitting · 69% · 0:04 left"
     public var progressText: String {
+        // another Mac's build of a game in a folder both have: which one, as it can't be told from one here
+        if let remote { return "On \(remote.macName): " + ownProgressText }
+        return ownProgressText
+    }
+
+    private var ownProgressText: String {
         if status == .queued { return "Waiting for the current build" }
         if ask != nil { return "Waiting for your answer: update first?" }
         if isPreparing { return note ?? "Checking for nxnative updates…" }
@@ -163,6 +171,10 @@ public final class Job: Identifiable {
     /// cleanly on it), then SIGTERM and SIGKILL for what ignores it or outlives bash: a script's
     /// background jobs ignore SIGINT.
     public func cancel() {
+        if let remote {
+            remote.cancel()
+            return
+        }
         switch status {
         case .queued:
             finish(.cancelled)

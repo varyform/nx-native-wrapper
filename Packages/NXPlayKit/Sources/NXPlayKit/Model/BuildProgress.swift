@@ -2,7 +2,7 @@ import Foundation
 
 /// Where a build is: the stage it is in and how far that stage has come, from build_ipa_from_nsp.py's
 /// `--progress json` events (nxnative's docs/frontends.md, "Building: the NSP script").
-public struct BuildProgress: Equatable, Sendable {
+public struct BuildProgress: Equatable, Sendable, Codable {
     public let stage: Int
     public let stages: Int
     public let name: String

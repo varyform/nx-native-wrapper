@@ -93,7 +93,9 @@ public struct RootView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if library.roots.isEmpty {
+        if let host = library.macLink.shownHost, !library.consoleMode {
+            RemoteLibraryView(hostID: host)
+        } else if library.roots.isEmpty {
             ContentUnavailableView {
                 Label("No Games Folder", systemImage: "folder")
             } description: {
@@ -113,6 +115,9 @@ public struct RootView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            MacTabs()
+        }
         ToolbarItem(placement: .navigation) {
             ViewStylePicker()
         }

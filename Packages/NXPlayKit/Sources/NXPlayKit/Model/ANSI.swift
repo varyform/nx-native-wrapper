@@ -1,5 +1,5 @@
 /// A terminal color: one of the 16 named ones, the 256-color palette, or 24-bit.
-public enum ANSIColor: Hashable, Sendable {
+public enum ANSIColor: Hashable, Sendable, Codable {
     case standard(Int)  // 0–7 normal, 8–15 bright
     case palette(Int)  // 16–255 (0–15 are folded into .standard)
     case rgb(UInt8, UInt8, UInt8)
@@ -14,7 +14,7 @@ public enum ANSIColor: Hashable, Sendable {
 }
 
 /// The SGR state of the text: what `ESC[…m` sequences set.
-public struct ANSIStyle: Hashable, Sendable {
+public struct ANSIStyle: Hashable, Sendable, Codable {
     public var bold = false
     public var dim = false
     public var italic = false
@@ -86,8 +86,8 @@ public struct ANSIStyle: Hashable, Sendable {
 
 /// A line of output without its escape sequences, and the styled pieces it is made of
 /// (none when the line has no styling).
-public struct LogLine: Hashable, Sendable {
-    public struct Segment: Hashable, Sendable {
+public struct LogLine: Hashable, Sendable, Codable {
+    public struct Segment: Hashable, Sendable, Codable {
         public let text: String
         public let style: ANSIStyle
     }

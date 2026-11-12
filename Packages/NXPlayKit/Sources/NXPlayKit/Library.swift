@@ -248,6 +248,12 @@ public final class Library {
     public let updater = AppUpdater()
     /// The Settings tab shown; Check for Updates… opens Updates.
     public var settingsTab = SettingsTab.general
+    /// Remote builds between Macs (Settings › Remote): this Mac's paired Macs, and their builds.
+    public let macLink: MacLink
+    /// This Mac's games another Mac builds now, from a games folder both have (Library+MacClient.swift).
+    public internal(set) var sharedJobs: [Game.ID: Job] = [:]
+    /// The games folders' ids (SharedFolders), read once.
+    @ObservationIgnored var sharedFolderIDs: [URL: String] = [:]
 
     @ObservationIgnored let defaults: UserDefaults
     @ObservationIgnored private var queue: [Job] = []
@@ -288,6 +294,13 @@ public final class Library {
         self.defaults = defaults
         self.isScreenshot = isScreenshot
         self.artwork = artwork
+        // screenshots and tests pair with nothing: a store of their own, not this Mac's
+        macLink = MacLink(
+            defaults: defaults,
+            store: isScreenshot
+                ? MacLinkStore(directory: FileManager.default.temporaryDirectory.appending(path: "nxplay-remote"))
+                : .standard,
+            isScreenshot: isScreenshot)
         banners = artwork.cachedBanners()
         eshopIcons = artwork.cachedIcons()
         titleInfo = artwork.cachedInfo()
@@ -351,7 +364,11 @@ public final class Library {
         refreshDevices()
         applyControllerPlayers()  // didSet doesn't run for the value read in init
         applyRemote()
-        if !isScreenshot { watchForIdleUpdate() }
+        macLink.library = self
+        if !isScreenshot {
+            macLink.start()
+            watchForIdleUpdate()
+        }
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
         if defaults.bool(forKey: Keys.consoleMode), !roots.isEmpty {
             consoleMode = true
@@ -590,11 +607,15 @@ public final class Library {
         games.filter { $0.canExtract && !isBusy($0) }
     }
 
-    public func job(for game: Game) -> Job? { jobs[game.id] }
+    /// The game's job here, or another Mac's build of it while that runs (Library+MacClient.swift).
+    public func job(for game: Game) -> Job? {
+        if let shared = sharedJobs[game.id], shared.status.isActive || jobs[game.id] == nil { return shared }
+        return jobs[game.id]
+    }
 
     /// The builds to show progress for (Job.showsProgress), the running ones first, then by game.
     public var buildingJobs: [Job] {
-        jobs.values.filter(\.showsProgress).sorted {
+        (Array(jobs.values) + sharedJobs.values).filter(\.showsProgress).sorted {
             ($0.status == .running ? 0 : 1, $0.game.name) < (
                 $1.status == .running ? 0 : 1, $1.game.name
             )
@@ -609,7 +630,9 @@ public final class Library {
         return building.reduce(0) { $0 + $1.progressFraction } / Double(building.count)
     }
 
-    public func isBusy(_ game: Game) -> Bool { jobs[game.id]?.status.isActive == true }
+    public func isBusy(_ game: Game) -> Bool {
+        jobs[game.id]?.status.isActive == true || isBuildingElsewhere(game)
+    }
 
     // MARK: - Jobs
 
@@ -870,9 +893,12 @@ public final class Library {
         guard !jobs.values.contains(where: { $0.kind != .play && $0.status == .running }) else {
             return
         }
-        guard let next = queue.first else {
-            buildsWaitForPower = false
-            setWaitingForPower(false)
+        // a game another Mac builds into a folder both have waits for it (Library+MacClient.swift)
+        guard let next = queue.first(where: { !isBuildingElsewhere($0.game) }) else {
+            if queue.isEmpty {
+                buildsWaitForPower = false
+                setWaitingForPower(false)
+            }
             return
         }
         if buildsWaitForPower, isOnBattery() {
@@ -880,7 +906,7 @@ public final class Library {
             return
         }
         setWaitingForPower(false)
-        queue.removeFirst()
+        queue.removeAll { $0 === next }
         next.start()
     }
 

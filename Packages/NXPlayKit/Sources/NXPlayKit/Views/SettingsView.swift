@@ -22,6 +22,9 @@ public struct SettingsView: View {
             DeviceSettings()
                 .tabItem { Label("Devices", systemImage: "iphone") }
                 .tag(SettingsTab.devices)
+            RemoteBuildsSettings()
+                .tabItem { Label("Remote", systemImage: "desktopcomputer") }
+                .tag(SettingsTab.remote)
             UpdatesTab()
                 .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
                 .tag(SettingsTab.updates)
@@ -30,7 +33,7 @@ public struct SettingsView: View {
     }
 }
 
-public enum SettingsTab: Hashable, Sendable { case general, games, saves, devices, updates }
+public enum SettingsTab: Hashable, Sendable { case general, games, saves, devices, remote, updates }
 
 /// NX Play › Check for Updates…: checks now and shows the result in Settings › Updates.
 public struct CheckForUpdatesMenuItem: View {
