@@ -258,7 +258,7 @@ private struct UpdatesTab: View {
             } footer: {
                 Footer(
                     library.updater.isEnabled
-                        ? "NX Play looks for a new release on GitHub at launch and once a day, and downloads it. It installs when you quit, or now with Restart to Update."
+                        ? "NX Play looks for a new release on GitHub at launch and once a day, and downloads it. It installs when you quit, or now with Restart to Update. With Install updates automatically when idle, it installs by itself once no game or build runs and NX Play is in the background or hasn't been used for 10 minutes, then opens again."
                         : "This copy was built from the source: update it with git pull and bin/install."
                 )
             }

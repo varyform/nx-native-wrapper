@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Install updates automatically when idle** (Settings › Updates): a downloaded update installs by itself once no game or build runs and NX Play is in the background or hasn't been used for 10 minutes, then NX Play opens again.
+
 ### Fixed
 
 - **The log** no longer shows a new nxnative commit in red when its description quotes a problem, such as `[RED]`.

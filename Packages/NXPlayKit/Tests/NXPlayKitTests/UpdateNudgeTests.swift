@@ -94,6 +94,30 @@ import Testing
         #expect(AppUpdater.isNewer(AppUpdater.nextVersion(after: "1.7.9"), than: "1.7.9"))
     }
 
+    @Test func anUpdateInstallsByItselfOnlyWhenAskedAndNothingRuns() {
+        let library = library()
+        var quits = 0
+        library.terminate = { quits += 1 }
+        library.updater.preview(ready)
+        library.installUpdateIfIdle()
+        #expect(quits == 0)  // off by default
+
+        let game = Game(
+            folder: URL(filePath: "/games/A"), name: "A", titleID: nil, version: nil, languages: [], iconURL: nil,
+            buildFolder: nil, ipaURL: nil, xcodeBuildFolder: nil, hasPackages: true, state: .ready)
+        let job = Job(
+            kind: .play, game: game,
+            command: NXPlayCommand(script: URL(filePath: "/usr/bin/true"), arguments: [], environment: [:]))
+        job.showScreenshot(["playing"], status: .running)
+        library.jobs[game.id] = job
+        library.installUpdatesWhenIdle = true
+        #expect(quits == 0)  // a game plays
+
+        library.jobs[game.id] = nil
+        library.installUpdateIfIdle()
+        #expect(quits == 1 && library.quitsWhenIdle)
+    }
+
     @Test func aRestartsToUpdate() {
         let library = library()
         var quit = false

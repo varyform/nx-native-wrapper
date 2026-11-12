@@ -77,6 +77,10 @@ struct UpdateSettings: View {
             }
         }
         .disabled(!updater.isEnabled)
+        if updater.isEnabled {
+            @Bindable var library = library
+            Toggle("Install updates automatically when idle", isOn: $library.installUpdatesWhenIdle)
+        }
     }
 
     @ViewBuilder private func status(_ state: AppUpdater.State) -> some View {

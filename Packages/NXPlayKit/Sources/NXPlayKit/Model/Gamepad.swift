@@ -41,6 +41,7 @@ public final class Gamepad {
 
     @ObservationIgnored private var observers: [any NSObjectProtocol] = []
     @ObservationIgnored private var held: [ObjectIdentifier: Command] = [:]
+    @ObservationIgnored private var lastInput = Date.distantPast
     @ObservationIgnored private var repeaters: [ObjectIdentifier: Task<Void, Never>] = [:]
 
     /// Screenshot mode: controllers to show, without any connected.
@@ -273,6 +274,10 @@ public final class Gamepad {
 
     private func send(_ command: Command) {
         guard NSApp?.isActive != false else { return }
+        lastInput = .now
         onCommand?(command)
     }
+
+    /// Since a controller last moved NX Play: macOS doesn't count it as the Mac being used (Library+AutoUpdate.swift).
+    var secondsSinceLastInput: TimeInterval { Date.now.timeIntervalSince(lastInput) }
 }

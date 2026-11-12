@@ -34,6 +34,7 @@ public final class Library {
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
         static let keepUnpackedOnly = "keepUnpackedOnly"
+        static let installUpdatesWhenIdle = "installUpdatesWhenIdle"
         static let cloudSaves = "cloudSaves"
         static let consoleMode = "consoleMode"
         static let controllerPlayers = "controllerPlayers"
@@ -109,6 +110,15 @@ public final class Library {
             if keepUnpackedOnly && !oldValue { offerUnpackedSweep() }
         }
     }
+    /// Settings › Updates: a downloaded update installs by itself once nothing runs and nobody is using NX Play
+    /// (Library+AutoUpdate.swift). Off by default: NX Play quits and opens again without being asked.
+    public var installUpdatesWhenIdle: Bool {
+        didSet {
+            defaults.set(installUpdatesWhenIdle, forKey: Keys.installUpdatesWhenIdle)
+            installUpdateIfIdle()
+        }
+    }
+    @ObservationIgnored var idleUpdateTimer: Timer?
     /// The games built already that Keep Only the Unpacked Copy can tidy, asked about once it's turned on.
     public var unpackedSweep: UnpackedSweep?
     /// Preferred game language (a DM_LANG code), the global one; empty keeps each game's build language.
@@ -300,6 +310,7 @@ public final class Library {
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
         keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
+        installUpdatesWhenIdle = defaults.bool(forKey: Keys.installUpdatesWhenIdle)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
         let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
         defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
@@ -340,6 +351,7 @@ public final class Library {
         refreshDevices()
         applyControllerPlayers()  // didSet doesn't run for the value read in init
         applyRemote()
+        if !isScreenshot { watchForIdleUpdate() }
         // left in Console Mode: open in it, at the game played last (set here, after the games are read)
         if defaults.bool(forKey: Keys.consoleMode), !roots.isEmpty {
             consoleMode = true
