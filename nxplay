@@ -151,8 +151,16 @@ share_save() {
     fi
   fi
   mkdir -p "$sup"
-  { grep -vF "$mark" "$env" 2> /dev/null | grep -v -e '^DM_SAVE=' -e '^DM_CHEATS=' || true
-    printf '%s\nDM_SAVE=%s\nDM_CHEATS=%s\n' "$mark" "$build/run/save" "$build/cheats"; } > "$env.tmp"
+  # the game's mods (Game Settings), which a play passes as DM_ROMFS_OVERLAY ("" for none): a start from Finder loads
+  # the ones the last play did. A pack passes none, and keeps the line there is
+  local keep=(-e '^DM_SAVE=' -e '^DM_CHEATS=') mods=""
+  if [[ -n "${DM_ROMFS_OVERLAY+set}" ]]; then
+    keep+=(-e '^DM_ROMFS_OVERLAY=')
+    [[ -n "$DM_ROMFS_OVERLAY" ]] && mods="DM_ROMFS_OVERLAY=$DM_ROMFS_OVERLAY"
+  fi
+  { grep -vF "$mark" "$env" 2> /dev/null | grep -v "${keep[@]}" || true
+    printf '%s\nDM_SAVE=%s\nDM_CHEATS=%s\n' "$mark" "$build/run/save" "$build/cheats"
+    [[ -z "$mods" ]] || printf '%s\n' "$mods"; } > "$env.tmp"
   mv -f "$env.tmp" "$env"
 }
 
@@ -638,6 +646,8 @@ start() {
   if [[ $fps -eq 1 ]]; then export DM_METAL_HUD=1; fi
   if [[ $fullscreen -eq 1 ]]; then export DM_FULLSCREEN=1; fi
   if [[ -n "${DM_SAVE_SYNC:-}" && "$DM_SAVE_SYNC" != 0 ]]; then say "cloud saves: $DM_SAVE_SYNC"; fi
+  # the game's mods (Game Settings › Mods), layered over its RomFS: said, so a mod's problem isn't taken for nxnative's
+  if [[ -n "${NXPLAY_MODS:-}" && "$NXPLAY_MODS" != none ]]; then say "mods: $NXPLAY_MODS"; fi
   # the player's choices NX Play passes in the environment (Game Settings), named in NXPLAY_SETTINGS: said in the log
   if [[ -n "${NXPLAY_SETTINGS:-}" ]]; then
     local said="game settings:"

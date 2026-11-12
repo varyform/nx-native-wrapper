@@ -58,33 +58,38 @@ struct GameSettingsSheet: View {
                 }
             }
             .padding(20)
-            if let list, !list.settings.isEmpty {
-                Form {
-                    SettingSections(
-                        settings: list.settings, current: { library.value($0, for: game) }
-                    ) { setting in
-                        let global = library.globalValue(setting, for: game)
-                        let follows = global ?? setting.defaultValue
-                        SettingRow(
-                            setting: setting, own: library.own(setting, for: game),
-                            follows: follows, followsLabel: "",
-                            resetHelp:
-                                "Reset to \(global == nil ? "default" : "global"): \(setting.title(for: follows))"
-                        ) { library.setOwn($0, setting, for: game) }
-                    }
-                }
-                .formStyle(.grouped)
-            } else if loading {
+            if loading && list == nil {
                 ProgressView("Reading the game\u{2019}s settings\u{2026}")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ContentUnavailableView(
-                    "No Settings", systemImage: "slider.horizontal.3",
-                    description: Text(
-                        "nxnative lists a game\u{2019}s settings once it\u{2019}s built. Play or rebuild it, then look again."
-                    )
-                )
-                .frame(maxHeight: .infinity)
+                Form {
+                    if let list, !list.settings.isEmpty {
+                        SettingSections(
+                            settings: list.settings, current: { library.value($0, for: game) }
+                        ) { setting in
+                            let global = library.globalValue(setting, for: game)
+                            let follows = global ?? setting.defaultValue
+                            SettingRow(
+                                setting: setting, own: library.own(setting, for: game),
+                                follows: follows, followsLabel: "",
+                                resetHelp:
+                                    "Reset to \(global == nil ? "default" : "global"): \(setting.title(for: follows))"
+                            ) { library.setOwn($0, setting, for: game) }
+                        }
+                    } else {
+                        Section {
+                            Label(
+                                "nxnative lists a game\u{2019}s settings once it\u{2019}s built. Play or rebuild it, then look again.",
+                                systemImage: "slider.horizontal.3"
+                            )
+                            .foregroundStyle(.secondary)
+                        } header: {
+                            Text("No Settings")
+                        }
+                    }
+                    GameModsSection(game: game)
+                }
+                .formStyle(.grouped)
             }
             if let choice = library.saveChoice(for: game) {
                 SaveChoiceRow(choice: choice) { library.forgetSaveChoice(for: game) }

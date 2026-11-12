@@ -93,6 +93,9 @@ public final class Library {
     }
     /// Each game's settings list (nxplay's nxplay-settings.json), read with the games.
     public internal(set) var settingsLists: [Game.ID: LauncherSettings] = [:]
+    /// Each game's mods as Game Settings last read them, and their files once counted (Library+Mods.swift).
+    public internal(set) var gameMods: [Game.ID: [GameMod]] = [:]
+    public internal(set) var modFiles: [Game.ID: [String: GameModFiles]] = [:]
     /// Build shaders with this Mac's Metal compiler when nxnative tested another (its --allow-other-metal):
     /// off by default, as nxnative's; a newer Xcode than nxnative's tested one stops every build otherwise.
     public var allowOtherMetal: Bool {
@@ -970,6 +973,7 @@ public final class Library {
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
             environment["NXPLAY_UPDATE"] = updateBeforePlay.rawValue
+            modsEnvironment(for: game).forEach { environment[$0.key] = $0.value }
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):
             guard let team, let titleID = game.titleID else {

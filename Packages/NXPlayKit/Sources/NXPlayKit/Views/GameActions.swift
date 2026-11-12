@@ -130,6 +130,14 @@ struct GameActions: View {
                     NSWorkspace.shared.open(cheats)
                 }
             }
+            // the game's file mods (Game Settings › Mods), one folder each; made here when missing, as the cheats'
+            if let game {
+                Button("Open Mods Folder", systemImage: "puzzlepiece.extension") {
+                    let mods = library.modsFolder(for: game)
+                    try? FileManager.default.createDirectory(at: mods, withIntermediateDirectories: true)
+                    NSWorkspace.shared.open(mods)
+                }
+            }
             if let logs = game?.logsFolder {
                 Button("Open Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
             }
