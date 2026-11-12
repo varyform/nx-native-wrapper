@@ -480,6 +480,31 @@ eshop_icon() {
   done
 }
 
+# A shader cache in SQLite's WAL mode can't be opened on a network volume (SMB, as File Sharing or a NAS shares a
+# folder): WAL needs a memory file shared between processes, which a network volume can't give, and the shader step
+# stopped with "unable to open database file". nxnative makes a new cache there with the rollback journal, but one
+# made while the folder was on a local disk (the sharing Mac's own builds) stays in WAL mode. Before building over the
+# network, switch those to the rollback journal: an exclusive lock opens a WAL file without the memory file. A build
+# on the local disk turns WAL on again, which is right there.
+network_caches() {
+  local b db
+  for b in "$game"/*_build; do
+    [[ -d "$b" ]] || continue
+    case "$(df -P "$b" 2> /dev/null | awk 'NR == 2 { print $1 }')" in //* | *:/*) ;; *) continue ;; esac
+    while IFS= read -r -d '' db; do
+      # an SQLite file whose header's byte 18 is 2: WAL
+      [[ "$(head -c 15 "$db" 2> /dev/null)" == "SQLite format 3" ]] || continue
+      [[ "$(od -An -tx1 -j18 -N1 "$db" 2> /dev/null | tr -d ' ')" == 02 ]] || continue
+      if sqlite3 "$db" 'PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=DELETE;' > /dev/null 2>&1; then
+        say "nxplay: ${db#"$b"/} switched from WAL to SQLite's rollback journal, as WAL can't work on a network volume"
+      else
+        warn "nxplay: could not switch ${db#"$b"/} from WAL to the rollback journal; the shader step may not open it"
+      fi
+    done < <(find "$b/shader" -maxdepth 2 -name '*.db' -print0 2> /dev/null)   # cas.db, in shader/cache
+  done
+}
+network_caches
+
 if [[ $ipa -eq 1 ]]; then
   # the script's own default output (<game folder>/<the profile's IPA name>); it reuses every step a Mac build made
   eshop_icon "$@"

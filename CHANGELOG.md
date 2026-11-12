@@ -17,6 +17,7 @@ Shader compilation says 90 minutes to go? MacBook fans spinning up like it's abo
 
 ### Fixed
 
+- **A rebuild from a games folder on the network** no longer stops at the shader step with `unable to open database file`. A game built while its folder was on a local disk keeps its shader cache in a mode SQLite can't open over the network, so nxplay switches the cache to one that works there before building.
 - **The log** no longer shows a new nxnative commit in red when its description quotes a problem, such as `[RED]`.
 
 ## 1.9.0 — 2026-11-12

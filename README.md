@@ -150,7 +150,7 @@ One Mac can build another's games, a desktop for a laptop for example, over the 
 
 Games in a games folder both Macs have, such as one on a file server, are the same games on both: each games folder gets a hidden `.nxplay-folder-id` file, so a game is recognised under any path. While the other Mac builds one of them, its card here shows that build's progress and log, **Cancel** stops it there, and it doesn't build or play here until that's done, since two builds into one folder would spoil each other. The two Macs talk over TLS with a key from the pairing, which nobody who sees the code later can work out.
 
-A folder shared from a Mac with File Sharing works. If it's on an external drive, turn off **Ignore ownership on this volume** in its Get Info first, or the other Mac is told the share doesn't exist. A NAS that strips the execute permission from files, such as a UniFi one, builds a game once, but a rebuild can fail with `Permission denied` when the build runs one of its own tools there a second time.
+A folder shared from a Mac with File Sharing works. If it's on an external drive, turn off **Ignore ownership on this volume** in its Get Info first, or the other Mac is told the share doesn't exist. Before building over the network, nxplay switches a game's shader cache out of SQLite's WAL mode, which a network volume can't open: a game built from the drive on the sharing Mac has its cache in that mode. A NAS that strips the execute permission from files, such as a UniFi one, builds a game once, but a rebuild can fail with `Permission denied` when the build runs one of its own tools there a second time.
 
 ### Saves
 
