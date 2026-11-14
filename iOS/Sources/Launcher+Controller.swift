@@ -4,7 +4,7 @@ import Foundation
 /// it (or installs it when it isn't here); Y installs again; B closes the sheet.
 extension Launcher {
     func handle(_ command: Controller.Command) {
-        guard mac?.device != nil else { return }
+        guard mac?.device != nil, !pairingPresentation.isPresented else { return }
         if let id = sheetGame {
             guard let game = games.first(where: { $0.id == id }) else { return sheetGame = nil }
             switch command {

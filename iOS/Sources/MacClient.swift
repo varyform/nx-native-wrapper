@@ -10,6 +10,8 @@ struct MacInfo: Decodable, Sendable {
     let name: String
     let version: String
     let team: Team?
+    /// The Mac's pairing ID (PairingLink.macID); nil from a Mac before QR pairing.
+    let id: String?
 }
 
 struct RemoteGame: Decodable, Identifiable, Hashable, Sendable {
@@ -67,19 +69,92 @@ struct DeviceGames: Decodable, Sendable {
 struct MacClient: Sendable {
     struct Failure: LocalizedError {
         let message: String
+        /// The HTTP status the Mac answered with; 0 when it didn't answer.
+        var status = 0
         var errorDescription: String? { message }
     }
 
-    let host: String
-    let port: Int
+    /// What answers at an address, asked without the code (`GET /v1/hello`).
+    enum Hello: Equatable, Sendable {
+        case nxplay(PairingHello)
+        /// NX Play from before QR pairing: it wants the code for everything, /v1/hello too.
+        case olderNXPlay
+        /// Something else answered.
+        case notNXPlay
+    }
+
+    let endpoint: Endpoint
     let token: String
 
-    private static let session: URLSession = {
+    init(endpoint: Endpoint, token: String) {
+        self.endpoint = endpoint
+        self.token = token
+    }
+
+    /// How every request to the Mac goes: straight to the address asked, without a proxy, and without following
+    /// redirects. A proxy set for the network (Wi-Fi › Configure Proxy, or a PAC file) would see the code, so it isn't
+    /// used. A redirect could make another server's `/v1/hello` vouch for this address, or take a request elsewhere,
+    /// so it reads as the answer it is: a 3xx, which is neither NX Play nor a success.
+    static let configuration: URLSessionConfiguration = {
         let configuration = URLSessionConfiguration.ephemeral
         // listing a device's apps asks devicectl, a few seconds; a build is followed by polling, never waited on
         configuration.timeoutIntervalForRequest = 30
-        return URLSession(configuration: configuration)
+        // an empty dictionary rather than nil (the system's proxies): no proxy at all
+        configuration.connectionProxyDictionary = [:]
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.urlCache = nil
+        return configuration
     }()
+
+    private static let session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
+
+    /// Refuses every redirect (see `configuration`).
+    final class NoRedirects: NSObject, URLSessionTaskDelegate, Sendable {
+        func urlSession(
+            _ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+            newRequest request: URLRequest
+        ) async -> URLRequest? {
+            nil
+        }
+    }
+
+    /// One request, answered by the address it went to: an answer from anywhere else is refused.
+    private func send(_ request: URLRequest) async throws -> (Data, Int) {
+        let (body, response) = try await Self.session.data(for: request)
+        guard let http = response as? HTTPURLResponse, let asked = request.url, Self.sameOrigin(http.url, asked) else {
+            throw Failure(message: "\(endpoint.display) answered from somewhere else.")
+        }
+        return (body, http.statusCode)
+    }
+
+    static func sameOrigin(_ a: URL?, _ b: URL) -> Bool {
+        guard let a else { return false }
+        return a.scheme?.lowercased() == b.scheme?.lowercased() && a.host?.lowercased() == b.host?.lowercased()
+            && a.port == b.port
+    }
+
+    /// Whether NX Play answers here, and which Mac: no code is sent, so a wrong or stale address never gets it. The
+    /// answer is a claim, not proof: anything on the network can send the same words, so it only keeps the code from
+    /// going to the wrong Mac or to something else by mistake (PairingTrust says where the code may go).
+    func hello() async throws -> Hello {
+        guard let url = endpoint.url(path: "v1/hello") else { throw Failure(message: "Bad address: \(endpoint.display)") }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 6
+        let (body, status) = try await send(request)
+        if status == 200, let hello = try? JSONDecoder().decode(PairingHello.self, from: body),
+            hello.app == NXPlayPairing.helloApp
+        {
+            return .nxplay(hello)
+        }
+        // an older NX Play: {"error": "Wrong pairing code: …"} for a request without one
+        if status == 401, let message = (try? JSONDecoder().decode([String: String].self, from: body))?["error"],
+            message.contains("pairing code")
+        {
+            return .olderNXPlay
+        }
+        return .notNXPlay
+    }
 
     func info() async throws -> MacInfo { try await get("v1/info") }
     func games() async throws -> [RemoteGame] { try await get("v1/games") }
@@ -114,22 +189,17 @@ struct MacClient: Sendable {
     private func data(_ path: String, query: [String: String] = [:], method: String = "GET")
         async throws -> Data
     {
-        var components = URLComponents()
-        components.scheme = "http"
-        components.host = host
-        components.port = port
-        components.percentEncodedPath = "/" + path
-        if !query.isEmpty { components.queryItems = query.map(URLQueryItem.init) }
-        guard let url = components.url else { throw Failure(message: "Bad address: \(host)") }
+        guard let url = endpoint.url(path: path, query: query.map(URLQueryItem.init)) else {
+            throw Failure(message: "Bad address: \(endpoint.display)")
+        }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let (body, response) = try await Self.session.data(for: request)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let (body, status) = try await send(request)
         guard (200..<300).contains(status) else {
             // the server's {"error": "…"} reads as it is
             let message = (try? JSONDecoder().decode([String: String].self, from: body))?["error"]
-            throw Failure(message: message ?? "The Mac answered \(status)")
+            throw Failure(message: message ?? "The Mac answered \(status)", status: status)
         }
         return body
     }

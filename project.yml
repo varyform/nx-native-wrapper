@@ -64,7 +64,7 @@ targets:
           rm -rf "$dir"
           mkdir -p "$dir/bin" "$dir/App"
           cp "$SRCROOT/bin/install-ios" "$dir/bin/"
-          rsync -a --exclude '*.xcodeproj' --exclude Gen "$SRCROOT/iOS/" "$dir/iOS/"
+          rsync -a --exclude '*.xcodeproj' --exclude Gen --exclude Tests --exclude .build "$SRCROOT/iOS/" "$dir/iOS/"
           rsync -a "$SRCROOT/App/AppIcon.icon" "$dir/App/"
         basedOnDependencyAnalysis: false
     dependencies:

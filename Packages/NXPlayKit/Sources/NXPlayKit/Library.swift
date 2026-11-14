@@ -43,6 +43,8 @@ public final class Library {
         static let updateBeforePlay = "updateBeforePlay"
         static let remoteEnabled = "remoteEnabled"
         static let remoteToken = "remoteToken"
+        static let remotePort = "remotePort"
+        static let remoteID = "remoteID"
         static let deviceGames = "deviceGames"
         static let frameRateTrials = "frameRateTrials"
     }
@@ -165,6 +167,19 @@ public final class Library {
     /// Why the iOS app's server isn't listening.
     public internal(set) var remoteProblem: String?
     @ObservationIgnored var remoteServer: RemoteServer?
+    /// Optional local override when another app owns the default port (Settings › Devices). Bonjour advertises this
+    /// port too, and the pairing QR code carries it. A change restarts the server.
+    var remotePort: UInt16 {
+        didSet {
+            guard remotePort != oldValue else { return }
+            defaults.set(remotePort == RemoteServer.defaultPort ? nil : Int(remotePort), forKey: Keys.remotePort)
+            restartRemote()
+        }
+    }
+    /// Whether phones on this network can find the server over Bonjour yet (RemoteServer.Advertisement).
+    var remoteAdvertisement = RemoteServer.Advertisement.off
+    /// The Mac's addresses and Tailscale, for Settings › Devices and the pairing QR code.
+    let remoteNetwork: RemoteNetwork
     /// Install NX Play's run, while it goes and after (Library+IOSApp.swift).
     public internal(set) var iosAppInstall: IOSAppInstall?
 
@@ -325,6 +340,8 @@ public final class Library {
         keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
         installUpdatesWhenIdle = defaults.bool(forKey: Keys.installUpdatesWhenIdle)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
+        remotePort = Self.remotePort(defaults.integer(forKey: Keys.remotePort))
+        remoteNetwork = RemoteNetwork(sample: isScreenshot)
         let token = defaults.string(forKey: Keys.remoteToken) ?? Self.newRemoteToken()
         defaults.set(token, forKey: Keys.remoteToken)  // a new one is kept: didSet doesn't run in init
         remoteToken = token
