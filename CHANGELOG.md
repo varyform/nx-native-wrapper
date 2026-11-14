@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.1.0 — 2026-11-14
+
 ### Added
 
 - **Install & IPA window**: **Install on Device…** and **Build IPA…** open one window for the game, which starts from your last choices: install on a device or make an IPA file, the game files in the app or copied on their own, and how it's signed.
