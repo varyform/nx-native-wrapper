@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- **What's New in Settings › Updates**: the notes were right-aligned, with ragged lines and bullets. They now read from the left, as in the update banner.
+
 ## 2.1.0 — 2026-11-14
 
 ### Added

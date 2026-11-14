@@ -30,6 +30,8 @@ struct ChangelogBlocks: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // What's New in Settings opens from a LabeledContent, whose trailing alignment its popover inherits
+        .multilineTextAlignment(.leading)
         .textSelection(.enabled)
     }
 
@@ -41,6 +43,7 @@ struct ChangelogBlocks: View {
                 Text("•").foregroundStyle(.secondary)
                 Text(inline(text)).fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         case .text(let text): Text(inline(text)).fixedSize(horizontal: false, vertical: true)
         }
     }
