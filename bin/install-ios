@@ -37,7 +37,7 @@ fi
 # xcodegen writes the project next to project.yml: generate it in a copy, so the source stays as it is
 echo "preparing the project"
 mkdir -p "$work/src/App"
-rsync -a --delete iOS/ "$work/src/iOS/"
+rsync -a --delete --exclude Tests --exclude .build iOS/ "$work/src/iOS/"
 rsync -a --delete App/AppIcon.icon "$work/src/App/"
 if command -v mise > /dev/null && mise which xcodegen > /dev/null 2>&1; then
   (cd "$work/src/iOS" && mise exec -- xcodegen generate --quiet)

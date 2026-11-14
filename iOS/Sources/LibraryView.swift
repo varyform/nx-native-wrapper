@@ -13,10 +13,25 @@ struct LibraryView: View {
                         ExpiryBanner().padding(.horizontal)
                         if launcher.offline {
                             Label(
-                                "\(launcher.mac?.name ?? "The Mac") isn't answering: it may be asleep, or NX Play closed.",
+                                "\(launcher.mac?.name ?? "The Mac") isn't answering at \(launcher.mac?.endpoint.display ?? "its address"): it may be asleep, NX Play closed, or this \(UIDevice.current.model) on another network. NX Play keeps trying its other addresses; away from home, connect Tailscale.",
                                 systemImage: "wifi.exclamationmark"
                             )
                             .foregroundStyle(.orange).padding(.horizontal)
+                            // while it's away, Bonjour looks for where the Mac is now (Launcher.unconfirmedAddresses)
+                            .onAppear { launcher.finder.start() }
+                            .onDisappear { launcher.finder.stop() }
+                            if let moved = launcher.unconfirmedAddresses.first {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Label(
+                                        "Something on this network says it's \(launcher.mac?.name ?? "the Mac") at \(moved.display), an address you haven't paired with. NX Play doesn't send the code there by itself: pair again to use it.",
+                                        systemImage: "questionmark.circle")
+                                    Button("Pair Again with QR Code…", systemImage: "qrcode.viewfinder") {
+                                        launcher.showsScanner = true
+                                    }
+                                    .buttonStyle(.bordered)
+                                }
+                                .padding(.horizontal)
+                            }
                         }
                         LazyVGrid(columns: grid.items, spacing: 24) {
                             ForEach(launcher.sortedGames) { game in
@@ -134,6 +149,8 @@ private struct LibraryMenu: View {
             if let expires = Expiry.launcher {
                 Text("NX Play: \(Expiry.text(expires).lowercased()), \(expires.formatted(date: .abbreviated, time: .omitted))")
             }
+            if let mac = launcher.mac { Text("Connected at \(mac.endpoint.display)") }
+            Button("Pair Again with QR Code…", systemImage: "qrcode.viewfinder") { launcher.showsScanner = true }
             Button("Choose Another Device") { launcher.forgetDevice() }
             Button("Unpair", role: .destructive) { launcher.unpair() }
         } label: {

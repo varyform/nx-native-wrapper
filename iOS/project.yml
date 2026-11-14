@@ -18,6 +18,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      # the pairing link and addresses, shared with the Mac (NXPlayKit links to this file)
+      - path: Shared
       # NX Play's own icon (Icon Composer, shared with the Mac app); Xcode compiles it into the asset catalog
       - path: ../App/AppIcon.icon
         type: file
@@ -39,9 +41,21 @@ targets:
         NSLocalNetworkUsageDescription: NX Play finds your Mac on the local network to list your games and install them on this device.
         NSBonjourServices:
           - _nxplay._tcp
-        # plain HTTP to <mac>.local: the pairing code guards it, and it never leaves the local network
+        # Scan QR Code: the pairing QR code NX Play shows on the Mac
+        NSCameraUsageDescription: NX Play scans the pairing QR code your Mac shows in NX Play › Settings › Devices.
+        # nxplay://pair?…: a pairing link from the camera or a copied link, confirmed before it's used
+        CFBundleURLTypes:
+          - CFBundleURLName: org.nxplay.ios.pair
+            CFBundleURLSchemes:
+              - nxplay
+        # plain HTTP to <mac>.local and the Mac's addresses: the pairing code guards it. Tailscale's MagicDNS names
+        # (*.ts.net) too: that traffic travels inside Tailscale's encryption, to a device on your tailnet
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            ts.net:
+              NSIncludesSubdomains: true
+              NSExceptionAllowsInsecureHTTPLoads: true
         GCSupportsControllerUserInteraction: true
     settings:
       base:

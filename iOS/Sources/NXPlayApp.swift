@@ -27,6 +27,15 @@ struct RootView: View {
                 LibraryView()
             }
         }
+        // nxplay://pair?… from the camera or a link: confirmed in PairingLinkSheet; anything else is ignored
+        .onOpenURL { launcher.open($0) }
+        .sheet(isPresented: $launcher.showsScanner, onDismiss: { launcher.pairingPresentation.scannerDidDismiss() }) {
+            let scannerID = launcher.pairingPresentation.scannerID
+            QRScannerSheet { link in
+                launcher.pairingPresentation.receiveScan(link, from: scannerID)
+            }
+        }
+        .sheet(item: $launcher.pendingPairing) { PairingLinkSheet(pending: $0) }
         .alert(
             "NX Play", isPresented: Binding(get: { launcher.problem != nil }, set: { if !$0 { launcher.problem = nil } })
         ) {

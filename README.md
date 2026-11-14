@@ -121,9 +121,18 @@ Right-click a game for more, or use the **Game** menu:
 To set it up:
 
 1. Pair the device with Xcode once (Window › Devices and Simulators) with **Connect via network** on, and turn on Developer Mode.
-2. On the Mac, turn on Settings › Devices › iPhone & iPad App. NX Play then shows up on the local network over Bonjour (`_nxplay._tcp`, port 47474) with a pairing code. **New Code** locks out devices that had the old one.
+2. On the Mac, turn on Settings › Devices › iPhone & iPad App. NX Play then shows up on the local network over Bonjour (`_nxplay._tcp`, port 47474 unless you choose another under **Port**) with a pairing code. **New Code** locks out devices that had the old one.
 3. Choose the device and click **Install NX Play** in the same section. NX Play builds the app from the source it carries and signs it with your team. From a checkout, `bin/install-ios <UDID>` does the same; `xcrun devicectl list devices` lists the UDIDs.
-4. On the device, pick the Mac, enter the code, and pick which of the Mac's devices this one is.
+4. On the device, tap **Scan QR Code** and scan the code from the Mac's **Show QR Code…**, then pick which of the Mac's devices this one is. Or pick the Mac from the ones found on the network, or type one of its addresses, and enter the code.
+
+Connecting:
+
+- **QR code**: holds the Mac's ID, its name, the pairing code and the addresses it's reached at (local network first, then Tailscale), as `nxplay://pair?v=1&…`. The camera app opens it in NX Play too, and **Copy Link** on the Mac pastes on the device through Universal Clipboard. The device asks before it pairs, and sends the code only to an address that says it's NX Play on that Mac (`GET /v1/hello`, the one request without the code). The QR window is kept out of screenshots and screen sharing and closes after three minutes. The code is kept in the device's Keychain.
+- **Bonjour**: finds the Mac on the same local network only. When macOS is slow to confirm it (it can wait for its local network privacy rules after the app was replaced), Settings says so and NX Play registers again until it's visible. The device shows when Local Network access is off for NX Play.
+- **Addresses**: Settings › Devices lists the Mac's real addresses (IPv4, IPv6, its `.local` name, Tailscale's). On the device, type `192.168.1.20`, `mac.local:47480`, `[fd7a:115c:a1e0::1]:47474` or a Tailscale name.
+- **Tailscale**: Bonjour doesn't cross a tailnet. With Tailscale on both, the QR code's Tailscale addresses (MagicDNS `mac.tailnet.ts.net`, `100.x`, `fd7a:…`) work from anywhere on your tailnet. NX Play only reads `tailscale status`; it changes no Tailscale setting and exposes nothing publicly (no Funnel, no Serve). The device keeps every address that was in the code, and when the Mac stops answering at one, it tries the others, checking each is the same Mac first.
+- **Where the code goes**: the device sends its saved code only to the addresses you confirmed when pairing (the QR code's, the one you typed, or those of the Mac you picked). When Bonjour finds your Mac's ID at another address, the library says so and offers **Pair Again with QR Code…**; it doesn't send the saved code there, because anything on the network can claim the Mac's ID (it's public: Bonjour and `/v1/hello` give it to anyone). Requests go straight to the Mac, never through a proxy, and redirects aren't followed. Cancel and Unpair stop a pairing under way.
+- **What this relies on**: NX Play talks plain HTTP and the Mac has no key the device checks, so the network matters. On Wi-Fi the code travels unencrypted, as a typed code always did: someone who can read that network's traffic, or take over one of the confirmed addresses there, can learn it. Pair on a network you trust, and use **New Code** if you doubt it. Over Tailscale the traffic is encrypted by WireGuard and the `100.x` addresses belong to your tailnet's devices, but only while Tailscale is connected on the device: without it, a `100.x` address belongs to whatever network the device is on.
 
 <img src="docs/devices.webp" alt="Settings › Devices: the Apple team, and the iPhone & iPad App section with the Mac's address, the pairing code and Install NX Play" width="560">
 
@@ -136,6 +145,7 @@ The header shows which Mac the device is connected to. Games installed from now 
 Games installed with a Personal Team stop opening after 7 days, and with a paid team after a year. The launcher shows how long each game has left. Within two days of expiry, a banner offers **Renew**, which installs those games again. NX Play itself expires the same way: install it again from Settings. Installs go over the cable when the device is plugged in, otherwise over Wi-Fi. The Mac has to be awake and NX Play open. The API is in `Library+Remote.swift`:
 
 ```sh
+curl http://<mac>.local:47474/v1/hello   # no code: {"app": "nxplay", "api": 1, "id": "<Mac ID>"}
 curl -H "Authorization: Bearer <code>" http://<mac>.local:47474/v1/games
 curl -X POST -H "Authorization: Bearer <code>" "http://<mac>.local:47474/v1/games/<folder>/install?device=<udid>"
 ```

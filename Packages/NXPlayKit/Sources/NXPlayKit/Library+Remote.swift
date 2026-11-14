@@ -4,8 +4,10 @@ import SystemConfiguration
 /// The iOS app's API (Settings › Devices › iPhone & iPad App). The iPhone or iPad lists the games, picks itself from the devices this
 /// Mac reaches, and asks for an install: the Mac builds the game signed with its team and installs it over Wi-Fi
 /// with devicectl, as Install on Device does. iOS doesn't let one app install another, so the Mac pushes the app.
-/// Every request carries the pairing code (`Authorization: Bearer <code>`).
+/// Every request carries the pairing code (`Authorization: Bearer <code>`), except `/v1/hello`.
 ///
+///     GET  /v1/hello                     no code needed: {"app": "nxplay", "api": 1, "id": <Mac ID>}, so the app
+///                                        checks it reached NX Play on the Mac it expects before it sends the code
 ///     GET  /v1/info                      the Mac, NX Play's version, the team
 ///     GET  /v1/games                     the games, each with its running job
 ///     GET  /v1/games/<id>/icon           the game's artwork
@@ -23,9 +25,55 @@ extension Library {
         }.joined(separator: "-")
     }
 
-    /// Where the iOS app reaches the server, as Settings shows it; a sample in screenshot mode.
+    /// Where the iOS app reaches the server: the first of `remoteEndpoints` (an address on the local network, before
+    /// the .local name), else the host name; a sample in screenshot mode.
     public var remoteAddress: String {
-        "\(isScreenshot ? "Mac.local" : ProcessInfo.processInfo.hostName):\(RemoteServer.defaultPort)"
+        if let first = remoteEndpoints.first { return first.display }
+        return "\(isScreenshot ? "Mac.local" : ProcessInfo.processInfo.hostName):\(remotePort)"
+    }
+
+    /// A random ID this Mac keeps, in its Bonjour TXT record, `/v1/hello` and the pairing QR code: the iOS app checks
+    /// an address leads to the Mac it paired with before it sends the pairing code there.
+    var remoteID: String {
+        if let id = defaults.string(forKey: Keys.remoteID).flatMap(UUID.init(uuidString:)) { return id.uuidString }
+        let id = UUID().uuidString
+        defaults.set(id, forKey: Keys.remoteID)
+        return id
+    }
+
+    static func remotePort(_ value: Int) -> UInt16 {
+        (1024...65535).contains(value) ? UInt16(value) : RemoteServer.defaultPort
+    }
+
+    /// Every address the server is reached at, in the order the iOS app tries them (MacAddresses.endpoints).
+    var remoteEndpoints: [Endpoint] { remoteNetwork.endpoints(port: remotePort) }
+
+    /// The link the pairing QR code shows: this Mac's ID and name, the code, and `endpoints` (at most
+    /// NXPlayPairing.maxEndpoints of them), made to fit what the iOS app reads (PairingLink.fitting: a long name is
+    /// shortened first, then the last addresses are left out). A sample code in screenshot mode, so a screenshot never
+    /// shows the real one. Nil without an address.
+    func pairingLink(endpoints: [Endpoint]) -> PairingLink? {
+        PairingLink.fitting(
+            macID: remoteID, name: remoteName, code: isScreenshot ? "abcd-efgh-jkmn" : remoteToken,
+            endpoints: endpoints)
+    }
+
+    /// The Mac's name from Sharing settings (Host.current() can wait on DNS).
+    var remoteName: String {
+        if isScreenshot { return "Mac" }
+        return SCDynamicStoreCopyComputerName(nil, nil) as String? ?? "Mac"
+    }
+
+    /// Settings › Devices' port: the server moves there (restartRemote).
+    func setRemotePort(_ value: Int) {
+        remotePort = Self.remotePort(value)
+    }
+
+    /// Stops the server and starts it again with the current settings: a new port.
+    func restartRemote() {
+        remoteServer?.stop()
+        remoteServer = nil
+        applyRemote()
     }
 
     public func renewRemoteToken() {
@@ -38,18 +86,26 @@ extension Library {
             remoteServer?.stop()
             remoteServer = nil
             remoteProblem = nil
+            remoteAdvertisement = .off
+            remoteNetwork.stop()
             return
         }
+        remoteNetwork.start()
         guard remoteServer == nil else { return }
         let server = RemoteServer { [weak self] request in
             await self?.respond(to: request) ?? .error(503, "NX Play is quitting")
         }
         server.onProblem = { [weak self] problem in self?.remoteProblem = problem }
+        server.onAdvertisement = { [weak self] state in self?.remoteAdvertisement = state }
         remoteServer = server
-        server.start()
+        server.start(port: remotePort, id: remoteID)
     }
 
     func respond(to request: RemoteRequest) async -> RemoteResponse {
+        // the one answer without the code: that this is NX Play, and which Mac (nothing about the games or devices)
+        if request.route("GET", "v1/hello") != nil {
+            return .json(["app": NXPlayPairing.helloApp, "api": 1, "id": remoteID])
+        }
         guard request.bearer == remoteToken else {
             return .error(401, "Wrong pairing code: see NX Play › Settings › Devices on the Mac")
         }
@@ -58,9 +114,7 @@ extension Library {
             let version: String =
                 Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
                 ?? ""
-            // the Mac's name from Sharing settings (Host.current() can wait on DNS)
-            let name: String = SCDynamicStoreCopyComputerName(nil, nil) as String? ?? "Mac"
-            var info: [String: Any] = ["name": name, "version": version, "team": NSNull()]
+            var info: [String: Any] = ["name": remoteName, "version": version, "team": NSNull(), "id": remoteID]
             if let team { info["team"] = ["name": team.name, "free": team.isFree] }
             return .json(info)
         }
