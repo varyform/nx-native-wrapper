@@ -151,39 +151,58 @@ private struct RemotePortField: View {
 /// Every address this Mac is reached at, and Tailscale: what to type on the device when it doesn't find the Mac.
 private struct RemoteAddressesSection: View {
     @Environment(Library.self) private var library
+    /// Collapsed: a Mac with VPNs, bridges and IPv6 has ten of them, and the QR code carries them anyway.
+    @State private var isExpanded = false
 
     var body: some View {
         let endpoints = library.remoteEndpoints
         Section {
             if endpoints.isEmpty {
-                Label(
-                    library.remoteNetwork.isLoaded
-                        ? "No network: join Wi-Fi or Ethernet, or connect Tailscale." : "Looking…",
-                    systemImage: "network.slash"
-                )
-                .foregroundStyle(.secondary)
-            }
-            ForEach(endpoints, id: \.self) { endpoint in
                 LabeledContent {
-                    Text(verbatim: endpoint.display).monospaced().textSelection(.enabled)
+                    refreshButton
                 } label: {
-                    Label(endpoint.kind.title, systemImage: endpoint.kind.symbol)
+                    Label(
+                        library.remoteNetwork.isLoaded
+                            ? "No network: join Wi-Fi or Ethernet, or connect Tailscale." : "Looking…",
+                        systemImage: "network.slash"
+                    )
+                    .foregroundStyle(.secondary)
+                }
+            } else {
+                DisclosureGroup(isExpanded: $isExpanded) {
+                    ForEach(endpoints, id: \.self) { endpoint in
+                        LabeledContent {
+                            Text(verbatim: endpoint.display).monospaced().textSelection(.enabled)
+                        } label: {
+                            Label(endpoint.kind.title, systemImage: endpoint.kind.symbol)
+                        }
+                    }
+                } label: {
+                    HStack {
+                        // the whole row opens it, not only the chevron, as Advanced settings in a game's settings
+                        HStack {
+                            Text("Addresses")
+                            Text("(\(endpoints.count) available)").foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(.rect)
+                        .onTapGesture { withAnimation { isExpanded.toggle() } }
+                        refreshButton
+                    }
                 }
             }
             tailscaleRow
-        } header: {
-            HStack {
-                Text("Addresses")
-                Spacer()
-                Button("Refresh", systemImage: "arrow.clockwise") { library.remoteNetwork.refresh() }
-                    .labelStyle(.iconOnly).buttonStyle(.borderless).help("Look at the network again")
-            }
         } footer: {
             Text(
                 "A device finds this Mac by itself only on the same local network: Bonjour doesn't cross Tailscale. Away from it, connect Tailscale on both, then scan the QR code (it has the Tailscale addresses) or type a Tailscale address. NX Play only reads Tailscale's status: it changes none of its settings and puts nothing on the internet. Requests carry the pairing code over plain HTTP: keep it to networks you trust; over Tailscale it travels inside Tailscale's encryption."
             )
             .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    private var refreshButton: some View {
+        Button("Refresh", systemImage: "arrow.clockwise") { library.remoteNetwork.refresh() }
+            .labelStyle(.iconOnly).buttonStyle(.borderless).help("Look at the network again")
     }
 
     @ViewBuilder private var tailscaleRow: some View {

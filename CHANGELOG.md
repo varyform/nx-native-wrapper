@@ -4,14 +4,13 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
-## 2.0.1 — 2026-11-14
+Pair your iPhone or iPad by scanning a QR code, and reach the Mac over Tailscale from anywhere. Thanks to @saphid for this one ([#29](https://github.com/varyform/nx-native-wrapper/pull/29)).
 
 ### Added
 
-- **Free Up Space clears Metal's leftovers.** Each game run leaves Metal's compiler state for its pipeline capture in the user cache folder, about 45 MB a time, and nothing ever removes it: one Mac had 89 GB of it after a few weeks. **Tools › Free Up Space** now lists it on its own row, the folders untouched for a day, and can't delete it while a game runs.
 - **Pair NX Play for iPhone and iPad with a QR code**: Settings › Devices › **Show QR Code…** shows a code with the Mac's addresses and the pairing code; **Scan QR Code** on the device pairs in one step (the camera app opens it too, and **Copy Link** pastes through Universal Clipboard). The device asks first, and sends the code only to an address that answers as NX Play on that Mac. The QR window stays out of screenshots and screen sharing and closes after three minutes; the device keeps the code in its Keychain.
 - **Tailscale**: the QR code and Settings › Devices include the Mac's Tailscale name and addresses when Tailscale runs, so the device reaches the Mac from anywhere on your tailnet. NX Play only reads Tailscale's status and changes none of its settings. Bonjour still finds the Mac only on the same local network.
-- **Settings › Devices lists the Mac's real addresses** (IPv4, IPv6, `.local`, Tailscale) and a **Port** field for when another app has 47474. The device takes any of them, IPv6 in brackets included.
+- **Settings › Devices lists the Mac's real addresses** (IPv4, IPv6, `.local`, Tailscale), folded under **Addresses (N available)** until you open it, and a **Port** field for when another app has 47474. The device takes any of them, IPv6 in brackets included.
 
 ### Fixed
 
@@ -19,6 +18,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 - **The device keeps its pairing when the Mac moves**: it tries the Mac's other confirmed addresses before calling it offline; a failed pairing attempt leaves the current pairing as it was. When Bonjour sees the Mac's ID at a new address, the library offers to pair again instead of sending the saved code there (the ID is public, so anything on the network could claim it). Requests go straight to the Mac: no proxy, no redirects. Cancel and Unpair now stop a pairing under way, and an old reconnect or refresh can't overwrite a newer pairing. Errors say what to check (Wi-Fi, Tailscale, Local Network access, the port).
 - **A long or emoji Mac name** could make a QR code the device refused as too long or damaged; the Mac now shortens the name to fit, and lists any address it had to leave out.
 - **An IPv6 address typed on the device** made no URL ("Bad address"), and **Tailscale names (`*.ts.net`)** were refused by iOS for plain HTTP.
+
+## 2.0.1 — 2026-11-14
+
+### Added
+
+- **Free Up Space clears Metal's leftovers.** Each game run leaves Metal's compiler state for its pipeline capture in the user cache folder, about 45 MB a time, and nothing ever removes it: one Mac had 89 GB of it after a few weeks. **Tools › Free Up Space** now lists it on its own row, the folders untouched for a day, and can't delete it while a game runs.
 
 ## 2.0 — 2026-11-12
 
