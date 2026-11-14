@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.0.1 — 2026-11-14
+
 ### Added
 
 - **Free Up Space clears Metal's leftovers.** Each game run leaves Metal's compiler state for its pipeline capture in the user cache folder, about 45 MB a time, and nothing ever removes it: one Mac had 89 GB of it after a few weeks. **Tools › Free Up Space** now lists it on its own row, the folders untouched for a day, and can't delete it while a game runs.
