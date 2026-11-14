@@ -41,6 +41,8 @@ import Network
     private var generation = 0
     /// The port it listens on, once it does.
     private(set) var port: NWEndpoint.Port?
+    /// Its listener takes connections: not while one replacing it after a pairing or removal starts.
+    var isListening: Bool { listener?.state == .ready }
     /// The port asked for: any free one in tests, which run beside NX Play.
     private let requestedPort: NWEndpoint.Port
     /// Off in tests, which connect to the port.

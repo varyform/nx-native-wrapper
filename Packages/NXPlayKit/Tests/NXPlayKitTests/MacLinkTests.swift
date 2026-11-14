@@ -49,7 +49,9 @@ import Testing
             endpoint: endpoint, hostID: "host-id", code: code.lowercased(), clientID: "c", clientName: "Air")
         #expect(paired.name == "Studio" && host.clients.map(\.name) == ["Air"])
         #expect(host.clients.first?.key == paired.key)  // both ends worked out the same key
-        try await until { host.pairingCode != code }
+        // a new code means a new listener, which refuses connections until it's ready (on a busy CI runner, long
+        // enough for the connect below)
+        try await until { host.pairingCode != code && host.isListening }
         #expect(host.pairingCode != code)  // one use only
 
         let client = MacClient(host: paired, clientID: "c")
