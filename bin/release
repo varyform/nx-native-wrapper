@@ -4,16 +4,19 @@
 # changelog's notes and any new contributors. Nothing is pushed or published before the confirmation; a failure before
 # it restores the files.
 #
-# usage: bin/release <version> [name]   e.g. bin/release 1.7.12 "Stair Climber"
-#        the name, when given, follows the version in the GitHub release's title and the changelog's heading
+# usage: bin/release [-y] <version> [name]   e.g. bin/release 1.7.12 "Stair Climber"
+#        the name, when given, follows the version in the GitHub release's title and the changelog's heading;
+#        -y / --yes publishes without asking once the DMG is notarized
 # once:  xcrun notarytool store-credentials nxplay-notary --apple-id <you@example.com> --team-id <team ID>
 #        (an app-specific password from account.apple.com); NOTARY_PROFILE names another profile
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+yes=0
+if [[ "${1:-}" == -y || "${1:-}" == --yes ]]; then yes=1; shift; fi
 version="${1:-}"
 name="${2:-}"
-[[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "usage: bin/release <version> [name]  (e.g. 1.7.12 \"Stair Climber\")" >&2; exit 2; }
+[[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "usage: bin/release [-y] <version> [name]  (e.g. 1.7.12 \"Stair Climber\")" >&2; exit 2; }
 # letters, digits, spaces and a little punctuation: it goes into a sed replacement and a markdown heading
 [[ -z "$name" || "$name" =~ ^[[:alnum:]][[:alnum:]\ \'.-]{0,40}$ ]] || { echo "bin/release: a release name is letters, digits, spaces, ' . or -, up to 41 characters" >&2; exit 2; }
 # "1.7.12 — Stair Climber", or just "1.7.12"
@@ -123,7 +126,11 @@ else
   echo "  (GitHub didn't say who the new contributors are: the notes go without them)"
 fi
 printf '  %s\n' "${notes//$'\n'/$'\n  '}"
-read -r -p $'\nCommit, tag and publish NX Play '"$label"$' to GitHub? [y/N] ' answer
+if (( yes )); then
+  answer=y
+else
+  read -r -p $'\nCommit, tag and publish NX Play '"$label"$' to GitHub? [y/N] ' answer
+fi
 if [[ "$answer" != [yY] ]]; then
   restore
   finished=1

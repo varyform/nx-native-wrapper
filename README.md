@@ -288,10 +288,10 @@ bin/install      # build and install into /Applications (or: bin/install ~/Appli
 mise run app     # build and open it
 mise run test    # NXPlayKit tests (swift test --package-path Packages/NXPlayKit)
 mise run stats   # lines of code, types and functions per part of the repo, as rails stats (bin/stats)
-bin/release 1.7.12 "Stair Climber"  # release (the name is optional): sign, notarize, DMG, then (after you confirm) commit, tag and publish
+bin/release 1.7.12 "Stair Climber"  # release (the name is optional): sign, notarize, DMG, then (after you confirm, or at once with -y) commit, tag and publish
 ```
 
-`bin/release` needs a Developer ID Application certificate and a notarytool profile (`xcrun notarytool store-credentials nxplay-notary`). It moves the changelog's Unreleased notes under the new version and bumps the version in `project.yml`. It builds with the hardened runtime and without the checkout's paths, so the release keeps everything in its own folder. The app and the DMG are notarized and stapled. Nothing is committed, pushed or published until you confirm, and the DMG stays in `build/release`. Released apps update from the latest GitHub release's DMG, using the SHA-256 digest GitHub records for each uploaded asset.
+`bin/release` needs a Developer ID Application certificate and a notarytool profile (`xcrun notarytool store-credentials nxplay-notary`). It moves the changelog's Unreleased notes under the new version and bumps the version in `project.yml`. It builds with the hardened runtime and without the checkout's paths, so the release keeps everything in its own folder. The app and the DMG are notarized and stapled. Nothing is committed, pushed or published until you confirm (`-y` publishes without asking once the DMG is notarized), and the DMG stays in `build/release`. Released apps update from the latest GitHub release's DMG, using the SHA-256 digest GitHub records for each uploaded asset.
 
 A checkout build doesn't update itself. To see the update notices anyway, open it with `open -a "NX Play" --args -NXPlayPreviewUpdate ready` (or `waiting` for the reminder after a few days, or `problem` for the move-into-Applications banner). It fakes an update with the changelog's Unreleased notes. Restart to Update then only quits, and released apps ignore the argument.
 
