@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.0.2 — 2026-11-14
+
 Pair your iPhone or iPad by scanning a QR code, and reach the Mac over Tailscale from anywhere. Thanks to @saphid for this one ([#29](https://github.com/varyform/nx-native-wrapper/pull/29)).
 
 ### Added
