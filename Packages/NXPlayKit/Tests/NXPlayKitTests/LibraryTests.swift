@@ -172,7 +172,10 @@ import Testing
         let library = library()
         var game = job("Kept", .succeeded).game
         game.isKept = true
-        library.buildIPA(game)
+        library.openPacking(game, toDevice: false)
+        let packing = try #require(library.packing)
+        packing.signing = .unsigned
+        library.pack(packing)
         #expect(library.problem == Library.keptBuildProblem)
         #expect(library.jobs.isEmpty)
         library.problem = nil

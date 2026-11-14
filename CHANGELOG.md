@@ -4,6 +4,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Install & IPA window**: **Install on Device…** and **Build IPA…** open one window for the game, which starts from your last choices: install on a device or make an IPA file, the game files in the app or copied on their own, and how it's signed.
+- **The game files copied on their own** ([#30](https://github.com/varyform/nx-native-wrapper/issues/30)): the app or IPA leaves the game's RomFS out, so it's a fraction of the size and quick to reinstall after a rebuild. Installing on a device, NX Play copies the game files into the app's folder once per game version (over USB, or over Wi-Fi for a smaller game) and skips the copy when the device has them. For an IPA file, Finder shows the game's `RomFS.img` beside it, to copy to the device yourself. In `nxplay`: `--without-game-files`, with `--ipa` or `--device`.
+- **Signing with a certificate** ([#31](https://github.com/varyform/nx-native-wrapper/issues/31)): a `.p12` certificate and its provisioning profile sign the IPA, as sideloading tools do, without an Apple account in Xcode, and NX Play can install it on a device the profile lists. The window checks the password and shows the profile's team, app ID, devices and expiry; the password is kept in the login keychain. In `nxplay`: `--sign-p12`, `--sign-profile` and `--install-on`.
+
 ## 2.0.2 — 2026-11-14
 
 Pair your iPhone or iPad by scanning a QR code, and reach the Mac over Tailscale from anywhere. Thanks to @saphid for this one ([#29](https://github.com/varyform/nx-native-wrapper/pull/29)).

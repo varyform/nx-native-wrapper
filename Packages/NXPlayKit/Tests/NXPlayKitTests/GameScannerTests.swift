@@ -88,6 +88,26 @@ import Testing
             GameScanner.scan(roots: [root]).first?.macAppURL?.lastPathComponent == "Metroid Dread.app")
     }
 
+    /// Build IPA › Without the Game Files: nxplay names the RomFS image in the build folder, shown beside the IPA.
+    @Test func anIPAWithoutTheGameFilesShowsItsImage() throws {
+        let game = root.appending(path: "Zelda")
+        try touch(game.appending(path: "Zelda [01007EF00011E000][v0].nsp"))
+        try touch(game.appending(path: "Zelda.ipa"))
+        let image = game.appending(path: "01007EF00011E000_build/extract/v786432/RomFS.img")
+        try touch(image)
+        let note = game.appending(path: "01007EF00011E000_build/ipa-game-files")
+        try Data("\(image.path)\n".utf8).write(to: note)
+
+        var found = try #require(GameScanner.scan(roots: [root]).first)
+        #expect(found.ipaGameFiles?.lastPathComponent == "RomFS.img")
+        #expect(found.ipaFiles.map(\.lastPathComponent) == ["Zelda.ipa", "RomFS.img"])
+
+        // the image went (a new extraction, Free Up Space): the IPA alone
+        try FileManager.default.removeItem(at: image)
+        found = try #require(GameScanner.scan(roots: [root]).first)
+        #expect(found.ipaGameFiles == nil && found.ipaFiles.map(\.lastPathComponent) == ["Zelda.ipa"])
+    }
+
     /// nxplay's app_is_current, as the library shows it: the code app.tree records against the launcher's, else dates.
     @Test func aMacAppPackedWithOlderCodeIsOutdated() throws {
         let build = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])

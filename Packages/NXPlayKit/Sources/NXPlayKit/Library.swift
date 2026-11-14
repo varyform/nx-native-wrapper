@@ -189,6 +189,8 @@ public final class Library {
     public var problem: String?
     /// The save transfer sheet, when open.
     public var transfer: SaveTransfer?
+    /// The Install & IPA window's game and choices (Library+Pack.swift).
+    public var packing: Packing?
     /// A play waiting for the player to choose between NX Play's save and the Mac app's own (Library+AppSave.swift).
     public var saveQuestion: SaveQuestion?
     /// A play waiting for the player to choose between the cloud's save and this Mac's (Library+CloudSave.swift).
@@ -655,7 +657,6 @@ public final class Library {
 
     public func extract(_ game: Game) { run(.extract, game) }
     public func rebuild(_ game: Game) { run(.rebuild, game) }
-    public func buildIPA(_ game: Game) { run(.ipa, game) }
     public func makeMacApp(_ game: Game) { run(.macApp, game) }
     public func install(_ game: Game, on device: Device) { run(.install(device), game) }
 
@@ -869,12 +870,11 @@ public final class Library {
         if job.status == .succeeded, keepUnpackedOnly { keepUnpacked(of: job.game.id) }
         // what was made, in Finder
         let made = games.first { $0.id == job.game.id }
-        if job.status == .succeeded,
-            let file = job.kind == .ipa ? made?.ipaURL : job.kind == .macApp ? made?.macAppURL : nil
-        {
-            NSWorkspace.shared.activateFileViewerSelecting([file])
-        }
-        if case .install(let device) = job.kind {
+        var files: [URL] = []
+        if case .pack(let request) = job.kind, request.device == nil { files = made?.ipaFiles ?? [] }
+        if job.kind == .macApp, let app = made?.macAppURL { files = [app] }
+        if job.status == .succeeded, !files.isEmpty { NSWorkspace.shared.activateFileViewerSelecting(files) }
+        if let device = job.installsOn {
             if job.status == .succeeded, let id = job.game.titleID {
                 remember([id], on: device.id)
                 // the copy the device service kept of this install replaces the ones of older builds
@@ -1015,7 +1015,11 @@ public final class Library {
         switch kind {
         case .extract: arguments = ["--build-only", game.folder.path]
         case .rebuild: arguments = ["--rebuild", "--build-only", game.folder.path]
-        case .ipa: arguments = ["--ipa"] + lang + [game.folder.path]
+        case .pack(let request):
+            guard let packed = packArguments(request, game: game, lang: lang, environment: &environment) else {
+                return nil
+            }
+            arguments = packed
         case .macApp: arguments = ["--mac-app"] + lang + [game.folder.path]
         case .play:
             // Console Mode starts every game in full screen, whatever its setting (--fullscreen wins over the
@@ -1031,19 +1035,11 @@ public final class Library {
             modsEnvironment(for: game).forEach { environment[$0.key] = $0.value }
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):
-            guard let team, let titleID = game.titleID else {
-                problem =
-                    "No Apple developer team in Xcode. Add your account in Xcode › Settings › Apple Accounts."
+            let request = PackRequest(target: .device(device), signing: .xcodeTeam)
+            guard let packed = packArguments(request, game: game, lang: lang, environment: &environment) else {
                 return nil
             }
-            arguments =
-                ["--device", device.id] + lang + [game.folder.path]
-                + [
-                    "--team-id", team.id, "--bundle-id",
-                    Self.bundleID(titleID: titleID, team: team),
-                ]
-            // a Personal Team cannot provision the Increased Memory Limit capability: build without it
-            if team.isFree { environment["DM_ENTITLEMENTS"] = "" }
+            arguments = packed
         }
         // an nxplay option, before the game folder (a play can rebuild too)
         if allowOtherMetal { arguments.insert("--allow-other-metal", at: 0) }

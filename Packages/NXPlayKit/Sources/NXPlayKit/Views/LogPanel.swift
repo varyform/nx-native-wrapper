@@ -78,7 +78,7 @@ struct LogPanel: View {
             case .extract: "Extract"
             case .rebuild: "Rebuild"
             case .play: "Play"
-            case .ipa: "Build IPA"
+            case .pack(let request): request.title
             case .macApp: "Make Mac App"
             case .install(let device): "Install on \(device.name)"
             }

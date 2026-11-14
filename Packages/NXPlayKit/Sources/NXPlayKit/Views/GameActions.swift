@@ -8,6 +8,13 @@ struct GameActions: View {
     /// The menu bar's: keyboard shortcuts, and Stop always listed so ⌘. stays put.
     var inMenuBar = false
     @Environment(Library.self) private var library
+    @Environment(\.openWindow) private var openWindow
+
+    private func openPacking(toDevice: Bool) {
+        guard let game else { return }
+        library.openPacking(game, toDevice: toDevice)
+        openWindow(id: PackView.windowID)
+    }
 
     var body: some View {
         let busy = game.map(library.isBusy) ?? true
@@ -52,27 +59,11 @@ struct GameActions: View {
             }
             .disabled(game?.state != .ready || game?.titleID == nil)
             .shortcut(",", [.command, .option], if: inMenuBar)
-            Menu("Install on Device", systemImage: "apps.iphone") {
-                if library.devices.isEmpty {
-                    Text(
-                        library.isLoadingDevices
-                            ? "Looking for devices…"
-                            : "No device: pair one in Xcode, with Developer Mode on")
-                }
-                ForEach(library.devices) { device in
-                    Button(
-                        "\(device.name) · \(device.model)",
-                        systemImage: device.model.contains("iPad") ? "ipad" : "iphone"
-                    ) {
-                        game.map { library.install($0, on: device) }
-                    }
-                }
-                Divider()
-                Button("Look Again", systemImage: "arrow.clockwise") { library.refreshDevices() }
-            }
-            .disabled(busy || kept || game?.isExtracted != true || game?.canBuildIPA != true)
-            Button(game?.ipaURL == nil ? "Build IPA" : "Rebuild IPA", systemImage: "shippingbox") {
-                game.map(library.buildIPA)
+            // both open the Install & IPA window: a device or a file, the game files in or apart, and the signing
+            Button("Install on Device…", systemImage: "apps.iphone") { openPacking(toDevice: true) }
+                .disabled(busy || kept || game?.isExtracted != true || game?.canBuildIPA != true)
+            Button(game?.ipaURL == nil ? "Build IPA…" : "Rebuild IPA…", systemImage: "shippingbox") {
+                openPacking(toDevice: false)
             }
             .disabled(busy || kept || game?.canBuildIPA != true)
             // a standalone app for the Dock and Launchpad; NX Play keeps playing from the folder
@@ -105,9 +96,9 @@ struct GameActions: View {
             }
             .disabled(game == nil)
             .shortcut("r", [.command, .shift], if: inMenuBar)
-            if let ipa = game?.ipaURL {
+            if let game, game.ipaURL != nil {
                 Button("Show IPA in Finder", systemImage: "shippingbox") {
-                    NSWorkspace.shared.activateFileViewerSelecting([ipa])
+                    NSWorkspace.shared.activateFileViewerSelecting(game.ipaFiles)
                 }
             }
             if let app = game?.macAppURL {

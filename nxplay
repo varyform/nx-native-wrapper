@@ -6,6 +6,14 @@
 #   --build-only   build (when needed) and save the launcher, without starting the game
 #   (a <title ID>_build/keep file stops nxnative updates from rebuilding that build; --rebuild still does)
 #   --ipa          build the iOS IPA instead, into the game folder (needs the game files)
+#   --without-game-files  with --ipa or --device: leave the game's RomFS out of the app (nxnative's --romfs separate).
+#                  It's small, and the game files go into the app's folder on the device once per game version:
+#                  copied there with --device and --install-on (over USB, or devicectl for a small game), by hand
+#                  for an IPA (<title ID>_build/ipa-game-files names the image; NX Play shows it beside the IPA)
+#   --push-game-files  copy the game files to the device even when it had them (the app was deleted since)
+#   --sign-p12 <file> --sign-profile <file>  with --ipa: sign the IPA with a .p12 certificate (its password in
+#                  NXPLAY_P12_PASSWORD) and a provisioning profile, instead of leaving it unsigned
+#   --install-on <udid>  with --ipa and --sign-p12: install the signed IPA on the device and start it
 #   --mac-app      pack a standalone Mac app of the game instead, <game name>.app in the game folder (needs the game files);
 #                  it keeps its own save in ~/Library/Application Support/nxnative/<title ID>
 #   --device <udid>  install on a device through Xcode instead: prepare the game's Xcode project, build it signed
@@ -58,12 +66,18 @@ fi
 launcher_name=start_mac.sh
 
 rebuild=0 explicit_rebuild=0 fps=0 fullscreen=0 other_metal=() build_only=0 ipa=0 mac_app=0 lang="" device="" settings_only=0
+without_game_files=0 push_again=0 sign_p12="" sign_profile="" install_on=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rebuild) rebuild=1 explicit_rebuild=1; shift ;;
     --build-only) build_only=1; shift ;;
     --settings) settings_only=1; shift ;;
     --ipa) ipa=1; shift ;;
+    --without-game-files) without_game_files=1; shift ;;
+    --push-game-files) push_again=1; shift ;;
+    --sign-p12) sign_p12="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
+    --sign-profile) sign_profile="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
+    --install-on) install_on="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
     --mac-app) mac_app=1; shift ;;
     --device) device="${2:-}"; shift $(( $# > 1 ? 2 : 1 )) ;;
     --fps) fps=1; shift ;;
@@ -77,12 +91,20 @@ if [[ -n "$lang" && ! "$lang" =~ ^[A-Za-z]{2}(-[A-Za-z0-9]+)?$ ]]; then
   warn "nxplay: --lang wants a language code such as en-US, ja or zh-Hans, not '$lang'"
   exit 2
 fi
-if [[ -n "$device" && ! "$device" =~ ^[0-9A-Fa-f-]+$ ]]; then
+if [[ -n "$sign_p12$sign_profile" && ( ! -f "$sign_p12" || ! -f "$sign_profile" || $ipa -eq 0 ) ]]; then
+  warn "nxplay: --sign-p12 and --sign-profile go together, with --ipa, and name a .p12 file and a .mobileprovision file"
+  exit 2
+fi
+if [[ -n "$install_on" && -z "$sign_p12" ]]; then
+  warn "nxplay: --install-on installs an IPA signed with --sign-p12 (Xcode's signing installs with --device)"
+  exit 2
+fi
+if [[ -n "$device$install_on" && ! "$device$install_on" =~ ^[0-9A-Fa-f-]+$ ]]; then
   warn "nxplay: --device wants a device UDID (xcrun devicectl list devices), not '$device'"
   exit 2
 fi
 if [[ $# -lt 1 ]]; then
-  echo "usage: $(basename "$0") [--rebuild] [--build-only] [--settings] [--ipa | --mac-app | --device <udid>] [--fps] [--fullscreen] [--allow-other-metal] [--lang <code>] <game folder> [build_ipa_from_nsp.py options...]" >&2
+  echo "usage: $(basename "$0") [--rebuild] [--build-only] [--settings] [--ipa [--sign-p12 <file> --sign-profile <file> [--install-on <udid>]] | --mac-app | --device <udid>] [--without-game-files] [--push-game-files] [--fps] [--fullscreen] [--allow-other-metal] [--lang <code>] <game folder> [build_ipa_from_nsp.py options...]" >&2
   exit 2
 fi
 game="$(cd "$1" && pwd)"; shift
@@ -505,11 +527,200 @@ network_caches() {
 }
 network_caches
 
+# An install's own stages, as build_ipa_from_nsp.py reports its own (JSON events for NX Play, plain lines otherwise),
+# so the app's progress bar follows them too
+stages_total=3
+event() { python3 -c 'import json, sys, time; e = json.loads(sys.argv[1]); print(json.dumps({"ev": e.pop("ev"), **e, "t": round(time.time(), 3)}, ensure_ascii=False))' "$1"; }
+quote() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"; }
+stage() {
+  stage_t0=$SECONDS
+  if (( json )); then event "{\"ev\": \"stage\", \"k\": $1, \"n\": $stages_total, \"name\": $(quote "$2"), \"step\": \"\"}"
+  else say "[$(date +%T)] [$1/$stages_total] $2 …"; fi
+}
+stage_done() {
+  local s=$(( SECONDS - stage_t0 ))
+  if (( json )); then event "{\"ev\": \"stage_end\", \"k\": $1, \"name\": $(quote "$2"), \"ok\": true, \"summary\": \"\", \"elapsed\": $s}"
+  else say "$(printf '[%s] ✓ [%s/%s] %s (%d:%02d)' "$(date +%T)" "$1" "$stages_total" "$2" $(( s / 60 )) $(( s % 60 )))"; fi
+}
+
+# The RomFS image of a build without the game files (nxnative's --romfs separate): the one it names in the
+# push_romfs.sh command it prints at the end, <title ID>_build/extract/<version>/RomFS.img. It stays there, as the
+# extraction reuses it while the game files are unchanged.
+game_files_image() {
+  python3 - "$1" <<'PY'
+import json, shlex, sys
+image = ''
+for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
+    line = line.rstrip('\n').rsplit('\r', 1)[-1]
+    if line.startswith('{"ev": '):
+        event = json.loads(line)
+        if event.get('ev') != 'say': continue
+        line = event.get('msg', '')
+    if 'scripts/push_romfs.sh' in line:
+        words = shlex.split(line.strip())
+        if len(words) >= 4: image = words[-1]
+print(image)
+PY
+}
+
+# The game files of an IPA built without them, for NX Play: <title ID>_build/ipa-game-files names the image, which it
+# shows beside the IPA, rather than a copy there (a clone can't be had on every volume, and a copy is tens of GB). The
+# app takes Documents/romfs.img in any letter case, so the file is copied as it is. An IPA with them inside forgets it.
+ipa_game_files() {
+  local image="$1" b
+  if (( !without_game_files )); then
+    for b in "$game"/*_build; do rm -f "$b/ipa-game-files"; done
+    return 0
+  fi
+  printf '%s\n' "$image" > "${image%/extract/*}/ipa-game-files"
+  if [[ -z "$install_on" ]]; then
+    say "nxplay: the game files are not in the IPA: after installing it, copy $image into the app's folder on the device (Finder › the device › Files, or the Files app), once per game version"
+  fi
+}
+
+# Copies a build's game files (its RomFS image) into the app's folder on the device, Documents/romfs.img, with
+# nxnative's push_romfs.sh; the app takes only the image its build was made for. Once per device and image: the
+# image's identity is noted in <title ID>_build/device-game-files/<UDID>, and a later install of the same image skips
+# the copy (--push-game-files copies it anyway). Deleting the app deletes its folder, so over USB the device is asked
+# whether the file is still there. USB copies over AFC (libimobiledevice's afcclient, about 30 MB/s); otherwise only
+# devicectl can, which reads the whole image into memory: not for one bigger than half of this Mac's.
+push_game_files() {
+  local udid="$1" bundle="$2" image="$3" build stamp identity size have via=devicectl
+  build="${image%/extract/*}"
+  stamp="$build/device-game-files/$udid"
+  identity="$(cd "$repo" && python3 -I dm/tools/romfs_image.py --identity "$image" 2> /dev/null)" || identity=""
+  size="$(stat -f %z "$image")"
+  afc() { afcclient -u "$udid" --container "$bundle" -- "$@"; }
+  if command -v afcclient > /dev/null && afc info /Documents 2> /dev/null | grep -q S_IFDIR; then via=afc; fi
+  if (( !push_again )) && [[ -n "$identity" && "$(cat "$stamp" 2> /dev/null)" == "$bundle $identity" ]]; then
+    if [[ "$via" == devicectl ]]; then
+      say "nxplay: the device has had these game files since they were copied before (Copy the game files again sends them anew, after the app was deleted)"
+      return 0
+    fi
+    have="$(afc info /Documents/romfs.img 2> /dev/null | sed -n 's/^ *"st_size": *\([0-9][0-9]*\).*/\1/p')"
+    if [[ "$have" == "$size" ]]; then say "nxplay: the device has these game files already"; return 0; fi
+  fi
+  if [[ "$via" == devicectl ]] && (( size > $(sysctl -n hw.memsize) / 2 )); then
+    if command -v afcclient > /dev/null; then
+      warn "nxplay: the game files ($(( size >> 20 )) MB) go over USB: connect the device with a cable and install again"
+    else
+      warn "nxplay: the game files ($(( size >> 20 )) MB) go over USB with libimobiledevice's afcclient: brew install libimobiledevice, connect the device with a cable and install again"
+    fi
+    return 1
+  fi
+  if ! (cd "$repo" && ROMFS_PUSH_VIA="$via" bash scripts/push_romfs.sh "$udid" "$bundle" "$image"); then
+    warn "nxplay: the game files weren't copied to the device; install again to retry"
+    return 1
+  fi
+  mkdir -p "$build/device-game-files"
+  printf '%s %s\n' "$bundle" "$identity" > "$stamp"
+}
+
+# Signs the IPA with a .p12 certificate and its provisioning profile (issue #31), as sideloading tools do, instead of
+# an Apple account through Xcode: the profile goes into the app as embedded.mobileprovision, its entitlements are the
+# app's, and the bundle ID is the profile's (a wildcard profile keeps the app's own under its pattern). The certificate
+# goes into a keychain of its own for the signing and is deleted with it; NXPLAY_P12_PASSWORD is its password. The work
+# folder is beside the IPA, on its volume. Sets signed_app (the signed app, for --install-on) and signed_bundle.
+sign_ipa() {
+  local ipa="$1" kpw kc identity profile entitlements appid team pattern bundle f
+  sign_work="$(mktemp -d "$(dirname "$ipa")/.nxplay-sign.XXXXXX")"
+  kc="$sign_work/sign.keychain-db" profile="$sign_work/profile.plist" entitlements="$sign_work/entitlements.plist"
+  kpw="$(uuidgen)"
+  security create-keychain -p "$kpw" "$kc" > /dev/null
+  security set-keychain-settings "$kc"
+  security unlock-keychain -p "$kpw" "$kc"
+  if ! security import "$sign_p12" -k "$kc" -P "${NXPLAY_P12_PASSWORD:-}" -T /usr/bin/codesign > /dev/null 2>&1; then
+    warn "nxplay: $sign_p12 didn't open: the password is wrong, or it isn't a .p12 certificate"
+    return 1
+  fi
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$kpw" "$kc" > /dev/null 2>&1
+  identity="$(security find-identity -p codesigning "$kc" | awk '$2 ~ /^[0-9A-F]{40}$/ { print $2; exit }')"
+  if [[ -z "$identity" ]]; then warn "nxplay: $sign_p12 holds no code signing certificate with its key"; return 1; fi
+  if ! security cms -D -i "$sign_profile" > "$profile" 2> /dev/null; then
+    warn "nxplay: $sign_profile isn't a provisioning profile"
+    return 1
+  fi
+  /usr/libexec/PlistBuddy -x -c 'Print :Entitlements' "$profile" > "$entitlements"
+  appid="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$profile")"
+  team="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$profile")"
+  ditto -x -k "$ipa" "$sign_work/x"
+  signed_app="$(find "$sign_work/x/Payload" -maxdepth 1 -name '*.app' -print -quit)"
+  bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$signed_app/Info.plist")"
+  pattern="${appid#"$team".}"
+  if [[ "$pattern" == *'*' ]]; then
+    [[ "$bundle" == "${pattern%'*'}"* ]] || bundle="${pattern%'*'}$bundle"
+    /usr/libexec/PlistBuddy -c "Set :application-identifier $team.$bundle" "$entitlements"
+  else
+    bundle="$pattern"
+  fi
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $bundle" "$signed_app/Info.plist"
+  cp "$sign_profile" "$signed_app/embedded.mobileprovision"
+  rm -rf "$signed_app/_CodeSignature"
+  # what's inside before the app itself, as a signature covers what it contains
+  while IFS= read -r -d '' f; do
+    codesign --force --sign "$identity" --keychain "$kc" --timestamp=none "$f" > /dev/null || return 1
+  done < <(find "$signed_app" -mindepth 1 \( -name '*.framework' -o -name '*.dylib' -o -name '*.appex' \) -prune -print0)
+  if ! codesign --force --sign "$identity" --keychain "$kc" --entitlements "$entitlements" --timestamp=none "$signed_app"; then
+    warn "nxplay: codesign refused to sign the app"
+    return 1
+  fi
+  rm -f "$sign_work/signed.ipa"
+  ditto -c -k --keepParent "$sign_work/x/Payload" "$sign_work/signed.ipa"
+  mv -f "$sign_work/signed.ipa" "$ipa"
+  signed_bundle="$bundle"
+  say "nxplay: signed with $(security find-certificate -a -Z "$kc" 2> /dev/null | sed -n 's/^ *"alis"<blob>="\(.*\)"/\1/p' | head -1) and the profile $(/usr/libexec/PlistBuddy -c 'Print :Name' "$profile"), as $bundle"
+}
+
 if [[ $ipa -eq 1 ]]; then
   # the script's own default output (<game folder>/<the profile's IPA name>); it reuses every step a Mac build made
   eshop_icon "$@"
-  cd "$repo"
-  exec python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} "$@"
+  romfs=()
+  (( without_game_files )) && romfs=(--romfs separate)
+  ipa_out="$(mktemp -t nxplay-ipa)"
+  # older than the IPA the build writes (the output file is written until the build ends)
+  ipa_t0="$(mktemp -t nxplay-ipa-t0)"
+  sign_work=""
+  trap 'rm -f "$ipa_out" "$ipa_t0"; [[ -n "$sign_work" ]] && { security delete-keychain "$sign_work/sign.keychain-db" 2> /dev/null; rm -rf "$sign_work"; }' EXIT
+  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$ipa_out"
+  status="${PIPESTATUS[0]}"
+  (( status == 0 )) || exit "$status"
+  image=""
+  if (( without_game_files )); then
+    image="$(game_files_image "$ipa_out")"
+    if [[ ! -f "$image" ]]; then
+      warn "nxplay: the IPA was built without the game files, but the build named no RomFS image to copy to the device"
+      exit 1
+    fi
+  fi
+  ipa_game_files "$image"
+  [[ -n "$sign_p12" ]] || exit 0
+
+  ipa_file="$(find "$game" -maxdepth 1 -iname '*.ipa' -newer "$ipa_t0" -print -quit)"
+  [[ -n "$ipa_file" ]] || { warn "nxplay: the build left no new IPA in $game to sign"; exit 1; }
+  stages_total=1
+  if [[ -n "$install_on" ]]; then stages_total=$(( without_game_files ? 4 : 3 )); fi
+  stage 1 "sign"
+  sign_ipa "$ipa_file" || exit 1
+  stage_done 1 "sign"
+  [[ -n "$install_on" ]] || exit 0
+
+  stage 2 "install"
+  xcrun devicectl device install app --device "$install_on" "$signed_app" || exit 1
+  stage_done 2 "install"
+  k=3
+  if (( without_game_files )); then
+    stage 3 "copy the game files"
+    push_game_files "$install_on" "$signed_bundle" "$image" || exit 1
+    stage_done 3 "copy the game files"
+    k=4
+  fi
+  stage "$k" "launch"
+  if xcrun devicectl device process launch --device "$install_on" --terminate-existing "$signed_bundle"; then
+    stage_done "$k" "launch"
+  else
+    say "nxplay: installed; unlock the device and open the app (it could not be started from here)"
+  fi
+  exit 0
 fi
 
 # Packs <game name>.app into the game folder, its files APFS clones of the extracted ones; it reuses every step a Mac
@@ -549,24 +760,24 @@ if [[ $mac_app -eq 1 ]]; then
   exit
 fi
 
-# This install's own stages, as build_ipa_from_nsp.py reports its own (JSON events for NX Play, plain lines otherwise),
-# so the app's progress bar follows them too
-event() { python3 -c 'import json, sys, time; e = json.loads(sys.argv[1]); print(json.dumps({"ev": e.pop("ev"), **e, "t": round(time.time(), 3)}, ensure_ascii=False))' "$1"; }
-quote() { python3 -c 'import json, sys; print(json.dumps(sys.argv[1], ensure_ascii=False))' "$1"; }
-stage() {
-  stage_t0=$SECONDS
-  if (( json )); then event "{\"ev\": \"stage\", \"k\": $1, \"n\": 3, \"name\": $(quote "$2"), \"step\": \"\"}"
-  else say "[$(date +%T)] [$1/3] $2 …"; fi
-}
-stage_done() {
-  local s=$(( SECONDS - stage_t0 ))
-  if (( json )); then event "{\"ev\": \"stage_end\", \"k\": $1, \"name\": $(quote "$2"), \"ok\": true, \"summary\": \"\", \"elapsed\": $s}"
-  else say "$(printf '[%s] ✓ [%s/3] %s (%d:%02d)' "$(date +%T)" "$1" "$2" $(( s / 60 )) $(( s % 60 )))"; fi
-}
-
 if [[ -n "$device" ]]; then
   eshop_icon "$@"
-  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} "$@")
+  romfs=()
+  (( without_game_files )) && romfs=(--romfs separate)
+  prepare_out="$(mktemp -t nxplay-xcode)"
+  trap 'rm -f "$prepare_out"' EXIT
+  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$prepare_out"
+  status="${PIPESTATUS[0]}"
+  (( status == 0 )) || exit "$status"
+  image=""
+  if (( without_game_files )); then
+    image="$(game_files_image "$prepare_out")"
+    if [[ ! -f "$image" ]]; then
+      warn "nxplay: the app was built without the game files, but the build named no RomFS image to copy to the device"
+      exit 1
+    fi
+    stages_total=4
+  fi
 
   project=""
   for p in "$game"/*_build/xcode/DmIOS.xcodeproj; do
@@ -615,10 +826,17 @@ if [[ -n "$device" ]]; then
   xcrun devicectl device install app --device "$device" "$app"
   stage_done 2 "install"
 
-  stage 3 "launch"
   bundle="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")"
+  k=3
+  if (( without_game_files )); then
+    stage 3 "copy the game files"
+    push_game_files "$device" "$bundle" "$image" || exit 1
+    stage_done 3 "copy the game files"
+    k=4
+  fi
+  stage "$k" "launch"
   if xcrun devicectl device process launch --device "$device" --terminate-existing "$bundle"; then
-    stage_done 3 "launch"
+    stage_done "$k" "launch"
   else
     say "nxplay: installed; unlock the device and open the app (it could not be started from here)"
   fi

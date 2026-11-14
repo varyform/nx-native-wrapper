@@ -5,7 +5,10 @@ import Observation
 @MainActor @Observable
 public final class Job: Identifiable {
     public enum Kind: Hashable, Sendable {
-        case extract, rebuild, play, ipa
+        case extract, rebuild, play
+        /// The Install & IPA window's other choices: an IPA file, an install signed with a certificate, or one
+        /// without the game files.
+        case pack(PackRequest)
         /// nxnative's --platform mac-app: a standalone app of the game in its folder.
         case macApp
         /// Through Xcode: prepare the project, build it signed, install and start it.
@@ -15,9 +18,18 @@ public final class Job: Identifiable {
         /// shader tables its launcher runs: not for a kept build.
         public var rewritesTheMacBuild: Bool {
             switch self {
-            case .ipa, .macApp, .install: true
+            case .pack, .macApp, .install: true
             case .extract, .rebuild, .play: false
             }
+        }
+    }
+
+    /// The device it installs on, if it does.
+    public var installsOn: Device? {
+        switch kind {
+        case .install(let device): device
+        case .pack(let request): request.device
+        default: nil
         }
     }
 

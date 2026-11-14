@@ -22,6 +22,11 @@ public struct Game: Identifiable, Hashable, Sendable {
     public let buildFolder: URL?
     /// The IPA build_ipa_from_nsp.py left in the game folder (the newest, when there are several).
     public let ipaURL: URL?
+    /// The game files of an IPA built without them (Build IPA › Without the Game Files): nxnative's RomFS image in
+    /// the build folder, which goes into the app's folder on the device. Nil when the IPA carries them.
+    public var ipaGameFiles: URL? = nil
+    /// The IPA and, when it was built without them, its game files: what Finder shows.
+    public var ipaFiles: [URL] { [ipaURL, ipaURL == nil ? nil : ipaGameFiles].compactMap(\.self) }
     /// Install on Device's Xcode build (`<id>_build/xcode-derived-data`), kept to make the next install fast.
     /// Stored, not looked up when asked: a card redraws only when its Game changes, so a value read from disk
     /// on the fly kept showing a removed build.

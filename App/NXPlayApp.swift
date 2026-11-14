@@ -61,6 +61,12 @@ struct NXPlayApp: App {
             }
         }
 
+        Window("Install & IPA", id: PackView.windowID) {
+            PackView()
+                .library(library)
+        }
+        .windowResizability(.contentSize)
+
         Window("Free Up Space", id: CleanupView.windowID) {
             CleanupView()
                 .library(library)

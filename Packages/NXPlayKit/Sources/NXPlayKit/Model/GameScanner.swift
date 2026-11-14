@@ -60,6 +60,7 @@ public enum GameScanner {
             iconURL: build?.iconURL,
             buildFolder: build?.folder,
             ipaURL: newest(entries.filter { $0.pathExtension.lowercased() == "ipa" }),
+            ipaGameFiles: build.flatMap { ipaGameFiles(in: $0.folder) },
             xcodeBuildFolder: build.map {
                 $0.folder.appending(path: "xcode-derived-data", directoryHint: .isDirectory)
             }
@@ -191,6 +192,16 @@ public enum GameScanner {
             }
             .sorted { $0.0 > $1.0 }
             .map(\.1)
+    }
+
+    /// The RomFS image an IPA built without the game files needs on the device: nxplay names it in
+    /// `ipa-game-files` (a build with them inside removes the file). Nil once the image is gone.
+    static func ipaGameFiles(in build: URL) -> URL? {
+        guard let text = try? String(contentsOf: build.appending(path: "ipa-game-files"), encoding: .utf8),
+            let path = text.split(separator: "\n").first, path.hasPrefix("/")
+        else { return nil }
+        let image = URL(filePath: String(path))
+        return FileManager.default.fileExists(atPath: image.path) ? image : nil
     }
 
     static func newest(_ files: [URL]) -> URL? {
