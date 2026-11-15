@@ -102,7 +102,22 @@ public final class Packing {
         }
     }
 
+    #if DEBUG
+        /// Screenshot mode's sample certificate, which the password field's first write mustn't check away.
+        @ObservationIgnored private var sampleCertificate: SigningCertificate.Check?
+
+        /// Screenshot mode's sample certificate and profile, in place of what the files say.
+        func showScreenshot(certificate: SigningCertificate.Check, profile: ProvisioningProfile) {
+            sampleCertificate = certificate
+            self.certificate = certificate
+            self.profile = profile
+        }
+    #endif
+
     private func checkCertificate() {
+        #if DEBUG
+            if let sampleCertificate { return certificate = sampleCertificate }
+        #endif
         certificate = p12Path.isEmpty ? nil : SigningCertificate.check(URL(filePath: p12Path), password: password)
     }
 

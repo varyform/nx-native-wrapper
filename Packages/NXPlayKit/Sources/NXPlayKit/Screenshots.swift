@@ -18,6 +18,8 @@
         /// Settings › Devices with the iPhone & iPad App section on.
         case devices
         case transferSaves = "transfer-saves"
+        /// The Install & IPA window: the game files apart, signed with a certificate.
+        case installIPA = "install-ipa"
     }
 
     @MainActor
@@ -115,6 +117,9 @@
             case .transferSaves:
                 library.jobs[game.id] = job(for: game, finished: true)
                 library.transfer = transfer(for: game)
+            case .installIPA:
+                library.openPacking(game, toDevice: true)
+                library.packing.map(Self.samplePacking)
             }
             Task { @MainActor in await present(library) }
             return library
@@ -222,6 +227,22 @@
             return lines
         }
 
+        /// The game files apart and a certificate's signing, with a sample certificate and profile (no files read).
+        @MainActor private static func samplePacking(_ packing: Packing) {
+            packing.deviceID = devices[0].id
+            packing.withGameFiles = false
+            packing.signing = .certificate
+            packing.p12Path = tilde(NSHomeDirectory() + "/Certificates/Distribution.p12")
+            packing.profilePath = tilde(NSHomeDirectory() + "/Certificates/Games.mobileprovision")
+            packing.password = "sample-password"
+            packing.showScreenshot(
+                certificate: .valid(name: "iPhone Distribution: Example Team (ABCDE12345)"),
+                profile: ProvisioningProfile(
+                    name: "Games", teamID: team.id, teamName: team.name, appID: "*",
+                    expires: Calendar.current.date(byAdding: .month, value: 10, to: .now)!,
+                    devices: devices.map(\.id), allDevices: false))
+        }
+
         /// A save newer on this Mac than on the iPad, the case Transfer Saves warns about.
         @MainActor private func transfer(for game: Game) -> SaveTransfer {
             let titleID = (game.titleID ?? "").lowercased()
@@ -261,10 +282,11 @@
             let windows = NSApp.windows.filter {
                 $0.isVisible && $0.sheetParent == nil && $0.level == .normal
             }
-            let main = windows.max {
-                $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
-            }
-            let ownWindow = scene == .settings || scene == .devices || scene == .freeUpSpace
+            // the library's window by its title: Free Up Space's can be the bigger one
+            let main =
+                windows.first { $0.title == "NX Play" }
+                ?? windows.max { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }
+            let ownWindow = scene == .settings || scene == .devices || scene == .freeUpSpace || scene == .installIPA
             if let main, !ownWindow {
                 main.setContentSize(Self.windowSize)
                 main.center()
@@ -280,6 +302,11 @@
                     $0.isVisible && $0 !== main && $0.sheetParent == nil && $0.level == .normal
                 }
                 : main
+            // Free Up Space opens at the size it was last left at
+            if scene == .freeUpSpace, let target {
+                target.setContentSize(Self.windowSize)
+                target.center()
+            }
             target?.makeKeyAndOrderFront(nil)
             target?.makeFirstResponder(nil)  // no focused, selected text field
             try? await Task.sleep(for: .seconds(0.5))

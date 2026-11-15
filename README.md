@@ -4,7 +4,7 @@
 
 - A library of your games with their icons: extract them, play them on the Mac, rebuild them.
 - Console Mode for the couch: full screen, driven by a game controller.
-- Install a game on your iPhone or iPad through Xcode, or build an IPA to sideload.
+- Install a game on your iPhone or iPad, signed by Xcode or with your own certificate, or build an IPA to sideload. The game files can go to the device on their own, so reinstalls after a rebuild stay small.
 - Copy saves between the Mac and a device, after seeing which one is newer, and back them up to your own private Git repository while you play.
 - Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
@@ -39,7 +39,7 @@ NX Play takes the other route: one app for all your games, everything portable a
 - A Mac with Apple silicon and macOS 15 or later. On an Intel Mac, IPAs and device installs work, but games cannot run on the Mac.
 - [Xcode](https://apps.apple.com/app/xcode/id497799835), opened once. Setup downloads its Metal Toolchain. For iPhone and iPad, its iOS platform too.
 - [Homebrew](https://brew.sh): Setup installs the other tools with it.
-- For Install on Device: an Apple developer account, signed in under Xcode › Settings › Apple Accounts.
+- For Install on Device: an Apple developer account, signed in under Xcode › Settings › Apple Accounts, or a `.p12` certificate with its provisioning profile.
 
 ## Install
 
@@ -101,18 +101,22 @@ Right-click a game for more, or use the **Game** menu:
 
 - **Rebuild**: builds the game again with the current nxnative.
 - **Keep This Build**: for a game that plays well. nxnative updates no longer rebuild it, and a lock badge marks it. While it's kept, Install on Device, Build IPA and Make Mac App are off, since they'd rewrite files the kept build runs. Rebuild still replaces it.
-- **Game Settings…** (⌥⌘,): the settings nxnative offers for the game, with the defaults it was tested with. Depending on the game these include frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble and performance switches. The basic ones come first; the rest are under Advanced settings. Each one follows Settings › Games until you change it for the game. A changed value is tinted and has its own reset button, and **Use Global Settings** resets them all. They apply the next time the game starts, and the log lists them. The game's Mac app shares the game's own values: NX Play keeps them where nxnative's own settings window does. A game nxnative has no profile for gets NX Play's **Frame rate (untested)** instead: **60 fps**, or **120 fps** on a Mac with a 120 Hz screen, a frame each display refresh whatever rate the game asks for. That plays at the right speed in a game that keeps time by the clock, and too fast in one that counts frames, so time a race or a walk before you keep it. A game nxnative has a profile for runs at the rate it was tested at, often 60 already, so it doesn't get this setting. It's the game's own rate by default, each game's own, and the game's Mac app doesn't have it.
+- **Game Settings…** (⌥⌘,): the settings nxnative offers for the game, with the defaults it was tested with. Depending on the game these include frame rate, render scale, docked or handheld, upscaling, language, window or full screen, rumble and performance switches. The basic ones come first; the rest are under Advanced settings. Each one follows Settings › Games until you change it for the game. A changed value is tinted and has its own reset button, and **Use Global Settings** resets them all. They apply the next time the game starts, and the log lists them. The game's Mac app shares the game's own values: NX Play keeps them where nxnative's own settings window does.
+  - **Frame rate (untested)**: for a game nxnative has no profile for, NX Play's own setting. **60 fps**, or **120 fps** on a Mac with a 120 Hz screen, shows a frame each display refresh whatever rate the game asks for. That plays at the right speed in a game that keeps time by the clock, and too fast in one that counts frames, so time a race or a walk before you keep it. It's off by default, each game's own, and the game's Mac app doesn't have it. A game nxnative has a profile for runs at the rate it was tested at, often 60 already, so it doesn't get this setting.
 - **Install on Device…** and **Build IPA…**: both open the **Install & IPA** window for the game, which starts from your last choices:
   - **Make**: install on a device (paired with Xcode, in Developer Mode, reachable over USB or Wi-Fi), or an IPA file in the game folder for AltStore, Sideloadly and the like.
   - **Game files**: **In the app**, the whole game in one install. **Copied on their own** leaves the game's RomFS out, so the app is a fraction of the size and quick to reinstall after a rebuild. On a device, NX Play copies the game files into the app's folder once per game version: over USB with libimobiledevice's `afcclient` (`brew install libimobiledevice`, about 30 MB/s), or over Wi-Fi only for a game smaller than half the Mac's memory, as Xcode's `devicectl` reads the whole file into memory. Later installs of the same version skip the copy. Deleting the app on the device deletes the files too, so **Copy them again** sends them anew. For an IPA file, Finder shows its `RomFS.img` (in the build folder) beside it: after installing the IPA, copy it into the app's folder on the device yourself (Finder › the device › Files, or the Files app).
   - **Signing**: **Xcode** builds the game signed with your team, then installs and starts it. **A certificate (.p12) and its provisioning profile** signs the IPA, as sideloading tools do, without an Apple account in Xcode: NX Play checks the password and shows the profile's team, app ID, devices and expiry, and installs it on a device the profile lists. The password is kept in your login keychain. An IPA file can also stay **unsigned** for a sideloading tool, which signs it with its own account.
-- **Make Mac App**: a standalone, double-clickable app of the game (nxnative's `--platform mac-app`) in the game folder, for the Dock or Launchpad. It's made of APFS clones of the extracted files, so it takes almost no space on the same volume. Once a game has its app, **Play** starts the app, so the Dock shows the game's own name and icon, with the game's save and cheats from its folder and NX Play's settings. When an nxnative update rebuilds the game, the app is packed again with it, which adds a couple of minutes to the rebuild, so Play keeps starting the app. When that can't happen (the game files were removed, or the packing failed), Play uses the build: an orange **App** badge and Console Mode's "App out of date" say so, and **Update Mac App** in the Game menu packs it again. Opened from Finder or the Dock, the app plays on from the same save too: NX Play points it there through the app's `env.txt` in `~/Library/Application Support/nxnative/<title ID>`. The exception is an app that already has a save of its own from before. That one keeps it, and while the two saves differ, **Play** asks which one to use: NX Play's, the app's, or the newer one. **Don't ask again** keeps the answer for the game; **Ask Again** in Game Settings undoes it. The log names the save each play uses.
-- **Transfer Saves**: compares the Mac's save with a device's, file by file, and copies one over the other. The replaced save is kept in `<title ID>_build/run/save-backups`.
+- **Make Mac App**: a standalone, double-clickable app of the game (nxnative's `--platform mac-app`) in the game folder, for the Dock or Launchpad. It's made of APFS clones of the extracted files, so it takes almost no space on the same volume.
+  - **Play** then starts the app, so the Dock shows the game's own name and icon, with the game's save and cheats from its folder and NX Play's settings.
+  - **After an nxnative update**, the rebuild packs the app again. When that can't happen (the game files were removed, or the packing failed), Play uses the build: an orange **App** badge and Console Mode's "App out of date" say so, and **Update Mac App** in the Game menu packs it again.
+  - **Opened from Finder or the Dock**, the app plays on from the same save: NX Play points it there through the app's `env.txt` in `~/Library/Application Support/nxnative/<title ID>`. An app that already had a save of its own keeps it, and while the two saves differ, **Play** asks which one to use: NX Play's, the app's, or the newer one. **Don't ask again** keeps the answer for the game; **Ask Again** in Game Settings undoes it. The log names the save each play uses.
+- **Transfer Saves**: copies a save between the Mac and a device ([Saves](#saves)).
 - **nxnative Notes…** (⌥⌘I): what nxnative says about the game: tested, in bring-up, or no profile (a badge on the artwork says the same), and the profile's commits since your build (a blue badge counts them).
 - **Show in Finder**, **Open Save Folder**, **Open Cheats Folder**, **Open Mods Folder**, **Open Build Logs**.
 - **Remove Game…** (⌘⌫): deletes the game's files, build, IPAs and Mac app for good. Anything else in its folder stays. Its saves and cheats stay too, in the folder, unless you also remove the saves; put the game files back and it plays on from them. You confirm by typing the phrase it shows.
 
-![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
+<img src="docs/install-ipa.webp" alt="Install &amp; IPA: install on an iPhone with the game files copied on their own, signed with a certificate and its provisioning profile" width="560">
 
 ### iPhone and iPad
 
@@ -136,7 +140,7 @@ Connecting:
 - **Where the code goes**: the device sends its saved code only to the addresses you confirmed when pairing (the QR code's, the one you typed, or those of the Mac you picked). When Bonjour finds your Mac's ID at another address, the library says so and offers **Pair Again with QR Code…**; it doesn't send the saved code there, because anything on the network can claim the Mac's ID (it's public: Bonjour and `/v1/hello` give it to anyone). Requests go straight to the Mac, never through a proxy, and redirects aren't followed. Cancel and Unpair stop a pairing under way.
 - **What this relies on**: NX Play talks plain HTTP and the Mac has no key the device checks, so the network matters. On Wi-Fi the code travels unencrypted, as a typed code always did: someone who can read that network's traffic, or take over one of the confirmed addresses there, can learn it. Pair on a network you trust, and use **New Code** if you doubt it. Over Tailscale the traffic is encrypted by WireGuard and the `100.x` addresses belong to your tailnet's devices, but only while Tailscale is connected on the device: without it, a `100.x` address belongs to whatever network the device is on.
 
-<img src="docs/devices.webp" alt="Settings › Devices: the Apple team, and the iPhone & iPad App section with the Mac's address, the pairing code and Install NX Play" width="560">
+<img src="docs/devices.webp" alt="Settings › Devices: the Apple team, and the iPhone &amp; iPad App section with the pairing code, Show QR Code, Install NX Play, the Mac's addresses and Tailscale" width="560">
 
 The header shows which Mac the device is connected to. Games installed from now on open from the launcher: nxplay gives each one the URL scheme `nxplay-<title ID>`. A game installed before that needs **Reinstall from the Mac** once. The launcher asks the Mac what's on the device whenever it comes to the front, or when you pull down to refresh. A game deleted from the home screen then shows as **Removed from this iPhone** (or iPad), with a one-tap reinstall, because the Mac remembers which games each device has had. A connected controller works too:
 - the d-pad or left stick moves through the games
@@ -165,6 +169,10 @@ Games in a games folder both Macs have, such as one on a file server, are the sa
 A folder shared from a Mac with File Sharing works. If it's on an external drive, turn off **Ignore ownership on this volume** in its Get Info first, or the other Mac is told the share doesn't exist. Before building over the network, nxplay switches a game's shader cache out of SQLite's WAL mode, which a network volume can't open: a game built from the drive on the sharing Mac has its cache in that mode. A NAS that strips the execute permission from files, such as a UniFi one, builds a game once, but a rebuild can fail with `Permission denied` when the build runs one of its own tools there a second time.
 
 ### Saves
+
+**Transfer Saves** (Game menu) compares the Mac's save with a device's, file by file, and copies one over the other. The replaced save is kept in `<title ID>_build/run/save-backups`.
+
+![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
 **Save backup** (Settings › Saves): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
 
@@ -207,7 +215,7 @@ Everything the game runs uses it (extract, play, rebuild, IPA, Mac app, device i
 
 Pick files one by one, a whole game, or a whole kind. Nothing is selected until you pick it, and deleting needs you to type “yes, I'm sure”. Everything is deleted for good, not moved to the Trash.
 
-![Free Up Space: game files, IPAs and Xcode builds per game, with their sizes](docs/free-up-space.webp)
+![Free Up Space: game files, builds, shader compile caches, IPAs, Xcode builds, device install copies, Mac apps and Metal's leftovers, per game with their sizes](docs/free-up-space.webp)
 
 nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, and keeps that copy, so the game takes up its space about twice, and a build without the folder unpacks it again. **Settings › General › Keep only the unpacked copy of NSZ and XCZ games** stops that. Once a game is built for the Mac, its unpacked NSP or XCI moves into the game folder and the NSZ or XCZ goes to the Trash; from then on the game builds from the NSP. Only a file nxnative recorded as unpacked from exactly that NSZ moves, and nothing moves while the game builds or runs. Turning it on offers to do the same for the games built already. It's off by default, since it changes your own files.
 
@@ -283,7 +291,7 @@ Controllers are detected automatically, with buttons by position (right A, botto
 NX Play builds and runs games with [nxnative](https://github.com/seedds/nxnative). It doesn't touch the games themselves, so most game problems belong there:
 
 - **Report to [nxnative's issues](https://github.com/seedds/nxnative/issues):** a game that crashes, freezes, shows a black screen or glitches. Also a game that doesn't boot on the Mac or on an iPhone or iPad, and a build or IPA that fails in one of nxnative's steps (extract, rewrite, shader split, shaders, Mac host, Xcode project). Search first: the game may be known, or not supported yet. Include the game's title ID and version, your Mac or device, and the step's log from **Open Build Logs**.
-- **Report [here](https://github.com/varyform/nx-native-wrapper/issues):** NX Play's own windows and buttons, Setup, updates, Install on Device, Transfer Saves, Save backup, Console Mode and the controller, Free Up Space, and `nxplay` itself.
+- **Report [here](https://github.com/varyform/nx-native-wrapper/issues):** NX Play's own windows and buttons, Setup, updates, Install on Device and Build IPA, Transfer Saves, Save backup, Console Mode and the controller, Free Up Space, and `nxplay` itself.
 
 Not sure? Run nxnative's build script on the game yourself (`python3 scripts/build_ipa_from_nsp.py <game folder> -k ~/.switch/prod.keys` in the nxnative folder; `--platform mac` for the Mac). If it fails the same way, it's nxnative's.
 
@@ -317,7 +325,7 @@ To work in Xcode, run `xcodegen generate` (or `mise run generate`) and open `NXP
 
 `Package.swift` in the root exists only so SourceKit-LSP (Zed, VS Code, …) understands the app's sources; build and test with the Xcode project and `Packages/NXPlayKit`.
 
-`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, console-details, free-up-space, settings, devices, transfer-saves). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
+`bin/screenshots [games folder]` regenerates the screenshots in `docs/`. It needs a folder with at least one extracted game (default `~/Games/Switch`), and it shows the folder's real games, with their names and icons. Everything else is sample data: paths under `~`, an example team, devices and controller, a scripted build log. `bin/screenshots ~/Games/Switch console` redoes just one scene (library, list, console, console-details, free-up-space, settings, devices, transfer-saves, install-ipa). `NXPLAY_SCREENSHOT_GAME="Breath of the Wild"` (a title ID or part of a name) picks the game Console Mode shows. The data lives in `Screenshots.swift`, which only Debug builds include. It needs `cwebp` (`brew install webp`) and Screen Recording permission for your terminal.
 
 ## License
 

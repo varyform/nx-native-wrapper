@@ -88,6 +88,9 @@ public struct RootView: View {
                     if library.screenshotScene == .freeUpSpace {
                         openWindow(id: CleanupView.windowID)
                     }
+                    if library.screenshotScene == .installIPA {
+                        openWindow(id: PackView.windowID)
+                    }
                 }
             #endif
     }
