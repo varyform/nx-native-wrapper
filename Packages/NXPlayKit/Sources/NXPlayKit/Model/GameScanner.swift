@@ -219,15 +219,35 @@ public enum GameScanner {
         return id.count == 16 && id.allSatisfy(\.isHexDigit) && isDirectory(url)
     }
 
+    /// What's in a folder; through a link to one too (a linked build folder, issue #32), which the URL listing refuses
+    /// and the path listing follows. The children keep the link's path.
     static func children(of folder: URL) -> [URL] {
-        (try? FileManager.default.contentsOfDirectory(
+        if isSymbolicLink(folder) {
+            let names = (try? FileManager.default.contentsOfDirectory(atPath: folder.path(percentEncoded: false))) ?? []
+            return names.filter { !$0.hasPrefix(".") }.map { folder.appending(path: $0) }
+        }
+        return (try? FileManager.default.contentsOfDirectory(
             at: folder,
-            includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey, .contentModificationDateKey],
             options: [.skipsHiddenFiles]
         )) ?? []
     }
 
+    /// A symbolic link to a folder counts as the folder: a build folder kept on an APFS volume (saves need one) and
+    /// linked into a game folder on exFAT (issue #32).
     static func isDirectory(_ url: URL) -> Bool {
-        (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+        guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]) else { return false }
+        guard values.isSymbolicLink == true else { return values.isDirectory == true }
+        var isFolder: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path(percentEncoded: false), isDirectory: &isFolder)
+            && isFolder.boolValue
+    }
+
+    /// lstat, not resource values: a listing's URL for a link to a folder ends in a slash, which they look through.
+    static func isSymbolicLink(_ url: URL) -> Bool {
+        var path = url.path(percentEncoded: false)
+        while path.count > 1, path.hasSuffix("/") { path.removeLast() }
+        var info = stat()
+        return lstat(path, &info) == 0 && info.st_mode & S_IFMT == S_IFLNK
     }
 }

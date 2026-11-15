@@ -52,8 +52,11 @@ public struct GameRemoval: Sendable {
                 + GameScanner.children(of: build).filter { $0.lastPathComponent == "cheats" }
         }
         self.saves = saves
-        // what's ours goes whole, but a build whose saves stay: everything in it except them
-        let whole = entries.filter { ours($0) && (removesSaves || !builds.contains($0)) }
+        // what's ours goes whole, but a build whose saves stay: everything in it except them. A build folder linked
+        // from another volume goes with what's in it, not the link alone, which would leave the whole build there.
+        let whole = entries.filter { ours($0) && (removesSaves || !builds.contains($0)) }.flatMap {
+            builds.contains($0) && GameScanner.isSymbolicLink($0) ? GameScanner.children(of: $0) + [$0] : [$0]
+        }
         let partial =
             removesSaves
             ? []

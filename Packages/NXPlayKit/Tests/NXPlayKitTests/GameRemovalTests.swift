@@ -85,6 +85,23 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: removal.appData!.path))
     }
 
+    /// A build folder linked from another volume (issue #32): removing the saves too empties it, not just the link.
+    @Test func aLinkedBuildGoesWithWhatIsInIt() throws {
+        let build = root.appending(path: "Fake/\(Self.id)_build")
+        let elsewhere = root.deletingLastPathComponent().appending(path: "image/\(Self.id)_build")
+        try FileManager.default.createDirectory(
+            at: elsewhere.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: build, to: elsewhere)
+        try FileManager.default.createSymbolicLink(at: build, withDestinationURL: elsewhere)
+
+        let removal = GameRemoval(game: game, removesSaves: true, home: home)
+        #expect(removal.size() > 1)  // what's in it, not the link's few bytes
+        #expect(removal.perform().isEmpty)
+        #expect(!exists("Fake/\(Self.id)_build"))
+        let left = try FileManager.default.contentsOfDirectory(atPath: elsewhere.path)
+        #expect(left == [], "\(left)")
+    }
+
     @MainActor @Test func confirmationPhrasesHaveNoApostrophes() {
         #expect(GameRemoval.phrases.count == 3)
         #expect(GameRemoval.phrases.allSatisfy { !$0.contains("'") && !$0.contains("\u{2019}") })

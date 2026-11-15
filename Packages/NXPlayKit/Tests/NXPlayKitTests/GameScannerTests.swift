@@ -142,6 +142,22 @@ import Testing
         #expect(!outdated())
     }
 
+    /// A build folder kept on another volume and linked into the game folder (issue #32) is the game's build.
+    @Test func aLinkedBuildFolderIsTheBuild() throws {
+        let elsewhere = try build(game: "Elsewhere", titleID: "010093801237C000", versions: [0])
+        try touch(elsewhere.appending(path: "start_mac.sh"))
+        try touch(elsewhere.appending(path: "tools/dmhost"), executable: true)
+        try touch(root.appending(path: "Games/Metroid/Metroid Dread [010093801237C000][v0].nsp"))
+        let link = root.appending(path: "Games/Metroid/010093801237C000_build")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: elsewhere)
+
+        let game = try #require(GameScanner.scan(roots: [root.appending(path: "Games")]).first)
+        #expect(game.state == .ready && game.name == "Metroid Dread")
+        #expect(game.buildFolder?.resolvingSymlinksInPath() == elsewhere.resolvingSymlinksInPath())
+        #expect(game.buildFolder?.deletingLastPathComponent().lastPathComponent == "Metroid")  // by the link
+        #expect(CleanupScanner.buildContents(link).count == 3)  // Free Up Space empties it, not the link
+    }
+
     @Test func aLauncherWithoutTheMacHostIsNotReady() throws {
         let folder = try build(game: "Metroid", titleID: "010093801237C000", versions: [0])
         try touch(folder.appending(path: "start_mac.sh"))
