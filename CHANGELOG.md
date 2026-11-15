@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.1.1 — 2026-11-15
+
 ### Fixed
 
 - **A build folder linked from another volume** ([#32](https://github.com/varyform/nx-native-wrapper/issues/32)): a game whose `<title ID>_build` is a symbolic link, such as one kept on an APFS disk image because its games folder is on exFAT, showed as Not extracted. It's now the game's build, and Remove Game and Free Up Space empty the folder it points to, not just the link. Thanks to @heyflorin for the report and the fix.
