@@ -65,6 +65,8 @@ import Testing
         try Data(Self.json.utf8).write(to: build.appending(path: LauncherSettings.fileName))
 
         let library = Library(defaults: store(), isScreenshot: true)
+        // not this Mac's nxnative, whose profile for the game (aea97ec6) would take away the frame-rate row (#32)
+        library.nxnativePath = root.appending(path: "none").path
         let choices = store()
         library.choicesStore = { _ in choices }
         library.roots = [root]
