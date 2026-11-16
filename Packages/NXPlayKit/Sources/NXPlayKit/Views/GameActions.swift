@@ -89,49 +89,16 @@ struct GameActions: View {
             }
             .disabled(game?.titleID == nil)
             .shortcut("i", [.command, .option], if: inMenuBar)
-            Button("Show in Finder", systemImage: "folder") {
-                game.map {
-                    NSWorkspace.shared.activateFileViewerSelecting([$0.buildFolder ?? $0.folder])
-                }
-            }
-            .disabled(game == nil)
-            .shortcut("r", [.command, .shift], if: inMenuBar)
-            if let game, game.ipaURL != nil {
-                Button("Show IPA in Finder", systemImage: "shippingbox") {
-                    NSWorkspace.shared.activateFileViewerSelecting(game.ipaFiles)
-                }
-            }
             if let app = game?.macAppURL {
                 Button("Open Mac App", systemImage: "macwindow") { NSWorkspace.shared.open(app) }
-                Button("Show Mac App in Finder", systemImage: "macwindow") {
-                    NSWorkspace.shared.activateFileViewerSelecting([app])
-                }
             }
-            if let save = game?.saveFolder {
-                Button("Open Save Folder", systemImage: "tray.full") {
-                    NSWorkspace.shared.open(save)
-                }
+            // the places a game has in Finder, in one submenu: rarely needed, and up to eight of them
+            Menu {
+                FinderItems(game: game, inMenuBar: inMenuBar)
+            } label: {
+                Label("Show in Finder", systemImage: "folder")
             }
-            // nxnative's cheat files (<build ID>.txt) and toggles; a file dropped in loads at the next start. Made here
-            // when missing: a first cheat file needs somewhere to go before the game has run with any
-            if let cheats = game?.cheatsFolder {
-                Button("Open Cheats Folder", systemImage: "wand.and.stars") {
-                    try? FileManager.default.createDirectory(
-                        at: cheats, withIntermediateDirectories: true)
-                    NSWorkspace.shared.open(cheats)
-                }
-            }
-            // the game's file mods (Game Settings › Mods), one folder each; made here when missing, as the cheats'
-            if let game {
-                Button("Open Mods Folder", systemImage: "puzzlepiece.extension") {
-                    let mods = library.modsFolder(for: game)
-                    try? FileManager.default.createDirectory(at: mods, withIntermediateDirectories: true)
-                    NSWorkspace.shared.open(mods)
-                }
-            }
-            if let logs = game?.logsFolder {
-                Button("Open Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
-            }
+            .disabled(game == nil)
 
             Divider()
 
@@ -143,6 +110,52 @@ struct GameActions: View {
         }
         // macOS menus show only titles unless the label style asks for the icons too
         .labelStyle(.titleAndIcon)
+    }
+}
+
+/// Show in Finder's submenu: the game's folders, and what NX Play made in them. The folders that are made on first use
+/// (cheats, mods) are always there; the others only when they exist.
+private struct FinderItems: View {
+    let game: Game?
+    let inMenuBar: Bool
+    @Environment(Library.self) private var library
+
+    var body: some View {
+        if let game {
+            Button("Game Folder", systemImage: "folder") { NSWorkspace.shared.open(game.folder) }
+                .shortcut("r", [.command, .shift], if: inMenuBar)
+            if let build = game.buildFolder {
+                Button("Build Folder", systemImage: "hammer") { NSWorkspace.shared.open(build) }
+            }
+            Divider()
+            if let save = game.saveFolder {
+                Button("Saves", systemImage: "tray.full") { NSWorkspace.shared.open(save) }
+            }
+            // nxnative's cheat files (<build ID>.txt) and toggles; a file dropped in loads at the next start. Made here
+            // when missing: a first cheat file needs somewhere to go before the game has run with any
+            if let cheats = game.cheatsFolder {
+                Button("Cheats", systemImage: "wand.and.stars") { open(made: cheats) }
+            }
+            // the game's file mods (Game Settings › Mods), one folder each; made here when missing, as the cheats'
+            Button("Mods", systemImage: "puzzlepiece.extension") { open(made: library.modsFolder(for: game)) }
+            if let logs = game.logsFolder {
+                Button("Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
+            }
+            if game.ipaURL != nil || game.macAppURL != nil { Divider() }
+            if game.ipaURL != nil {
+                Button("IPA", systemImage: "shippingbox") {
+                    NSWorkspace.shared.activateFileViewerSelecting(game.ipaFiles)
+                }
+            }
+            if let app = game.macAppURL {
+                Button("Mac App", systemImage: "macwindow") { NSWorkspace.shared.activateFileViewerSelecting([app]) }
+            }
+        }
+    }
+
+    private func open(made folder: URL) {
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(folder)
     }
 }
 

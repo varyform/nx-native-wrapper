@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- **Show in Finder** is a submenu: the game's folder (⇧⌘R) and build folder, Saves, Cheats, Mods, Build Logs, and the IPA or Mac app. The five Open… and Show… items it replaces made the game's menu long. The build folder has an item of its own now; Show in Finder used to open whichever one the game had.
+
 ## 2.1.1 — 2026-11-15
 
 ### Fixed
