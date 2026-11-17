@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.1.3 — 2026-11-17
+
 ### Fixed
 
 - **Free Up Space and nxnative's new build folder layout.** Since 2026-11-15, nxnative moves what a build or a play no longer uses (old shader libraries and compile caches, unused pipeline files) into the build's `obsolete` folder, which can reach tens of GB per game. Free Up Space lists it as **No longer used**, apart from the build, and lets it go whenever the game isn't building or running. It also lists the shader compile cache again: nxnative keeps one per shader chain now (`cas-<chain>.db`), and Free Up Space only looked for the old `cas.db`.
