@@ -106,6 +106,25 @@ import Testing
         )
     }
 
+    /// The device save, the other local users' saves and their registry go beside the game's folder, under nxnative's
+    /// names, and count for when the save changed.
+    @Test func backsUpWhatNXNativeKeepsBesideTheSave() async throws {
+        let (remote, clone) = try clone()
+        let save = root.appending(path: "save")
+        try write("slot 1", to: save.appending(path: "slot1.sav"))
+        let before = SaveSettle.fingerprint(save)
+        try write("device", to: root.appending(path: "save_device/d.sav"))
+        try write("player 2", to: root.appending(path: "save_user2/slot1.sav"))
+        try write("nxnative-users-1 6", to: root.appending(path: "save.users"))
+        #expect(SaveSettle.fingerprint(save).count == before.count + 3)
+
+        let note = await SaveRepository().backUp(save, into: clone, folder: "zelda-1", game: "Zelda")
+        #expect(note == "save backup: committed 4 files in zelda-1, pushed")
+        #expect(
+            try git("ls-tree", "-r", "--name-only", "main", in: remote)
+                == "zelda-1.users\nzelda-1/slot1.sav\nzelda-1_device/d.sav\nzelda-1_user2/slot1.sav\n")
+    }
+
     @Test func anotherMacsPushIsReplayedUnder() async throws {
         let (remote, clone) = try clone()
         let save = root.appending(path: "save")

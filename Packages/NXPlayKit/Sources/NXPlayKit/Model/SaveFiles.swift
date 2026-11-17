@@ -101,3 +101,58 @@ public struct SaveComparison: Sendable {
         }
     }
 }
+
+/// A game's save as nxnative keeps it: the save folder (DM_SAVE) and what it writes beside it, the device save
+/// (`<save>_device`), the saves of local users 2 to 8 (`<save>_user2`…`_user8`) and their registry (`<save>.users`, a
+/// file). nxnative's docs/frontends.md asks a front end to move and back these up together.
+enum SaveSet {
+    struct Member: Equatable {
+        /// What follows the save's name: "" for the save itself, "_device", "_user2", ".users".
+        let suffix: String
+        let url: URL
+        let isFolder: Bool
+    }
+
+    static let folderSuffixes = [""] + ["_device"] + (2...8).map { "_user\($0)" }
+    static let registrySuffix = ".users"
+
+    /// The members that exist, the save first.
+    static func members(of save: URL) -> [Member] {
+        let base = save.standardizedFileURL.path.trimmingSuffix("/")
+        let folders = folderSuffixes.compactMap { suffix -> Member? in
+            let url = URL(filePath: base + suffix, directoryHint: .isDirectory)
+            return GameScanner.isDirectory(url) ? Member(suffix: suffix, url: url, isFolder: true) : nil
+        }
+        let registry = URL(filePath: base + registrySuffix, directoryHint: .notDirectory)
+        let file = FileManager.default.fileExists(atPath: registry.path) && !GameScanner.isDirectory(registry)
+        return folders + (file ? [Member(suffix: registrySuffix, url: registry, isFolder: false)] : [])
+    }
+
+    /// Every file of the set, its path under the save's for the save itself and under the suffix for the others
+    /// (`_device/d.bin`, `_user2/slot.bin`, `.users`), one list to compare.
+    static func files(_ save: URL) -> [SaveFile] {
+        members(of: save).flatMap { member -> [SaveFile] in
+            guard member.isFolder else {
+                let values = try? member.url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+                return [
+                    SaveFile(
+                        path: member.suffix, size: values?.fileSize ?? 0,
+                        modified: values?.contentModificationDate ?? .distantPast)
+                ]
+            }
+            let files = SaveFile.list(member.url)
+            guard !member.suffix.isEmpty else { return files }
+            return files.map {
+                SaveFile(path: member.suffix + "/" + $0.path, size: $0.size, modified: $0.modified)
+            }
+        }
+    }
+}
+
+extension String {
+    fileprivate func trimmingSuffix(_ suffix: String) -> String {
+        var s = self
+        while s.count > 1, s.hasSuffix(suffix) { s.removeLast(suffix.count) }
+        return s
+    }
+}

@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Saves of a game's other players**: nxnative now lets a game's players 2 to 8 have accounts of their own, with saves beside the main one. Save backup backs them up too, with their list and the game's device save, which it used to leave out. When a game's Mac app has a save of its own, Play's question about which save to use counts their saves as well.
+
 ### Changed
 
 - **Show in Finder** is a submenu: the game's folder (⇧⌘R) and build folder, Saves, Cheats, Mods, Build Logs, and the IPA or Mac app. The five Open… and Show… items it replaces made the game's menu long. The build folder has an item of its own now; Show in Finder used to open whichever one the game had.

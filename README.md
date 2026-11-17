@@ -170,11 +170,13 @@ A folder shared from a Mac with File Sharing works. If it's on an external drive
 
 ### Saves
 
-**Transfer Saves** (Game menu) compares the Mac's save with a device's, file by file, and copies one over the other. The replaced save is kept in `<title ID>_build/run/save-backups`.
+A game's save is in `<title ID>_build/run/save`. A game that lets several people play under their own accounts asks who's playing, and keeps the saves of players 2 to 8 beside it (`save_user2`…`save_user8`, with the list of players in `save.users`). Free Up Space and Remove Game keep them all, like the main save.
+
+**Transfer Saves** (Game menu) compares the Mac's save with a device's, file by file, and copies one over the other. It copies the main player's save only. The replaced save is kept in `<title ID>_build/run/save-backups`.
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
 
-**Save backup** (Settings › Saves): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
+**Save backup** (Settings › Saves): pick a clone of your own private Git repository. While a game plays, NX Play copies its save into a folder named after the game and its title ID (`the-legend-of-zelda-tears-of-the-kingdom-0100f2c0115b6000`) each time the game saves, then commits and pushes. The other players' saves, their list and the game's device save go beside that folder, under the same name with nxnative's endings (`…-0100f2c0115b6000_user2`). It does this once more when the game quits. Pushing uses your own Git setup (SSH agent or keychain) and never prompts. The log shows each backup. Games started from the Terminal with `nxplay` aren't backed up.
 
 **Cloud saves** (Settings › Saves): a game's Mac and iPhone copies play on from one save, through iCloud Drive (its nxnative Saves folder) or a folder you pick. This is nxnative's own sync: each game keeps one file there, `<title ID>/save.dmsync`. The game brings in the cloud's save when it starts and sends its own a few seconds after each save. On the iPhone, pick the same folder in the game app's Cloud saves. When both sides changed since they were last the same (you played on both without a sync in between, or this Mac had a save of its own before its first sync), **Play** asks which save to use, this Mac's or the cloud's, with when each was saved and on which device. The other is kept in the save's backups. A game built with an nxnative from before 2026-11-08 doesn't ask: the newer save wins. A save made in the last seconds before you quit goes up at the game's next start. From the Terminal: `DM_SAVE_SYNC=icloud nxplay <game folder>`.
 

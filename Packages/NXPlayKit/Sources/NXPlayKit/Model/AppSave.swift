@@ -40,14 +40,8 @@ public struct AppSave: Sendable {
             device: app)
     }
 
-    /// The save and the device save beside it (nxnative's `<DM_SAVE>_device`), one list.
-    static func files(_ save: URL) -> [SaveFile] {
-        let device = URL(filePath: save.path + "_device", directoryHint: .isDirectory)
-        return SaveFile.list(save)
-            + SaveFile.list(device).map {
-                SaveFile(path: "_device/" + $0.path, size: $0.size, modified: $0.modified)
-            }
-    }
+    /// The save with the device save and the other local users' beside it (SaveSet), one list.
+    static func files(_ save: URL) -> [SaveFile] { SaveSet.files(save) }
 
     public var differs: Bool { !comparison.isIdentical }
     public var nxplaySaved: Date? { comparison.latest(.mac) }

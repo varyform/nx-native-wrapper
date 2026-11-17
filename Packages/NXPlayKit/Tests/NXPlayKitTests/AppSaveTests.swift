@@ -65,6 +65,18 @@ import Testing
         #expect(AppSave(game: game, home: home)?.differs == true)
     }
 
+    /// nxnative's local users 2 to 8 save beside the first, and their registry too (PR #2846).
+    @Test func theOtherUsersSavesCountToo() throws {
+        let now = Date.now
+        let game = try game(nxplay: now, app: now)
+        try write(support.appending(path: "save_user2/b.bin"))
+        let save = try #require(AppSave(game: game, home: home))
+        #expect(save.differs && save.comparison.rows.map(\.path).contains("_user2/b.bin"))
+        try write(support.appending(path: "save.users"))
+        #expect(AppSave(game: game, home: home)?.comparison.rows.map(\.path).contains(".users") == true)
+        #expect(SaveSet.files(support.appending(path: "save_user9")).isEmpty)  // no such user: not a save
+    }
+
     @Test func nothingToChooseWithoutTheAppsOwnSave() throws {
         #expect(AppSave(game: try game(nxplay: .now, app: nil), home: home) == nil)
     }

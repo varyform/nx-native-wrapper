@@ -1,8 +1,8 @@
 import Foundation
 
 /// Saves backed up to a Git repository (Settings › Save backup): a clone of the player's own, private repository with
-/// a folder per game, named after the game and its title ID. While a game plays, its Mac save (`run/save`) is looked
-/// at every few seconds; once a change has settled it is copied into the game's folder, committed and pushed, and once
+/// a folder per game, named after the game and its title ID. While a game plays, its Mac save (`run/save`, with the
+/// device save and the other local users' beside it: SaveSet) is looked at every few seconds; once a change has settled it is copied into the game's folder, committed and pushed, and once
 /// more when the game ends. What happened goes into the play's log.
 @MainActor
 final class SaveBackup {
@@ -76,8 +76,25 @@ struct SaveSettle {
         return true
     }
 
+    /// Every file of the save and what nxnative keeps beside it (SaveSet): path → size and modification time.
+    static func fingerprint(_ save: URL) -> [String: String] {
+        var print: [String: String] = [:]
+        for member in SaveSet.members(of: save) {
+            guard member.isFolder else {
+                let values = try? member.url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
+                print[member.suffix] =
+                    "\(values?.fileSize ?? 0) \(values?.contentModificationDate?.timeIntervalSince1970 ?? 0)"
+                continue
+            }
+            for (path, value) in folderPrint(member.url) {
+                print[member.suffix.isEmpty ? path : member.suffix + "/" + path] = value
+            }
+        }
+        return print
+    }
+
     /// Every file under the folder: relative path → size and modification time.
-    static func fingerprint(_ folder: URL) -> [String: String] {
+    private static func folderPrint(_ folder: URL) -> [String: String] {
         let keys: [URLResourceKey] = [.isRegularFileKey, .fileSizeKey, .contentModificationDateKey]
         guard
             let files = FileManager.default.enumerator(
@@ -101,27 +118,39 @@ struct SaveSettle {
 /// configuration and credentials (SSH agent, keychain); nothing may prompt, so a missing credential fails the push
 /// instead of hanging it.
 actor SaveRepository {
-    /// Mirrors the save into the game's folder, commits it and pushes → a line for the log, nil when nothing changed.
+    /// Mirrors the save into the game's folder, and what nxnative keeps beside it (SaveSet) beside that folder under
+    /// the same names (`<folder>_device`, `<folder>_user2`, `<folder>.users`), commits them and pushes → a line for
+    /// the log, nil when nothing changed.
     func backUp(_ save: URL, into repo: URL, folder: String, game: String) -> String? {
         guard FileManager.default.fileExists(atPath: repo.appending(path: ".git").path) else {
             return "save backup: \(repo.path) is not a Git repository (Settings › Save backup)"
         }
-        let target = repo.appending(path: folder, directoryHint: .isDirectory)
-        try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-        let copy = run(
-            "/usr/bin/rsync", ["-a", "--delete", save.path + "/", target.path + "/"], in: repo)
-        guard copy.code == 0 else {
-            return "save backup: copying the save failed: \(copy.lastLine)"
+        var paths: [String] = []
+        for member in SaveSet.members(of: save) {
+            let name = folder + member.suffix
+            let target = repo.appending(path: name, directoryHint: member.isFolder ? .isDirectory : .notDirectory)
+            let copy: Result
+            if member.isFolder {
+                try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+                copy = run("/usr/bin/rsync", ["-a", "--delete", member.url.path + "/", target.path + "/"], in: repo)
+            } else {
+                copy = run("/usr/bin/rsync", ["-a", member.url.path, target.path], in: repo)
+            }
+            guard copy.code == 0 else {
+                return "save backup: copying the save failed: \(copy.lastLine)"
+            }
+            paths.append(name)
         }
+        guard !paths.isEmpty else { return nil }
 
-        git(["add", "-A", "--", folder], in: repo)
-        let changed = git(["diff", "--cached", "--name-only", "--", folder], in: repo).output
+        git(["add", "-A", "--"] + paths, in: repo)
+        let changed = git(["diff", "--cached", "--name-only", "--"] + paths, in: repo).output
             .split(separator: "\n").count
         guard changed > 0 else { return nil }
         let stamp = Date.now.formatted(
             .iso8601.year().month().day().time(includingFractionalSeconds: false))
         let commit = git(
-            ["commit", "-q", "-m", "\(game): save of \(stamp)", "--", folder], in: repo)
+            ["commit", "-q", "-m", "\(game): save of \(stamp)", "--"] + paths, in: repo)
         guard commit.code == 0 else { return "save backup: commit failed: \(commit.lastLine)" }
 
         let files = changed == 1 ? "1 file" : "\(changed) files"

@@ -167,7 +167,8 @@ share_save() {
   env="$sup/env.txt"
   if ! grep -qF "$mark" "$env" 2> /dev/null; then
     if grep -q '^DM_SAVE=' "$env" 2> /dev/null; then return 0; fi
-    if [[ -n "$(find "$sup/save" "$sup/save_device" -type f 2> /dev/null | head -1)" ]]; then
+    # the save, the device save and the other local users' (nxnative's <save>_userN and <save>.users)
+    if [[ -n "$(find "$sup/save" "$sup/save_device" "$sup"/save_user[2-8] "$sup/save.users" -type f 2> /dev/null | head -1)" ]]; then
       own_save="$sup/save"
       return 0
     fi
