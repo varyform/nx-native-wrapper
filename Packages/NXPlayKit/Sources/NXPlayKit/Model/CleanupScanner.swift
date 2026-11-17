@@ -26,10 +26,11 @@ public enum CleanupScanner {
         } else {
             file.size =
                 switch file.role {
-                // its shader cache is listed on its own
+                // its shader cache and what it no longer uses are listed on their own
                 case .build:
-                    buildContents(file.url).reduce(0) { $0 + size(of: $1) }
-                        - shaderCacheSize(shaderCache(of: file.url))
+                    buildContents(file.url).filter { $0.lastPathComponent != obsoleteName }
+                        .reduce(0) { $0 + size(of: $1) }
+                        - shaderCaches(of: file.url).reduce(0) { $0 + shaderCacheSize($1) }
                 // a Mac app is APFS clones of its build's files: what deleting it frees is what isn't shared
                 case .macApp: size(of: file.url, ownOnly: true) + size(of: appKey(file.url))
                 case .metalState: MetalLeftovers.size(in: file.url)
@@ -78,13 +79,16 @@ public enum CleanupScanner {
         if let build = game.buildFolder, !buildContents(build).isEmpty {
             files.append(big(build, .build))
         }
-        if let cache = game.buildFolder.map(shaderCache(of:)),
-            FileManager.default.fileExists(atPath: cache.path)
-        {
+        for cache in game.buildFolder.map(shaderCaches(of:)) ?? [] {
             files.append(
                 CleanupFile(
                     url: cache, size: shaderCacheSize(cache), role: .shaderCache,
                     blocked: blocked(.shaderCache, game, busy: busy)))
+        }
+        if let obsolete = game.buildFolder?.appending(path: obsoleteName, directoryHint: .isDirectory),
+            !GameScanner.children(of: obsolete).filter({ $0.lastPathComponent != ".DS_Store" }).isEmpty
+        {
+            files.append(big(obsolete, .obsolete))
         }
         files += list(game.folder, ["ipa"], .ipa)
         if let xcode = game.buildFolder?.appending(
@@ -114,9 +118,16 @@ public enum CleanupScanner {
             }
     }
 
+    /// The folder in a build where nxnative moves what it no longer uses (CleanupKind.obsolete).
+    static let obsoleteName = "obsolete"
+
     /// nxnative's shader compile cache in a build (shader_cache.py).
-    static func shaderCache(of build: URL) -> URL {
-        build.appending(path: "shader/cache/cas.db")
+    /// One file per shader chain since nxnative 2026-11-15, `cas-<chain>.db` (dm/tools/shader_cache.py); `cas.db`
+    /// before, until the next build moves it to obsolete/.
+    static func shaderCaches(of build: URL) -> [URL] {
+        GameScanner.children(of: build.appending(path: "shader/cache", directoryHint: .isDirectory))
+            .filter { $0.lastPathComponent.wholeMatch(of: /cas(-[0-9a-f]{12})?\.db/) != nil }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
     /// SQLite's files beside the cache, left by a build that stopped while writing: they go with it.

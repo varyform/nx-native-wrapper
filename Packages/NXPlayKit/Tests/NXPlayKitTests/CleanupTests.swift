@@ -233,9 +233,11 @@ import Testing
     /// The shader compile cache on its own: not in its build's size, gone with the build, kept while a build that
     /// hasn't finished still needs it.
     @Test func aShaderCacheIsListedOnItsOwnAndGoesWithItsBuild() async throws {
+        try write("Ready/0100000000010000_build/shader/cache/b-a9bfaeb9fa8c.img", size: 5000)  // the game's libraries
         let withoutCache = try #require(CleanupScanner.groups(games: games).last?.files.first { $0.role == .build })
-        try write("Ready/0100000000010000_build/shader/cache/cas.db", size: 9000)
-        try write("Ready/0100000000010000_build/shader/cache/cas.db-wal", size: 10)
+        // one file per shader chain (nxnative 2026-11-15), the old single cas.db in a build from before
+        try write("Ready/0100000000010000_build/shader/cache/cas-a9bfaeb9fa8c.db", size: 9000)
+        try write("Ready/0100000000010000_build/shader/cache/cas-a9bfaeb9fa8c.db-wal", size: 10)
         try write("Extracted/0100000000020000_build/shader/cache/cas.db", size: 100)
         let cleanup = Cleanup()
         await cleanup.scan(games: games, busy: [])
@@ -261,6 +263,40 @@ import Testing
         #expect(cleanup.phase == .done(count: 1, size: cache.size))
         #expect(!FileManager.default.fileExists(atPath: cache.url.path))
         #expect(!FileManager.default.fileExists(atPath: cache.url.path + "-wal"))
+        #expect(GameScanner.game(at: ready.game.folder)?.state == .ready)  // still plays
+    }
+
+    /// nxnative's obsolete/ folder: what builds and runs no longer use, listed apart from the build and removable
+    /// whenever the game isn't busy, even before the game is built.
+    @Test func whatABuildNoLongerUsesIsListedOnItsOwn() async throws {
+        let withoutIt = try #require(CleanupScanner.groups(games: games).last?.files.first { $0.role == .build })
+        try write("Ready/0100000000010000_build/obsolete/2026-11-17 144312 build/shader/b-1/lib.metallib", size: 8000)
+        try write("Ready/0100000000010000_build/obsolete/2026-11-17 151416 pso_archive/a.bin", size: 2000)
+        try write("Extracted/0100000000020000_build/obsolete/x.bin", size: 100)
+        try write("Fresh/0100000000030000_build/obsolete/.DS_Store")  // nothing of nxnative's: not listed
+        let cleanup = Cleanup()
+        await cleanup.scan(games: games, busy: [])
+        let ready = try #require(cleanup.groups.last)
+        #expect(ready.files.map(\.role) == [.original, .converted, .build, .obsolete, .ipa, .xcodeBuild])
+        let build = ready.files[2], obsolete = ready.files[3]
+        #expect(obsolete.kind == .obsolete)
+        let measured = try #require(CleanupScanner.groups(games: games).last?.files)
+        #expect(measured.first { $0.role == .obsolete }.map { $0.size >= 10_000 } == true)
+        #expect(measured.first { $0.role == .build }?.size == withoutIt.size)  // not counted twice
+        let unfinished = try #require(cleanup.groups.first?.files.first { $0.role == .obsolete })
+        #expect(unfinished.blocked == nil)
+        #expect(CleanupScanner.files(of: game("Ready"), busy: true).allSatisfy { $0.blocked != nil })
+        #expect(!cleanup.files(.obsolete).contains { $0.url.path.contains("0100000000030000") })
+
+        cleanup.toggle(build)  // takes it with it
+        #expect(cleanup.conflict(obsolete) != nil && cleanup.selectedSize == build.size + obsolete.size)
+        cleanup.toggle(build)
+
+        cleanup.toggle(.obsolete)
+        #expect(cleanup.selection == [unfinished.url, obsolete.url])
+        cleanup.confirmation = Cleanup.phrase
+        await cleanup.delete()
+        #expect(!FileManager.default.fileExists(atPath: obsolete.url.path))
         #expect(GameScanner.game(at: ready.game.folder)?.state == .ready)  // still plays
     }
 

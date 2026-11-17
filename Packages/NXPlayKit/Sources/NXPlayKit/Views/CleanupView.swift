@@ -221,6 +221,7 @@ extension CleanupKind {
         case .gameFiles: "Game files"
         case .builds: "Builds"
         case .shaderCaches: "Shader compile caches"
+        case .obsolete: "No longer used"
         case .ipas: "IPAs"
         case .xcodeBuilds: "Xcode builds"
         case .installCopies: "Device install copies"
@@ -235,7 +236,9 @@ extension CleanupKind {
             "NSP, NSZ, XCI, XCZ, NUP of games built for the Mac: they keep playing, but can't be rebuilt."
         case .builds: "Play builds them again from the game files; saves and cheats stay."
         case .shaderCaches:
-            "Each nxnative update that changes the shaders adds a set, and the old ones stay. Games play without them; the next rebuild compiles every shader again."
+            "The compiled shaders a rebuild starts from. Games play without them; the next rebuild compiles every shader again."
+        case .obsolete:
+            "Old shader libraries, compile caches and pipeline files nxnative put aside after a rebuild or a play. Nothing reads them again; a successful build removes the earlier ones, but keeps its own until the next."
         case .ipas: "Build IPA makes them again."
         case .xcodeBuilds: "Install on Device makes them again; the next install takes longer."
         case .installCopies:

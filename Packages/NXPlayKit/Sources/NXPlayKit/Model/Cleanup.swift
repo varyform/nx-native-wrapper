@@ -8,9 +8,14 @@ public enum CleanupKind: String, CaseIterable, Identifiable, Sendable {
     /// `<id>_build` without its saves, its converted NSPs or its Xcode build: the extracted and built game, which
     /// Play builds again from the game files.
     case builds
-    /// `<id>_build/shader/cache/cas.db`: the shader build's compile cache, which keeps the Metal compiles of every
-    /// nxnative version that changed the shaders. Playing doesn't read it; a rebuild compiles from it.
+    /// `<id>_build/shader/cache/cas-<chain>.db` (`cas.db` before nxnative's 2026-11-15): the shader build's compile
+    /// cache, the Metal compiles of the current shader chain. Playing doesn't read it; a rebuild compiles from it.
     case shaderCaches
+    /// `<id>_build/obsolete`: what nxnative's builds and runs no longer use (old shader libraries, the compile caches of
+    /// other chain versions, pipeline archive files no pipeline was taken from), moved there rather than deleted. A
+    /// successful build empties what earlier ones put there but keeps its own until the next; deleting it costs
+    /// nothing (nxnative's docs/development.md).
+    case obsolete
     case ipas
     /// `<id>_build/xcode-derived-data`: Install on Device's build, a full copy of the game.
     case xcodeBuilds
@@ -34,6 +39,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         /// A game's build folder, what `buildContents` lists of it.
         case build
         case shaderCache
+        case obsolete
         case ipa
         case xcodeBuild
         /// `AppInstallationBinaryDeltas/org.nxnative.<team>.<title ID>`.
@@ -41,6 +47,9 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case macApp
         /// `com.apple.gpuarchiver`, standing for its finished `gpuarchiver-*` folders.
         case metalState
+
+        /// In the build folder and listed on their own: removing the build removes them too.
+        var goesWithBuild: Bool { self == .shaderCache || self == .obsolete }
     }
 
     public let url: URL
@@ -59,6 +68,7 @@ public struct CleanupFile: Identifiable, Hashable, Sendable {
         case .original, .converted: .gameFiles
         case .build: .builds
         case .shaderCache: .shaderCaches
+        case .obsolete: .obsolete
         case .ipa: .ipas
         case .xcodeBuild: .xcodeBuilds
         case .installCopies: .installCopies
@@ -200,11 +210,11 @@ public final class Cleanup {
     var selectable: Set<URL> { Set(files.filter { $0.blocked == nil }.map(\.url)) }
 
     public var selectedFiles: [CleanupFile] { files.filter { selection.contains($0.url) } }
-    /// A selected build frees its shader cache too, which its own size leaves out.
+    /// A selected build frees its shader cache and what it no longer uses too, which its own size leaves out.
     public var selectedSize: Int64 {
         let caches = groups.flatMap { group in
             group.files.contains { $0.role == .build && selection.contains($0.url) }
-                ? group.files.filter { $0.role == .shaderCache && !selection.contains($0.url) } : []
+                ? group.files.filter { $0.role.goesWithBuild && !selection.contains($0.url) } : []
         }
         return (selectedFiles + caches).reduce(0) { $0 + $1.size }
     }

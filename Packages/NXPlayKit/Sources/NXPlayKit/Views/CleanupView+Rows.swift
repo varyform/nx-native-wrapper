@@ -91,7 +91,8 @@ struct FileRow: View {
         switch file.role {
         case .xcodeBuild: "Xcode build (for Install on Device)"
         case .build: "Build (\(file.url.lastPathComponent))"
-        case .shaderCache: "Shader compile cache (cas.db)"
+        case .shaderCache: "Shader compile cache (\(file.url.lastPathComponent))"
+        case .obsolete: "No longer used (obsolete)"
         case .installCopies: "Device install copies (\(file.url.lastPathComponent))"
         case .metalState: "Metal's pipeline capture leftovers (com.apple.gpuarchiver)"
         default: file.url.lastPathComponent
@@ -108,6 +109,8 @@ struct FileRow: View {
         case .build: "The extracted and built game; its saves and cheats stay"
         case .shaderCache:
             "\(file.url.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().lastPathComponent)/shader/cache: the game plays without it"
+        case .obsolete:
+            "\(file.url.deletingLastPathComponent().lastPathComponent)/obsolete: put aside by nxnative, read by nothing"
         case .xcodeBuild:
             "\(file.url.deletingLastPathComponent().lastPathComponent)/xcode-derived-data: a full copy of the game"
         case .macApp: "Made of APFS clones of the build: the size is what only the app takes"

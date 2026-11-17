@@ -16,7 +16,7 @@ extension Cleanup {
             return "Its build is selected: these files are needed to build it again."
         case .build where selected.contains { $0.role == .original }:
             return "Its game files are selected: the build is how it plays without them."
-        case .shaderCache where selected.contains { $0.role == .build }:
+        case let role where role.goesWithBuild && selected.contains { $0.role == .build }:
             return "Goes with its build, which is selected."
         default:
             return nil
@@ -47,9 +47,9 @@ extension Cleanup {
         for file in files.sorted(by: { ($0.role == .build ? 0 : 1) < ($1.role == .build ? 0 : 1) })
         where isAvailable(file) {
             selection.insert(file.url)
-            // the build takes its shader cache with it
+            // the build takes its shader cache and what it no longer uses with it
             if file.role == .build, let group = groups.first(where: { $0.files.contains(file) }) {
-                selection.subtract(group.files.filter { $0.role == .shaderCache }.map(\.url))
+                selection.subtract(group.files.filter(\.role.goesWithBuild).map(\.url))
             }
         }
     }
