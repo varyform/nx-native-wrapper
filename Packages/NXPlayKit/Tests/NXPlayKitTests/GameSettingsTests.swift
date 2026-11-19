@@ -143,6 +143,13 @@ import Testing
         #expect(library.playEnvironment(for: game)["DM_PAD_PRESS_TO_JOIN"] == nil)
     }
 
+    /// A play asks macOS for the microphone only with the game's Microphone setting on (nxnative's DM_MIC).
+    @Test func onlyTheMicrophoneSettingAsksForTheMicrophone() {
+        #expect(Library.wantsMicrophone(["DM_MIC": "1"]))
+        #expect(!Library.wantsMicrophone(["DM_MIC": "0"]) && !Library.wantsMicrophone(["DM_MIC": ""]))
+        #expect(!Library.wantsMicrophone(["DM_MIC_GAIN": "4"]))
+    }
+
     /// A build that sets no frame rate gets NX Play's 60 or 120 fps: each game's own, kept in NX Play, a play in
     /// display mode.
     @Test func aFrameRateForAGameWithoutOneIsItsOwnChoice() throws {

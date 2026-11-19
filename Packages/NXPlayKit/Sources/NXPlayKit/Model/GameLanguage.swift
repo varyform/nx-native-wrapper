@@ -13,7 +13,7 @@ public struct GameLanguage: Hashable, Identifiable, Sendable {
         ("it", "Italian"),
         ("nl", "Dutch"), ("fr-CA", "Canadian French"), ("pt", "Portuguese"), ("ru", "Russian"),
         ("ko", "Korean"), ("zh-Hant", "Traditional Chinese"), ("zh-Hans", "Simplified Chinese"),
-        ("pt-BR", "Brazilian Portuguese"),
+        ("pt-BR", "Brazilian Portuguese"), ("pl", "Polish"), ("th", "Thai"),
     ].map { GameLanguage(code: $0.0, name: $0.1) }
 
     /// The same language for another region (build_ipa_from_nsp.py's LANG_NEAR).

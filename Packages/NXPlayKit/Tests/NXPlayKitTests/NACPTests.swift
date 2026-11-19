@@ -64,10 +64,10 @@ import zlib
     }
 
     @Test func readsTheSupportedLanguages() {
-        // bits 0 (en-US), 2 (ja), 14 (zh-Hans)
+        // bits 0 (en-US), 2 (ja), 14 (zh-Hans), and Polish and Thai's 16 and 17 (nxnative PR #1508)
         let nacp = NACP(
-            data: Self.nacp(title: "T", version: "1", languageFlags: 1 | 1 << 2 | 1 << 14))
-        #expect(nacp?.languages == ["en-US", "ja", "zh-Hans"])
+            data: Self.nacp(title: "T", version: "1", languageFlags: 1 | 1 << 2 | 1 << 14 | 1 << 16 | 1 << 17))
+        #expect(nacp?.languages == ["en-US", "ja", "zh-Hans", "pl", "th"])
     }
 
     @Test func choosesThePreferredLanguageOrItsRegionalTwin() {

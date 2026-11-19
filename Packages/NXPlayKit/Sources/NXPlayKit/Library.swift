@@ -853,7 +853,15 @@ public final class Library {
         jobs[game.id] = job
         if select { selection = game.id }
         if kind == .play {
-            job.start()
+            // macOS asks NX Play, the app that starts the game, for the microphone: before the game, not in it
+            if Self.wantsMicrophone(command.environment) {
+                Task { [weak self] in
+                    await self?.askForMicrophone(job)
+                    job.start()
+                }
+            } else {
+                job.start()
+            }
             if let repo = saveBackupRepository { saveBackup.watch(job, into: repo, save: appSave) }
         } else {
             queue.append(job)

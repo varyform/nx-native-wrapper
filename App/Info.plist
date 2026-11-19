@@ -14,6 +14,9 @@
       <string>_nxplay._tcp</string>
       <string>_nxplay-mac._tcp</string>
     </array>
+    <!-- a game's Microphone setting (nxnative's DM_MIC): macOS asks the app that starts the game, NX Play -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Games with the Microphone setting on hear your microphone, when you play them from NX Play.</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>NX Play finds your other Macs on the local network to build games there, and your iPhone or iPad finds this Mac to list your games and install them there.</string>
   </dict>

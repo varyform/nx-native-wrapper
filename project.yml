@@ -84,6 +84,9 @@ targets:
         # runs nxplay, python, git and the game from the user's folders: no sandbox
         ENABLE_APP_SANDBOX: NO
         ENABLE_HARDENED_RUNTIME: NO
+        # the microphone for the games nxplay starts: macOS asks the app that started them, and the hardened runtime
+        # of a release build allows it only with this entitlement
+        CODE_SIGN_ENTITLEMENTS: App/NXPlay.entitlements
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
         DEVELOPMENT_TEAM: ""
