@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.1.4 — 2026-11-19
+
 ### Added
 
 - **Microphone** in Game Settings, for games that can hear one (nxnative's new setting, off by default). macOS asks the app that starts a game, so NX Play now asks for microphone access the first time you play a game with it on. Before, the game would have been refused.
