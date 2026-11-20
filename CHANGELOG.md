@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.2.0 — 2026-11-20
+
 When a game fails to build or start, NX Play now explains why, and a failed update no longer costs you a game that worked.
 
 ### Added
