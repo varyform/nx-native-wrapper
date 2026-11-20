@@ -93,12 +93,13 @@ private struct GeneralSettings: View {
                 }
                 Toggle(
                     "Allow a Metal compiler nxnative didn't test", isOn: $library.allowOtherMetal)
+                Toggle("Look up nxnative's issues when a game fails", isOn: $library.lookUpIssues)
                 LabeledContent("Tools") {
                     SetupMenuItem()
                 }
             } footer: {
                 Footer(
-                    "Before a play, nxplay looks for new nxnative commits. A game built with older code can update first (a rebuild, and the Mac app packed again) or play as it is; Ask says what the update brings and how long it took last time. Rebuild and Update All Builds always take the latest code. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242)."
+                    "Before a play, nxplay looks for new nxnative commits. A game built with older code can update first (a rebuild, and the Mac app packed again) or play as it is; Ask says what the update brings and how long it took last time. Rebuild and Update All Builds always take the latest code. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242). When a build or game fails, NX Play asks GitHub for nxnative's issues that name the game's title ID, the only thing it sends."
                 )
             }
         }

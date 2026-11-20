@@ -119,6 +119,67 @@ find_launcher() {
   echo "$best"
 }
 
+# A rebuild rewrites the build in place, so one that stops partway (an nxnative bug, a cancel) leaves no build that
+# plays. On APFS the build is cloned first (copy-on-write: instant, and no space until the rebuild rewrites a file),
+# and a rebuild that does not finish puts the clone back. Saves live in the build (run/save), so only the build steps
+# are covered, never a game that ends badly after it started.
+# A build linked from elsewhere (an APFS image beside an exFAT drive) is cloned beside its folder, on its own volume
+real_dir() { (cd -P "$1" 2> /dev/null && pwd); }
+safety_of() { local real; real="$(real_dir "$1")"; echo "$(dirname "$real")/.$(basename "$real").before-rebuild"; }
+
+# APFS only: cp -c falls back to a full copy where it cannot clone (exFAT, a network share)
+can_clone() {
+  local dev
+  dev="$(df -P "$1" 2> /dev/null | awk 'NR == 2 { print $1 }')"
+  [[ -n "$dev" ]] && mount | grep -F "$dev on " | grep -q '(apfs,'
+}
+
+# The clone of the build, made before its rebuild; nothing on a drive without clones, or without the free space the
+# rewritten files will take (at most the build's size)
+safety_copy() {
+  local build="$1" safety need free
+  safety="$(safety_of "$build")"
+  rm -rf "$safety"
+  if ! can_clone "$build"; then
+    say "nxplay: no copy of the build to fall back on (its drive can't clone files): a rebuild that fails leaves it unplayable until one succeeds"
+    return 0
+  fi
+  need="$(/usr/bin/du -sk "$build" | awk '{ print $1 }')"
+  free="$(df -Pk "$build" | awk 'NR == 2 { print $4 }')"
+  if (( free < need )); then
+    say "nxplay: no copy of the build to fall back on (not enough free space): a rebuild that fails leaves it unplayable until one succeeds"
+    return 0
+  fi
+  if cp -cR "$(real_dir "$build")" "$safety" 2> /dev/null; then
+    say "nxplay: the build is copied (an APFS clone) until this rebuild is done: if it fails, the game plays as before"
+  else
+    rm -rf "$safety"
+  fi
+}
+
+# Puts a build's clone back in its place; also the one a killed run left (a half-made build is no use)
+restore_build() {
+  local build real safety
+  for build in "$game"/*_build; do
+    [[ -d "$build" ]] || continue
+    safety="$(safety_of "$build")"
+    [[ -d "$safety" ]] || continue
+    real="$(real_dir "$build")"
+    rm -rf "$real" && mv "$safety" "$real" \
+      && warn "nxplay: the rebuild did not finish: the build from before it is back, and the game plays as it did"
+  done
+  # one whose build folder the failed rebuild removed altogether
+  for safety in "$game"/.*_build.before-rebuild; do
+    [[ -d "$safety" ]] || continue
+    build="$(basename "$safety" .before-rebuild)"
+    build="$game/${build#.}"
+    [[ -e "$build" ]] && continue
+    mv "$safety" "$build" \
+      && warn "nxplay: the rebuild did not finish: the build from before it is back, and the game plays as it did"
+  done
+}
+restore_build
+
 # The game's Mac app (Make Mac App): <game name>.app in the game folder with the Mac host inside, not any app that
 # happens to be there. The newest one.
 find_app() {
@@ -1019,12 +1080,19 @@ if [[ $rebuild -eq 0 ]]; then
 fi
 
 log="$(mktemp -t nxplay)"
-trap 'rm -f "$log"' EXIT
+# a rebuild that stops, however it stops, puts the build from before it back (safety_copy); NX Play's stop is a
+# signal, which ends bash without its EXIT trap unless it is trapped too
+trap 'rm -f "$log"; restore_build' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # an update rebuild (a build made with other code than this) is timed for the next question (ask_update)
 old_launcher="$(find_launcher)"
 old_tree=""
-if [[ -n "$old_launcher" ]]; then old_tree="$(sed -n 's/^# nxnative tree //p' "$old_launcher")"; fi
+if [[ -n "$old_launcher" ]]; then
+  old_tree="$(sed -n 's/^# nxnative tree //p' "$old_launcher")"
+  safety_copy "$(dirname "$old_launcher")"
+fi
 build_t0=$SECONDS
 
 (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} "$@") | tee "$log"
@@ -1058,6 +1126,9 @@ printf '#!/bin/sh\n# written by nxplay from the build output\n# nxnative tree %s
 chmod +x "$launcher"
 
 say "saved: $launcher"
+# the new build is made: its clone goes, and from here a failure is the game's, not the build's
+rm -rf "$(safety_of "$(dirname "$launcher")")"
+trap - INT TERM
 rm -f "$log"   # start replaces the EXIT trap
 if [[ -n "$old_tree" && -n "$current_tree" && "$old_tree" != "$current_tree" ]]; then
   if [[ "$(chain_at "$old_tree")" != "$(chain_at "$current_tree")" ]]; then kind=recompile; else kind=rebuild; fi

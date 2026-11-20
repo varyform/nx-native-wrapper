@@ -62,6 +62,30 @@ enum ProfileNews {
         return out
     }
 
+    /// The commits for a game that the checkout doesn't have yet, newest first: the ones changing its profile, and the ones
+    /// naming its title ID (a fix in the shared code says which game it was for). Empty without an upstream.
+    static func newer(repo: URL, titleID: String) -> [ProfileCommit] {
+        let id = titleID.uppercased()
+        guard git(repo, ["rev-parse", "--verify", "--quiet", "@{u}"]) != nil else { return [] }
+        let format = "--format=%h%x09%s%x09%ar"
+        let found =
+            [
+                git(repo, ["log", "--no-merges", format, "HEAD..@{u}", "--", "dm/games/\(id)"]),
+                git(repo, ["log", "--no-merges", "-i", "--grep=\(id)", format, "HEAD..@{u}"]),
+            ]
+            .compactMap { $0 }.flatMap { $0.split(separator: "\n") }
+            .compactMap { line -> ProfileCommit? in
+                let cells = line.split(separator: "\t", maxSplits: 2).map(String.init)
+                return cells.count == 3 ? ProfileCommit(hash: cells[0], subject: cells[1], age: cells[2]) : nil
+            }
+        // the two lists merged in the upstream's order, newest first: the order they landed in
+        let order = (git(repo, ["rev-list", "--no-merges", "--abbrev-commit", "HEAD..@{u}"]) ?? "")
+            .split(separator: "\n").enumerated().reduce(into: [String: Int]()) { $0[String($1.element)] = $1.offset }
+        var seen = Set<String>()
+        return found.filter { seen.insert($0.hash).inserted }
+            .sorted { (order[$0.hash] ?? .max) < (order[$1.hash] ?? .max) }
+    }
+
     /// The upstream's new commits, without touching the checkout.
     static func fetch(repo: URL) { _ = git(repo, ["fetch", "--quiet"]) }
 

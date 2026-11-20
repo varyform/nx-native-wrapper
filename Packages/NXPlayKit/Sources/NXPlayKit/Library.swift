@@ -33,6 +33,7 @@ public final class Library {
         static let fullScreenGames = "fullScreenGames"
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
+        static let lookUpIssues = "lookUpNXNativeIssues"
         static let keepUnpackedOnly = "keepUnpackedOnly"
         static let installUpdatesWhenIdle = "installUpdatesWhenIdle"
         static let cloudSaves = "cloudSaves"
@@ -104,6 +105,16 @@ public final class Library {
     public var allowOtherMetal: Bool {
         didSet { defaults.set(allowOtherMetal, forKey: Keys.allowOtherMetal) }
     }
+    /// A failed build or play looks for nxnative's GitHub issues about the game (NXNativeIssues): on by default, and
+    /// only the title ID leaves the Mac.
+    public var lookUpIssues: Bool {
+        didSet { defaults.set(lookUpIssues, forKey: Keys.lookUpIssues) }
+    }
+    /// Why each failed job failed (Library+FailureHelp.swift), by job.
+    public internal(set) var failures: [Job.ID: FailureReport] = [:]
+    /// The games whose next play is Play Current Build whatever Settings say: after a rebuild that failed, the build
+    /// nxplay put back.
+    @ObservationIgnored var currentBuildOnce: Set<Game.ID> = []
     /// After a build, an NSZ or XCZ gives way to the NSP or XCI nxnative unpacked it to (Library+Compressed.swift).
     /// Off by default: it moves the player's own files. Turning it on offers the games built already.
     public var keepUnpackedOnly: Bool {
@@ -339,6 +350,7 @@ public final class Library {
             (defaults.dictionary(forKey: Keys.saveChoices) as? [String: String] ?? [:])
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
+        lookUpIssues = defaults.object(forKey: Keys.lookUpIssues) as? Bool ?? true
         keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
         installUpdatesWhenIdle = defaults.bool(forKey: Keys.installUpdatesWhenIdle)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
@@ -891,20 +903,12 @@ public final class Library {
             refreshDevices()
         }
         // a failure's reason is in its output: show it
+        explainFailure(job)
         if case .failed = job.status {
             showsLog = true
             selection = job.game.id
             // in the background: a badge on the Dock icon until NX Play is opened again
             if !isScreenshot, NSApp?.isActive == false { NSApp.dockTile.badgeLabel = "!" }
-            if !allowOtherMetal,
-                job.log.lines.contains(where: { $0.text.contains(Self.otherMetalMarker) })
-            {
-                problem = """
-                    This Mac's Metal compiler is newer than the one nxnative tested its shaders with, so nxnative \
-                    stopped the build. Install the Xcode version it names, or turn on “Allow a Metal compiler \
-                    nxnative didn't test” in Settings to build with this one anyway.
-                    """
-            }
         }
         startNextExtraction()
         quitIfIdle()
@@ -1039,7 +1043,9 @@ public final class Library {
             }
             // the host reads it from the environment start_mac.sh inherits; off means off, not the shell's
             environment["DM_SAVE_SYNC"] = Self.cloudSaveTarget(cloudSaves)
-            environment["NXPLAY_UPDATE"] = updateBeforePlay.rawValue
+            environment["NXPLAY_UPDATE"] =
+                currentBuildOnce.remove(game.id) != nil
+                ? UpdateBeforePlay.current.rawValue : updateBeforePlay.rawValue
             modsEnvironment(for: game).forEach { environment[$0.key] = $0.value }
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):
@@ -1075,7 +1081,7 @@ public final class Library {
         """
 
     /// build_ipa_from_nsp.py's message when this Mac's Metal compiler isn't the tested one (dmsh_chain.lock).
-    static let otherMetalMarker = "Metal compiler is not the one the shaders were tested with"
+    nonisolated static let otherMetalMarker = "Metal compiler is not the one the shaders were tested with"
 
     /// App IDs are unique across all teams, so nxnative's default org.nxnative.<title ID> may already
     /// belong to someone else: put the team in it. Stable, so a reinstall updates the same app and keeps its saves.

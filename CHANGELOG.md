@@ -4,6 +4,21 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+When a game fails to build or start, NX Play now explains why, and a failed update no longer costs you a game that worked.
+
+### Added
+
+- **Why it failed, above the log.** Most failures happen inside [nxnative](https://github.com/seedds/nxnative), the project NX Play uses to build and run games, and NX Play can't fix those. A failed build or game now shows a card that says which part stopped (nxnative's build, the game in nxnative, or NX Play itself) and what can help.
+- **Plain explanations for the failures nxnative is known to print**, with what to do. A game profile that's out of date (the Ocarina of Time failure in #34) needs an nxnative update, then a rebuild. When macOS's Metal compiler crashes while shaders are prepared (#35), **Try Again** often gets through. The card also covers keys that can't open the game files, a full drive (with **Free Up Space**), and a game nxnative doesn't know yet.
+- **nxnative's newer changes for the game**, with **Update and Rebuild** to bring them in. When there are none yet, the card says so, so you know to wait instead of retrying.
+- **nxnative's GitHub issues that name the game**: that's where a failure gets fixed, often with a workaround. Only the game's title ID is sent to GitHub's public search. The lookup runs at most once an hour per game, backs off when GitHub asks, and can be turned off in Settings.
+- **Copy Details** fills in what an nxnative issue asks for: the game and its version, nxnative's commit, your Mac and macOS, and the end of the log. **New nxnative Issue** opens the form.
+- **A failed rebuild leaves the game playable.** An nxnative update rebuilds a game in place, so a rebuild that failed partway used to leave nothing to play. Now nxplay first clones the build, which on an APFS drive is instant and takes no extra space. If the rebuild fails, is cancelled or is cut short, the old build comes back. **Play Current Build** plays it as it was, and **Keep This Build** stops the next update from trying again. On other drives (exFAT, a network share) the rebuild goes ahead without the copy and says so. A game that crashes after it started never rolls back its saves.
+
+### Changed
+
+- The message about a Metal compiler nxnative didn't test is now part of the failure card, instead of an alert.
+
 ## 2.1.4 — 2026-11-19
 
 ### Added

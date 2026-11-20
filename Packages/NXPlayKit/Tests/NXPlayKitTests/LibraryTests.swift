@@ -220,12 +220,12 @@ import Testing
             ], status: .failed(1))
 
         library.finished(job)
-        #expect(library.problem?.contains("Allow a Metal compiler") == true)
+        #expect(library.failures[job.id]?.help.known == .otherMetal)
+        #expect(library.failures[job.id]?.help.explanation.contains("Allow a Metal compiler") == true)
 
-        library.problem = nil
         library.allowOtherMetal = true
         library.finished(job)
-        #expect(library.problem == nil)  // already on: the log says the rest
+        #expect(library.failures[job.id]?.help.known == nil)  // already on: something else stopped it
     }
 
     @Test func menuTogglesConsoleModeAndBackLeavesIt() {

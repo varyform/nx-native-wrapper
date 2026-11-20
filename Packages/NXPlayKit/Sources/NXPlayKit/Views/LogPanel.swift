@@ -12,6 +12,11 @@ struct LogPanel: View {
             header(game: game, job: job)
                 .fixedSize(horizontal: false, vertical: true)
             Divider()
+            if let job, let report = library.failures[job.id] {
+                FailureCard(job: job, report: report)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider()
+            }
             Group {
                 if let job {
                     LogTextView(jobID: job.id, log: job.log)
