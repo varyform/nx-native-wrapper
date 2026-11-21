@@ -86,6 +86,24 @@ import Testing
         #expect(!FileManager.default.fileExists(atPath: removal.appData!.path))
     }
 
+    /// A NUP's DLC images beside it (aoc/, nxnative's --aoc-dir) are game files, which go with it; not another
+    /// folder of the player's.
+    @Test func aNUPGoesWithItsDLCImages() throws {
+        let folder = root.appending(path: "Switch2", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try GameNUPTests.nup([(GameNUPTests.id, 0), (GameNUPTests.id + 0x800, 1)])
+            .write(to: folder.appending(path: "Game.nup"))
+        try write(folder.appending(path: "aoc/1.img"))
+        try write(folder.appending(path: "Art/cover.png"))
+        let game = try #require(GameScanner.game(at: folder))
+
+        let removal = GameRemoval(game: game, removesSaves: true, home: home)
+        #expect(removal.others.map(\.lastPathComponent) == ["Art"])
+        #expect(removal.perform().isEmpty)
+        #expect(!exists("Switch2/Game.nup") && !exists("Switch2/aoc"))
+        #expect(exists("Switch2/Art/cover.png"))
+    }
+
     /// A build folder linked from another volume (issue #32): removing the saves too empties it, not just the link.
     @Test func aLinkedBuildGoesWithWhatIsInIt() throws {
         let build = root.appending(path: "Fake/\(Self.id)_build")

@@ -616,6 +616,45 @@ if [[ -n "$ps_launcher" ]] && grep -q -e '--glslc-play' "$repo/scripts/build_ipa
   play_shaders_count="$(find "$ps_dir" -maxdepth 1 -name '*.glslc' 2> /dev/null | wc -l | tr -d ' ')"
   if (( play_shaders_count )); then play_shaders=(--glslc-play "$ps_dir"); fi
 fi
+# A Switch 2 game's DLC as RomFS images beside its NUP, <game folder>/aoc/<index>.img (index 1 to 2000), as
+# nxnative's pack_nup.py writes a NUP's own (aoc/) and an iPhone app reads them (Documents/aoc): given to each build
+# (nxnative's --aoc-dir, which copies them into <title ID>_build/external-dlc). Only for the NUP nxnative builds (the
+# one .nup in a folder without NSP, NSZ, XCI or XCZ files) and only when it has no DLC of its own, which nxnative
+# refuses to mix with these. An empty folder builds without DLC.
+the_nup() {
+  local f nups=()
+  shopt -s nocaseglob
+  for f in "$game"/*.nsp "$game"/*.nsz "$game"/*.xci "$game"/*.xcz; do [[ -f "$f" ]] && { shopt -u nocaseglob; return 1; }; done
+  for f in "$game"/*.nup; do [[ -f "$f" && "$(head -c 3 "$f" 2> /dev/null)" == NUP ]] && nups+=("$f"); done
+  shopt -u nocaseglob
+  (( ${#nups[@]} == 1 )) && echo "${nups[0]}"
+}
+# Whether a NUP holds DLC (a package of kind addon or addon_update: its table of contents, pack_nup.py's Package)
+nup_has_dlc() {
+  python3 - "$1" <<'PY'
+import struct, sys
+with open(sys.argv[1], 'rb') as f:
+    sb = f.read(0x80)
+    if len(sb) < 0x80 or sb[:3] != b'NUP': sys.exit(1)
+    toc, = struct.unpack_from('<Q', sb, 0x08); n, = struct.unpack_from('<I', sb, 0x48)
+    f.seek(toc + 0x30); recs = f.read(min(n, 4096) * 0x40)
+sys.exit(0 if any(recs[i + 0x18] in (2, 3) for i in range(0, len(recs) - 0x3f, 0x40)) else 1)
+PY
+}
+aoc=()
+if [[ -d "$game/aoc" ]] && grep -q -e '--aoc-dir' "$repo/scripts/build_ipa_from_nsp.py" 2> /dev/null; then
+  if ! nup="$(the_nup)"; then
+    say "nxplay: aoc/ holds DLC images for a NUP, and nxnative builds this game from other files: it is left out"
+  elif nup_has_dlc "$nup"; then
+    say "nxplay: $(basename "$nup") has DLC of its own, which nxnative builds: aoc/ is left out"
+  else
+    aoc=(--aoc-dir "$game/aoc")
+  fi
+fi
+# The DLC images aoc/ holds and the ones a build took (external-dlc/aoc), by name and size: a change rebuilds
+dlc_list() { local f; for f in "$1"/*.img; do [[ -f "$f" ]] && printf '%s %s\n' "$(basename "$f")" "$(stat -f %z "$f")"; done; true; }
+dlc_changed() { [[ "$(dlc_list "$game/aoc")" != "$(dlc_list "$1/external-dlc/aoc")" ]]; }
+
 play_shaders_note() {
   if (( play_shaders_count )); then
     say "nxplay: adding the shaders the game compiled while playing ($play_shaders_count in ${play_shaders[1]#"$game"/}, nxnative's --glslc-play)"
@@ -777,7 +816,7 @@ if [[ $ipa -eq 1 ]]; then
   sign_work=""
   trap 'rm -f "$ipa_out" "$ipa_t0"; [[ -n "$sign_work" ]] && { security delete-keychain "$sign_work/sign.keychain-db" 2> /dev/null; rm -rf "$sign_work"; }' EXIT
   play_shaders_note
-  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$ipa_out"
+  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${aoc[@]+"${aoc[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$ipa_out"
   status="${PIPESTATUS[0]}"
   (( status == 0 )) || exit "$status"
   image=""
@@ -828,7 +867,7 @@ pack_app() {
   out="$(mktemp -t nxplay-macapp)"
   eshop_icon "$@"
   play_shaders_note
-  pack() { (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${icon[@]+"${icon[@]}"} "$@") 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
+  pack() { (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac-app ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${aoc[@]+"${aoc[@]}"} ${icon[@]+"${icon[@]}"} "$@") 2>&1 | tee "$out"; return "${PIPESTATUS[0]}"; }
   if ! pack "$@"; then
     # a game whose shader pairs leave no pipeline base (ANIMAL WELL) stops pso_offline.py with an error instead of
     # "no archive": pack the app without one (--gpu none); it builds what it needs on its first start
@@ -864,7 +903,7 @@ if [[ -n "$device" ]]; then
   prepare_out="$(mktemp -t nxplay-xcode)"
   trap 'rm -f "$prepare_out"' EXIT
   play_shaders_note
-  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$prepare_out"
+  (cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --prepare-xcode ${lang:+--language "$lang"} ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${aoc[@]+"${aoc[@]}"} ${icon[@]+"${icon[@]}"} ${romfs[@]+"${romfs[@]}"} "$@") | tee "$prepare_out"
   status="${PIPESTATUS[0]}"
   (( status == 0 )) || exit "$status"
   image=""
@@ -1138,6 +1177,16 @@ if [[ $rebuild -eq 0 ]]; then
   fi
 fi
 
+# DLC images added to aoc/ or taken out since the build: a rebuild puts them in (Play Current Build and a kept build
+# play as they are)
+if [[ $rebuild -eq 0 && ${#aoc[@]} -gt 0 && "$update_mode" != current ]]; then
+  launcher="$(find_launcher)"
+  if [[ -n "$launcher" && ! -f "$(dirname "$launcher")/keep" ]] && dlc_changed "$(dirname "$launcher")"; then
+    say "nxplay: the game's DLC images (aoc/) changed since it was built: rebuilding"
+    rebuild=1
+  fi
+fi
+
 # A build marked kept (NX Play's Keep This Build: a keep file in it) plays as it is after an nxnative update, which
 # can break a game that works; only an explicit --rebuild replaces it
 if [[ $rebuild -eq 1 && $explicit_rebuild -eq 0 ]]; then
@@ -1184,7 +1233,7 @@ fi
 build_t0=$SECONDS
 play_shaders_note
 
-(cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} "$@") | tee "$log"
+(cd "$repo" && python3 scripts/build_ipa_from_nsp.py "$game" -k "$keys" --platform mac ${progress[@]+"${progress[@]}"} ${other_metal[@]+"${other_metal[@]}"} ${play_shaders[@]+"${play_shaders[@]}"} ${aoc[@]+"${aoc[@]}"} "$@") | tee "$log"
 
 # The run command is the message after "done: the game runs on the Mac with this command": a say event's msg in
 # JSON, else the next line, without the bar's carriage-return redraws in front of it

@@ -4,9 +4,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+A shader a game's build lacks can be made while you play, and a Switch 2 game packed without its DLC can get it from a folder beside it.
+
 ### Added
 
 - Settings › General › Translate missing shaders while playing (testing): a shader a game's build lacks is translated the first time the game uses it, by nxnative's new runtime translator, so the scene draws after a short wait instead of without it. It's off by default while nxnative tests it, and works for NVN games on the Mac.
+- DLC for a Switch 2 game packed as a NUP without its own: put the DLC's RomFS images in an `aoc` folder beside the NUP, named `<index>.img`, and every build includes them through nxnative's new `--aoc-dir`. Adding or removing an image rebuilds the game at its next Play, and Remove Game takes the folder with the game.
 
 ## 2.3.0 — 2026-11-21
 

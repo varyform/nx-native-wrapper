@@ -38,6 +38,8 @@ public struct GameRemoval: Sendable {
             let ext = url.pathExtension.lowercased()
             if GameScanner.packageExtensions.contains(ext) || ext == "ipa" { return true }
             if game.isDump && GameDump.folders.contains(name) { return true }
+            // a NUP's DLC images beside it (nxplay's aoc/, nxnative's --aoc-dir)
+            if game.isNUP && name.lowercased() == "aoc" { return true }
             // nxnative's Mac app and the stamp it keeps beside it
             if ext == "app" || name.hasSuffix(".app.key") { return true }
             let stem = name.split(separator: "_").first.map(String.init)?.uppercased()
