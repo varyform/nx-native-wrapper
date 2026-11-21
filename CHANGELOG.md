@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.4.1 — 2026-11-21
+
 Fixes Play and Rebuild stopping at once with exit 1 in 2.3.0 and 2.4.0.
 
 ### Fixed
