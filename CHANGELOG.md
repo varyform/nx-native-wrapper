@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.3.0 — 2026-11-21
+
 Games that compile shaders while they play now get them in their next build, and the library's filters have keyboard shortcuts.
 
 ### Added
