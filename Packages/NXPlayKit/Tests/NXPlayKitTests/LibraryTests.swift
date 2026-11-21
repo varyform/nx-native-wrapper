@@ -36,6 +36,15 @@ import Testing
         return job
     }
 
+    // nxnative still tests its runtime translator: a play asks for it only once the player turns it on
+    @Test func translatingMissingShadersIsOffUntilTurnedOn() {
+        let defaults = defaults()
+        let library = Library(defaults: defaults, isScreenshot: true)
+        #expect(!library.translatesMissingShaders)
+        library.translatesMissingShaders = true
+        #expect(Library(defaults: defaults, isScreenshot: true).translatesMissingShaders)
+    }
+
     @Test func aFailedJobOpensTheLogOnItsGame() {
         let library = library()
         library.showsLog = false

@@ -268,6 +268,8 @@ Each run starts by updating nxnative and lists any new commits. A game is rebuil
 
 Some games compile shaders while they play, after the boot nxnative's build captures, and a scene that needs one draws without it (the log says `shader … is not in the shader map`). Every play saves what the game compiles in `<title ID>_build/glslc_play/<version>` (nxnative's `DM_GLSLC_CAPTURE`), and every later build of the game adds those shaders (`--glslc-play`): the Mac build, the IPA, the Mac app and a device install. After a play that compiled new ones, the log says how many; Rebuild adds them now, or the next nxnative update does. Shaders the game files already have keep theirs, and a game that compiles none while it plays builds as before.
 
+With **Settings › General › Translate missing shaders while playing** on (`NXPLAY_NVN_RUNTIME=1`; off by default while nxnative tests it), a shader the build lacks doesn't have to wait for a rebuild: nxnative's runtime translator makes it the first time the game uses it, with the same code and Metal compiler as a build, and that scene waits for it once. It's for NVN games on the Mac, which most games are, and only for a build made with the checkout's shader chain: after an nxnative update that changed it, a build you keep playing (Play Current Build, a kept build) plays without it until it's rebuilt, and the log says so.
+
 The run command is saved in `<game folder>/<title ID>_build/start_mac.sh`. It holds absolute paths, so after you move a game folder (or nxnative), the next run rewrites them to the new location.
 
 Environment variables: `NXNATIVE` (the nxnative checkout; default `./nxnative`, else `../nxnative`), `NX_KEYS` (default `~/.switch/prod.keys`), `NXPLAY_VENV` (default `./.venv`).

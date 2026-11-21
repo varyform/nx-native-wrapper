@@ -34,6 +34,7 @@ public final class Library {
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
         static let lookUpIssues = "lookUpNXNativeIssues"
+        static let translatesMissingShaders = "translateMissingShaders"
         static let keepUnpackedOnly = "keepUnpackedOnly"
         static let installUpdatesWhenIdle = "installUpdatesWhenIdle"
         static let cloudSaves = "cloudSaves"
@@ -104,6 +105,11 @@ public final class Library {
     /// off by default, as nxnative's; a newer Xcode than nxnative's tested one stops every build otherwise.
     public var allowOtherMetal: Bool {
         didSet { defaults.set(allowOtherMetal, forKey: Keys.allowOtherMetal) }
+    }
+    /// A shader a game's build lacks is translated when the game first uses it (nxplay's NXPLAY_NVN_RUNTIME,
+    /// nxnative's runtime translator): off by default while nxnative tests it.
+    public var translatesMissingShaders: Bool {
+        didSet { defaults.set(translatesMissingShaders, forKey: Keys.translatesMissingShaders) }
     }
     /// A failed build or play looks for nxnative's GitHub issues about the game (NXNativeIssues): on by default, and
     /// only the title ID leaves the Mac.
@@ -351,6 +357,7 @@ public final class Library {
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
         lookUpIssues = defaults.object(forKey: Keys.lookUpIssues) as? Bool ?? true
+        translatesMissingShaders = defaults.bool(forKey: Keys.translatesMissingShaders)
         keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
         installUpdatesWhenIdle = defaults.bool(forKey: Keys.installUpdatesWhenIdle)
         remoteEnabled = defaults.bool(forKey: Keys.remoteEnabled)
@@ -1046,6 +1053,7 @@ public final class Library {
             environment["NXPLAY_UPDATE"] =
                 currentBuildOnce.remove(game.id) != nil
                 ? UpdateBeforePlay.current.rawValue : updateBeforePlay.rawValue
+            environment["NXPLAY_NVN_RUNTIME"] = translatesMissingShaders ? "1" : "0"
             modsEnvironment(for: game).forEach { environment[$0.key] = $0.value }
             Self.controllerEnvironment(controllerPlayers).forEach { environment[$0.key] = $0.value }
         case .install(let device):

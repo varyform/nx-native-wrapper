@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- Settings › General › Translate missing shaders while playing (testing): a shader a game's build lacks is translated the first time the game uses it, by nxnative's new runtime translator, so the scene draws after a short wait instead of without it. It's off by default while nxnative tests it, and works for NVN games on the Mac.
+
 ## 2.3.0 — 2026-11-21
 
 Games that compile shaders while they play now get them in their next build, and the library's filters have keyboard shortcuts.

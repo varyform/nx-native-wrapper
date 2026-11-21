@@ -33,6 +33,8 @@
 #        DM_SAVE_SYNC_CHOICE (the player's answer when the cloud's save and this one both changed: NX Play compares
 #        them before a play; passed on as it is),
 #        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
+#        NXPLAY_NVN_RUNTIME (1: translate a shader the build lacks when the game first uses it, nxnative's runtime
+#        translator, in testing; an NVN game on the Mac),
 #        NXPLAY_SAVE (app: play on from the Mac app's own save, ~/Library/Application Support/nxnative/<title ID>/save,
 #        instead of the build's run/save; NX Play asks which when the two differ),
 #        NXPLAY_UPDATE (what a play does when nxnative has new code for a game built with older code: update, the
@@ -1005,6 +1007,7 @@ start() {
     export DM_GLSLC_CAPTURE="$play_dir"
   fi
   trap 'touch "$played"; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2> /dev/null; play_shaders_report; true' EXIT
+  if [[ "${NXPLAY_NVN_RUNTIME:-0}" == 1 ]]; then nvn_runtime "$1"; fi
   local app save
   save="$(play_save "$1")"
   app="$(find_app)"
@@ -1044,6 +1047,34 @@ play_shaders_report() {
   local when="Rebuild, or the next nxnative update"
   [[ -f "$(dirname "$play_launcher")/keep" ]] && when="Rebuild (the build is kept)"
   say "nxplay: the game compiled $n shader$([[ $n == 1 ]] || echo s) while playing that its build may lack (a scene drawn without them); they're kept in ${play_dir#"$game"/}, and its next build adds them: $when"
+}
+
+# NXPLAY_NVN_RUNTIME=1 (NX Play's Settings): a shader the build lacks is translated when the game first uses it, by
+# nxnative's runtime translator (dm/gfx/tools/dmsh_live.py, in testing; the Mac only), with the packer's own code and
+# Metal compiler, and the scene waits for it once: without it, the scene draws without the shader. The host asks only
+# for an NVN game's shader that isn't in its build, and caches what it gets in the build's run/temp. The translator
+# refuses a build of another shader chain than the checkout's (Play Current Build or a kept build after an update),
+# which then plays as without it: said, rather than tried for every missing shader.
+nvn_runtime() {
+  local build compiler built was now
+  build="$(dirname "$1")"
+  compiler="$repo/dm/gfx/tools/dmsh_live.py"
+  [[ -n "${DM_NVN_RUNTIME_COMPILER:-}" ]] && return 0   # the player's own
+  [[ -d "$build/shader/vk" || -d "$build/shader/gl" ]] && return 0   # a Vulkan or OpenGL game: NVN's only
+  if [[ ! -f "$compiler" ]]; then
+    say "nxplay: this nxnative has no runtime shader translator yet: missing shaders aren't translated"
+    return 0
+  fi
+  built="$(sed -n 's/^# nxnative tree //p' "$1")"
+  was="$(chain_at "${built:-HEAD}")" now="$(chain_at HEAD)"
+  # a tree the checkout no longer has (a rewritten upstream) says nothing: the translator still checks
+  if [[ -n "$was" && -n "$now" && "$was" != "$now" ]]; then
+    say "nxplay: missing shaders aren't translated in this play: the build's shaders are of an older shader chain than nxnative's code (a rebuild brings it up to date)"
+    return 0
+  fi
+  export DM_NVN_RUNTIME_PYTHON DM_NVN_RUNTIME_COMPILER="$compiler"
+  DM_NVN_RUNTIME_PYTHON="$(command -v python3)"
+  say "nxplay: shaders the build lacks are translated when the game first uses them (nxnative's runtime translator, in testing): a scene that needs one waits for it once"
 }
 
 # The save this play uses, said in the log: the build's (DM_SAVE in the launcher), or with NXPLAY_SAVE=app the Mac
