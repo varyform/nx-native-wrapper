@@ -7,3 +7,6 @@ xcuserdata/
 
 /.venv/
 /nxnative/
+
+# notes that stay on this Mac: replies, decisions in progress
+/docs/internal/
