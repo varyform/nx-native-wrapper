@@ -173,7 +173,8 @@ public enum CleanupScanner {
     }
 
     /// What removing a build deletes: everything in `<id>_build` but the saves (`run/save*`: the save, the device
-    /// save, their cloud sync record and backups) and the cheats (`cheats/`), which nothing can make again, when it was
+    /// save, their cloud sync record and backups), the cheats (`cheats/`) and the shaders compiled while playing
+    /// (`glslc_play/`), which nothing can make again, when it was
     /// last played (Console Mode's order), and what Free Up Space lists on its own: the NSPs converted from NSZ (`nsp/`) and the Xcode
     /// build.
     static func buildContents(_ build: URL) -> [URL] {

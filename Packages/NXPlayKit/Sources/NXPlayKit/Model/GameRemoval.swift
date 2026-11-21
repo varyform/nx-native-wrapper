@@ -62,7 +62,7 @@ public struct GameRemoval: Sendable {
             ? []
             : builds.flatMap { build in
                 GameScanner.children(of: build).filter {
-                    !GameScanner.playerData.contains($0.lastPathComponent)
+                    !GameScanner.savedData.contains($0.lastPathComponent)
                 }
                     + GameScanner.children(
                         of: build.appending(path: "run", directoryHint: .isDirectory)

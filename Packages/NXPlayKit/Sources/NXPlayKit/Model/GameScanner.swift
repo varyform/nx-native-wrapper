@@ -141,10 +141,14 @@ public enum GameScanner {
         }
     }
 
-    /// What a build folder holds of the player's own, which removing the build keeps: `run` (the saves) and `cheats`
-    /// (nxnative's cheat files and the player's toggles, at `<DM_ROOT>/cheats`: the build folder is `DM_ROOT` in
-    /// start_mac.sh).
-    static let playerData: Set<String> = ["run", "cheats"]
+    /// What a build folder holds of the player's own, which Remove Game keeps with the saves: `run` (the saves) and
+    /// `cheats` (nxnative's cheat files and the player's toggles, at `<DM_ROOT>/cheats`: the build folder is `DM_ROOT`
+    /// in start_mac.sh).
+    static let savedData: Set<String> = ["run", "cheats"]
+
+    /// What removing the build keeps besides: `glslc_play`, the shaders the game compiled while playing, which only
+    /// playing again makes, for its next build (nxplay's play_shaders_of). A removed game takes them along.
+    static let playerData = savedData.union(["glslc_play"])
 
     /// nxnative's app: `<game name>.app` with its Mac host inside, not any app that happens to be there.
     static func isMacApp(_ url: URL) -> Bool {

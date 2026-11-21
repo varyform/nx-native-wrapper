@@ -22,6 +22,7 @@ import Testing
             "Fake/\(id)_build/run/last_played", "Fake/\(id)_build/run/temp/cache.bin",
             "Fake/\(id)_build/cheats/0123456789ABCDEF.txt",
             "Fake/\(id)_build/cheats/0123456789ABCDEF.enabled",
+            "Fake/\(id)_build/glslc_play/v0/0123456789abcdef.glslc",
             "Fake/Notes.txt",
         ] {
             try write(root.appending(path: path))
@@ -56,7 +57,7 @@ import Testing
         }
         for gone in [
             "Fake/Fake [\(Self.id)][v0].nsp", "Fake/Fake.ipa", "Fake/Fake.app", "Fake/Fake.app.key",
-            "Fake/\(Self.id)_survey", "\(build)/extract", "\(build)/start_mac.sh",
+            "Fake/\(Self.id)_survey", "\(build)/extract", "\(build)/start_mac.sh", "\(build)/glslc_play",
             "\(build)/run/temp",
         ] {
             #expect(!exists(gone), "\(gone)")

@@ -4,9 +4,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+Games that compile shaders while they play now get them in their next build, and the library's filters have keyboard shortcuts.
+
 ### Added
 
 - Keyboard shortcuts for the game filters: ⌥⌘1 to ⌥⌘5 show all games, Switch 1, Switch 2, the games that need attention or kept builds, and ⌃Tab (⌃⇧Tab back) steps through them, skipping a filter with no games (View › Show).
+- A game that compiles shaders while it plays gets them in its next build. Each play saves them, and the build adds them through nxnative's new `--glslc-play`: a scene that drew without one (the log says the shader is "not in the shader map") draws after Rebuild or the next nxnative update. Free Up Space keeps them with the saves.
 
 ## 2.2.0 — 2026-11-20
 
