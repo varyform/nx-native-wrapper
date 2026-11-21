@@ -43,10 +43,11 @@ struct Banner: View {
             let height = geometry.size.height
             let drawn = height + Self.overhang
             // the artwork as an overlay of a flexible colour, filling the banner's own area as before: scaledToFill
-            // would otherwise size the layout to the image
+            // would otherwise size the layout to the image. Its top stays in view: a screen wider than the artwork
+            // cuts it below, where it fades out anyway, rather than taking off the top (a logo, the sky)
             Color.clear
                 .frame(height: height)
-                .overlay {
+                .overlay(alignment: .top) {
                     if let banner, let image = IconCache.image(at: banner) {
                         Image(nsImage: image)
                             .resizable()

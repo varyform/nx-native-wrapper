@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Changed
+
+- Console Mode shows the top of the selected game's banner: on a screen wider than the artwork, the cut is at the bottom, where it fades out, instead of top and bottom alike.
+
 ## 2.4.0 — 2026-11-21
 
 A shader a game's build lacks can be made while you play, and a Switch 2 game packed without its DLC can get it from a folder beside it.
