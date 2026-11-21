@@ -33,6 +33,26 @@ extension Library {
         sortAscending = ascending ?? sort.startsAscending
     }
 
+    /// View › Show › Next/Previous Filter: the filter after (or before) this one, round to All Games.
+    public func rotateFilter(forward: Bool = true) {
+        filter = Self.nextFilter(after: filter, forward: forward) { [self] in
+            !Self.filtered(games, search: "", filter: $0, needsAttention: needsAttention).isEmpty
+        }
+    }
+
+    /// A filter no game passes is skipped (most libraries have no kept builds, or nothing needing attention), so
+    /// each press shows games. All Games is always a stop. The search isn't asked: it narrows every filter alike.
+    nonisolated static func nextFilter(
+        after filter: GameFilter, forward: Bool, hasGames: (GameFilter) -> Bool
+    ) -> GameFilter {
+        let all = GameFilter.allCases, start = all.firstIndex(of: filter) ?? 0
+        for step in 1..<all.count {
+            let next = all[(start + (forward ? step : all.count - step)) % all.count]
+            if next == .all || hasGames(next) { return next }
+        }
+        return .all
+    }
+
     /// Something to do before the game plays as it should: a launcher still to save, a Mac app older than its build,
     /// or nxnative's news for its profile.
     public func needsAttention(_ game: Game) -> Bool {

@@ -18,13 +18,24 @@ struct SortFilterMenu: View {
     }
 }
 
-/// View › Sort By and View › Show, the toolbar menu's choices.
+/// View › Sort By and View › Show, the toolbar menu's choices. The shortcuts live here only: a toolbar menu's
+/// shortcut answers too, and a rotation that ran twice would skip a filter.
 public struct SortFilterMenuItems: View {
+    @Environment(Library.self) private var library
+
     public init() {}
 
     public var body: some View {
         Menu("Sort By") { GameSortItems() }
-        Menu("Show") { GameFilterItems() }
+        Menu("Show") {
+            GameFilterItems(shortcuts: true)
+            Divider()
+            // ⌃Tab, as tabs rotate in Safari and Finder
+            Button("Next Filter") { library.rotateFilter() }
+                .keyboardShortcut(.tab, modifiers: .control)
+            Button("Previous Filter") { library.rotateFilter(forward: false) }
+                .keyboardShortcut(.tab, modifiers: [.control, .shift])
+        }
     }
 }
 
@@ -58,15 +69,24 @@ struct GameSortItems: View {
     }
 }
 
+/// The filters; in the menu bar ⌥⌘1 to ⌥⌘5, beside the views' ⌘1 and ⌘2.
 struct GameFilterItems: View {
+    var shortcuts = false
     @Environment(Library.self) private var library
 
     var body: some View {
         Picker("Show", selection: Bindable(library).filter) {
-            ForEach(Library.GameFilter.allCases, id: \.self) { Text($0.title).tag($0) }
+            ForEach(Array(Library.GameFilter.allCases.enumerated()), id: \.element) { index, filter in
+                Text(filter.title).tag(filter)
+                    .keyboardShortcut(shortcuts ? Self.shortcut(index) : nil)
+            }
         }
         .pickerStyle(.inline)
         .labelsHidden()
+    }
+
+    static func shortcut(_ index: Int) -> KeyboardShortcut {
+        KeyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [.command, .option])
     }
 }
 

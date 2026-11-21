@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- Keyboard shortcuts for the game filters: ⌥⌘1 to ⌥⌘5 show all games, Switch 1, Switch 2, the games that need attention or kept builds, and ⌃Tab (⌃⇧Tab back) steps through them, skipping a filter with no games (View › Show).
+
 ## 2.2.0 — 2026-11-20
 
 When a game fails to build or start, NX Play now explains why, and a failed update no longer costs you a game that worked.

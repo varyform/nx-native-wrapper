@@ -62,6 +62,22 @@ import Testing
         #expect(shown(.switch2, "mario").isEmpty)
     }
 
+    @Test func rotatingSkipsFiltersWithNoGames() {
+        let empty: Set<Library.GameFilter> = [.switch2, .kept]
+        func next(_ filter: Library.GameFilter, forward: Bool = true) -> Library.GameFilter {
+            Library.nextFilter(after: filter, forward: forward) { !empty.contains($0) }
+        }
+        #expect(next(.all) == .switch1)
+        #expect(next(.switch1) == .needsAttention)
+        #expect(next(.needsAttention) == .all)
+        #expect(next(.all, forward: false) == .needsAttention)
+        #expect(next(.needsAttention, forward: false) == .switch1)
+        // a filter left on after its games went still steps on
+        #expect(next(.kept) == .all)
+        // no games at all: All Games stays
+        #expect(Library.nextFilter(after: .all, forward: true) { _ in false } == .all)
+    }
+
     @MainActor @Test func theOrderIsRememberedTheFilterIsNot() {
         let suite = testDefaultsName()
         defer { removeTestDefaults(suite) }
