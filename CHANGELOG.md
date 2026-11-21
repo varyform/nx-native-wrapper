@@ -4,6 +4,12 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+Fixes Play and Rebuild stopping at once with exit 1 in 2.3.0 and 2.4.0.
+
+### Fixed
+
+- Play and Rebuild stopped right after the nxnative update check with "nxplay: failed (exit 1)" and nothing else, for every game built before 2.3.0 that hadn't been played since (issue #36). The check for shaders saved while playing failed on a build that had none yet. A play on a games folder this Mac can't write to could stop the same way, and now plays without saving those shaders.
+
 ### Changed
 
 - Console Mode shows the top of the selected game's banner: on a screen wider than the artwork, the cut is at the bottom, where it fades out, instead of top and bottom alike.

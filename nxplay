@@ -360,7 +360,8 @@ has_game_files() {
 
 # The shader chain version nxnative's code at a tree or commit holds (dm/gfx/nvn/dmsh_chain.h): when it changes,
 # every shader is translated again (build_ipa_from_nsp.py's chain_of)
-chain_at() { git -C "$repo" show "$1:dm/gfx/nvn/dmsh_chain.h" 2> /dev/null | sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p'; }
+# empty, never a failure, for a tree the checkout no longer has (a rewritten upstream): it's assigned under set -e
+chain_at() { { git -C "$repo" show "$1:dm/gfx/nvn/dmsh_chain.h" 2> /dev/null || true; } | sed -n 's/^#define DMSH_CHAIN "\(.*\)"/\1/p'; }
 
 # How long the game's last update rebuilds took, <title ID>_build/nxplay-times: "rebuild <seconds>" (shaders
 # reused or partly compiled), "recompile <seconds>" (the shader chain changed), "repack <seconds>" (the Mac app)
@@ -613,8 +614,12 @@ play_shaders_count=0
 ps_launcher="$(find_launcher)"
 if [[ -n "$ps_launcher" ]] && grep -q -e '--glslc-play' "$repo/scripts/build_ipa_from_nsp.py" 2> /dev/null; then
   ps_dir="$(play_shaders_of "$ps_launcher")"
-  play_shaders_count="$(find "$ps_dir" -maxdepth 1 -name '*.glslc' 2> /dev/null | wc -l | tr -d ' ')"
-  if (( play_shaders_count )); then play_shaders=(--glslc-play "$ps_dir"); fi
+  # counted by a glob: a build not played since this came has no folder, and a failing find would end the script
+  # here (set -e with pipefail), with nothing said (issue #36)
+  for f in "$ps_dir"/*.glslc; do
+    if [[ -f "$f" ]]; then play_shaders_count=$(( play_shaders_count + 1 )); fi
+  done
+  if (( play_shaders_count > 0 )); then play_shaders=(--glslc-play "$ps_dir"); fi
 fi
 # A Switch 2 game's DLC as RomFS images beside its NUP, <game folder>/aoc/<index>.img (index 1 to 2000), as
 # nxnative's pack_nup.py writes a NUP's own (aoc/) and an iPhone app reads them (Documents/aoc): given to each build
@@ -1040,10 +1045,10 @@ start() {
   mkdir -p "$(dirname "$played")"
   touch "$played"
   # what the game compiles while it plays, for its next build (play_shaders_of); a player's own folder wins
+  # (a folder that can't be made, on a volume this Mac can't write to, only goes without it)
   if [[ -z "${DM_GLSLC_CAPTURE:-}" ]]; then
     play_dir="$(play_shaders_of "$1")" play_launcher="$1"
-    mkdir -p "$play_dir"
-    export DM_GLSLC_CAPTURE="$play_dir"
+    if mkdir -p "$play_dir" 2> /dev/null; then export DM_GLSLC_CAPTURE="$play_dir"; else play_dir=""; fi
   fi
   trap 'touch "$played"; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2> /dev/null; play_shaders_report; true' EXIT
   if [[ "${NXPLAY_NVN_RUNTIME:-0}" == 1 ]]; then nvn_runtime "$1"; fi
