@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.4.0 — 2026-11-21
+
 A shader a game's build lacks can be made while you play, and a Switch 2 game packed without its DLC can get it from a folder beside it.
 
 ### Added
