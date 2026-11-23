@@ -37,10 +37,10 @@ struct GameGrid: View {
                 } else {
                     LazyVStack(alignment: .leading, spacing: 28) {
                         if !extracted.isEmpty {
-                            section("Extracted", extracted)
+                            section("Games", extracted, showsOrder: true)
                         }
                         if !remaining.isEmpty {
-                            section("Not Extracted", remaining, extractAll: true)
+                            section("Not Extracted", remaining, extractAll: true, showsOrder: extracted.isEmpty)
                         }
                     }
                     .padding(.vertical, Self.margin)
@@ -61,13 +61,16 @@ struct GameGrid: View {
         }
     }
 
-    private func section(_ title: LocalizedStringKey, _ games: [Game], extractAll: Bool = false)
+    private func section(
+        _ title: LocalizedStringKey, _ games: [Game], extractAll: Bool = false, showsOrder: Bool = false
+    )
         -> some View
     {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(title).font(.title3.bold())
                 Text("\(games.count)").foregroundStyle(.secondary)
+                if showsOrder { ShownOrder() }
                 Spacer()
                 if extractAll {
                     Button("Extract All") { library.extractAll() }

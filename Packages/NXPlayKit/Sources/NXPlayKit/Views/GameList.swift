@@ -79,14 +79,16 @@ struct GameList: View {
                     Section {
                         ForEach(extracted) { TableRow($0) }
                     } header: {
-                        SectionHeader(title: "Extracted", count: extracted.count)
+                        SectionHeader(title: "Games", count: extracted.count, order: library)
                     }
                 }
                 if !remaining.isEmpty {
                     Section {
                         ForEach(remaining) { TableRow($0) }
                     } header: {
-                        SectionHeader(title: "Not Extracted", count: remaining.count) {
+                        SectionHeader(
+                            title: "Not Extracted", count: remaining.count, order: extracted.isEmpty ? library : nil
+                        ) {
                             Button("Extract All") { library.extractAll() }
                                 .controlSize(.small)
                                 .disabled(library.extractableGames.isEmpty)
@@ -139,12 +141,16 @@ private struct DateCell: View {
 private struct SectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
     let count: Int
+    /// The first section's: the filter and the order shown, once. The library is handed over: a table's header
+    /// doesn't get the window's environment (see GameList's context menu).
+    var order: Library? = nil
     @ViewBuilder var trailing: Trailing
 
     var body: some View {
         HStack {
             Text(title).font(.headline)
             Text("\(count)").foregroundStyle(.secondary)
+            if let order { ShownOrder().library(order) }
             Spacer()
             trailing
         }
@@ -152,8 +158,8 @@ private struct SectionHeader<Trailing: View>: View {
 }
 
 extension SectionHeader where Trailing == EmptyView {
-    init(title: LocalizedStringKey, count: Int) {
-        self.init(title: title, count: count) { EmptyView() }
+    init(title: LocalizedStringKey, count: Int, order: Library? = nil) {
+        self.init(title: title, count: count, order: order) { EmptyView() }
     }
 }
 
@@ -203,13 +209,14 @@ public struct ViewStyleMenuItems: View {
 
     public init() {}
 
+    // toggles, not an inline picker: the menu bar draws a picker's section, and its separator showed at times at the
+    // top of the View menu, above the first item
     public var body: some View {
-        @Bindable var library = library
-        Picker("View", selection: $library.viewStyle) {
-            Text("as Grid").tag(Library.ViewStyle.grid).keyboardShortcut("1")
-            Text("as List").tag(Library.ViewStyle.list).keyboardShortcut("2")
-        }
-        .pickerStyle(.inline)
-        .labelsHidden()
+        Toggle("as Grid", isOn: chosen(.grid)).keyboardShortcut("1")
+        Toggle("as List", isOn: chosen(.list)).keyboardShortcut("2")
+    }
+
+    private func chosen(_ style: Library.ViewStyle) -> Binding<Bool> {
+        Binding(get: { library.viewStyle == style }, set: { _ in library.viewStyle = style })
     }
 }

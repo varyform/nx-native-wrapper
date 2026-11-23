@@ -8,12 +8,15 @@ public struct CleanupView: View {
     @Environment(Library.self) private var library
     @State private var cleanup = Cleanup(
         cache: SizeCache(), installCopies: DeviceInstallCopies.folder, metalState: MetalLeftovers.folder)
+    @State private var volumes: [CleanupVolume] = []
 
     public init() {}
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Free Up Space").font(.title2.bold())
+            // the games folders' drives at once, their kinds filled in as the scan measures them
+            ForEach(volumes) { StorageBar(volume: $0, measuring: cleanup.phase == .scanning || cleanup.isMeasuring) }
             if cleanup.groups.isEmpty && cleanup.extras.isEmpty {
                 empty
             } else {
@@ -25,13 +28,23 @@ public struct CleanupView: View {
         .padding(20)
         .frame(minWidth: 680, minHeight: 560)
         .task { await rescan() }
-        .onChange(of: library.games) { Task { await rescan() } }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
-        ) { _ in
-            library.refresh()
-            Task { await rescan() }
+        // which volume each file is on asks the file system: off the main thread, as the sizes come in
+        .task(id: cleanup.files) {
+            // sizes come in by the dozen a second while the scan measures: the bars follow once they pause (a new
+            // size cancels this wait), and the first ones, before any, come at once
+            if !volumes.isEmpty {
+                try? await Task.sleep(for: .milliseconds(300))
+                guard !Task.isCancelled else { return }
+            }
+            // the Mac's own drive too: Xcode builds, install copies, Mac apps and Metal's leftovers are there
+            let files = cleanup.files, roots = library.roots + [FileManager.default.homeDirectoryForCurrentUser]
+            let found = await Task.detached { Cleanup.volumes(of: files, also: roots) }.value
+            guard !Task.isCancelled else { return }
+            volumes = found
         }
+        // the main window refreshes the library when the app comes back to the front: a game added or gone
+        // rescans here through that, and coming back costs no second refresh and no measuring everything again
+        .onChange(of: library.games) { Task { await rescan() } }
     }
 
     @ViewBuilder private var empty: some View {

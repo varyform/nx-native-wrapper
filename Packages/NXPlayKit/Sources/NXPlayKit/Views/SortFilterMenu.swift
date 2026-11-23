@@ -90,6 +90,37 @@ struct GameFilterItems: View {
     }
 }
 
+/// Beside the first section's count: the filter on, if any, and the order as icons, so a section's count isn't taken
+/// for all the games; a click offers the toolbar menu's choices.
+struct ShownOrder: View {
+    @Environment(Library.self) private var library
+
+    var body: some View {
+        // the menu's items are built apart from this view: handed the library, as a table's cells are
+        Menu {
+            Section("Sort By") { GameSortItems().library(library) }
+            Section("Show") { GameFilterItems().library(library) }
+        } label: {
+            HStack(spacing: 4) {
+                if library.filter != .all {
+                    Image(systemName: library.filter.symbol)
+                    Text(library.filter.title)
+                    Text("\u{00B7}")
+                }
+                Image(systemName: library.sort.symbol)
+                Image(systemName: library.sortAscending ? "arrow.up" : "arrow.down")
+            }
+            .font(.callout)
+            .foregroundStyle(.secondary)
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(Text("Sorted by \(Text(library.sort.title)), \(Text(library.sort.directionTitle(ascending: library.sortAscending)))"))
+    }
+}
+
 /// The grid's and the list's empty state when games are there but the search or the filter hides them all.
 struct NoShownGames: View {
     @Environment(Library.self) private var library
@@ -138,7 +169,30 @@ extension Library.GameSort {
     }
 }
 
+extension Library.GameSort {
+    var symbol: String {
+        switch self {
+        case .name: "textformat"
+        case .lastPlayed: "clock"
+        case .dateAdded: "calendar.badge.plus"
+        case .version: "number"
+        case .titleID: "barcode"
+        case .status: "checkmark.circle"
+        }
+    }
+}
+
 extension Library.GameFilter {
+    var symbol: String {
+        switch self {
+        case .all: "square.grid.2x2"
+        case .switch1: "1.circle"
+        case .switch2: "2.circle"
+        case .needsAttention: "exclamationmark.triangle"
+        case .kept: "lock"
+        }
+    }
+
     var title: LocalizedStringKey {
         switch self {
         case .all: "All Games"
