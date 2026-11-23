@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.5.0 — 2026-11-23
+
 The pictures a game saves to its album are kept with your Pictures, and a mod can bring code that runs with the game.
 
 ### Added
