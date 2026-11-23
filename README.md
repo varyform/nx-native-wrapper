@@ -1,5 +1,10 @@
 # NX Play
 
+> [!NOTE]
+> **Thank you for your interest in NX Play! You'll probably be better off with [NX2Apple](https://github.com/LNPANDY/NX2Apple).** It does what NX Play does and a lot more, including builds with nxkit, and there's little point in two apps doing the same thing: one good app gets further than two that split the work and the testers.
+>
+> NX Play isn't going away. I'll keep it up to date with nxnative, following its new commits as they land, and keep fixing what breaks. What it won't get is experimental extras, such as other builders like nxkit's Rust one: NX2Apple is the place for those.
+
 **NX Play** is a Mac app (and `nxplay`, the script behind it) that runs Nintendo Switch games natively on a Mac or an iPhone/iPad, through [nxnative](https://github.com/seedds/nxnative). It builds a game once, then starts it straight away the next time. This repository is `nx-native-wrapper`.
 
 - A library of your games with their icons: extract them, play them on the Mac, rebuild them.
@@ -8,8 +13,10 @@
 - Copy saves between the Mac and a device, after seeing which one is newer, and back them up to your own private Git repository while you play.
 - Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
+> [!IMPORTANT]
 > You need your own games (NSP, NSZ, XCI or XCZ files, or a NUP file or dump of a Switch 2 game) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
->
+
+> [!NOTE]
 > The screenshots are illustrations, taken in a screenshot mode with sample data: the paths, devices, saves, team and build logs in them are made up. The game names and icons in them belong to their owners and appear only to show what the app does.
 
 **Contents**
