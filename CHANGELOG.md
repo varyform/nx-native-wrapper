@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.5.1 — 2026-11-23
+
 ### Added
 
 - Beside the first section's count, the library shows the filter that's on, if any, and the order as icons, so a count isn't taken for all the games. Click it for the same choices as the toolbar's Sort and Filter menu.
