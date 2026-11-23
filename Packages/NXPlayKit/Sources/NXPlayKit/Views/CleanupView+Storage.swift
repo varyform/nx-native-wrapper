@@ -29,7 +29,9 @@ struct StorageBar: View {
             Segment(id: $0.kind.rawValue, title: Text($0.kind.title), size: $0.size, color: $0.kind.color)
         }
             + [
-                Segment(id: "other", title: Text("Everything else"), size: volume.other, color: .gray),
+                Segment(
+                    id: "other", title: measuring ? Text("Everything else, still measuring") : Text("Everything else"),
+                    size: volume.other, color: .gray),
                 Segment(id: "free", title: Text("Free"), size: volume.info.available, color: .primary.opacity(0.1)),
             ]
     }
@@ -78,6 +80,9 @@ struct StorageBar: View {
                 ForEach(parts, id: \.segment.id) { part in
                     Rectangle()
                         .fill(part.segment.color)
+                        // what isn't measured yet is in it: striped, still, until the scan is done
+                        .overlay { if measuring && part.segment.id == "other" { Stripes().stroke(.white.opacity(0.25), lineWidth: 3) } }
+                        .clipped()
                         .frame(width: part.width)
                         .opacity(hovered == nil || hovered == part.segment.id ? 1 : 0.6)
                 }
@@ -137,6 +142,20 @@ struct StorageBar: View {
 
     private func bytes(_ size: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+    }
+}
+
+/// Diagonal lines across a rect, a still sign of a part still being measured.
+private struct Stripes: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        var x = rect.minX - rect.height
+        while x < rect.maxX {
+            path.move(to: CGPoint(x: x, y: rect.maxY))
+            path.addLine(to: CGPoint(x: x + rect.height, y: rect.minY))
+            x += 8
+        }
+        return path
     }
 }
 

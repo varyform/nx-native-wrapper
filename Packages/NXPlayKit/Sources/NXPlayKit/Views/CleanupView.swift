@@ -9,6 +9,7 @@ public struct CleanupView: View {
     @State private var cleanup = Cleanup(
         cache: SizeCache(), installCopies: DeviceInstallCopies.folder, metalState: MetalLeftovers.folder)
     @State private var volumes: [CleanupVolume] = []
+    @State private var volumesAt = Date.distantPast
 
     public init() {}
 
@@ -26,14 +27,17 @@ public struct CleanupView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 680, minHeight: 560)
+        // no fixed height: the window can't get smaller than what's in it (the list keeps a few rows), which the
+        // drives' bars made taller than a fixed minimum allowed for
+        .frame(minWidth: 680)
         .task { await rescan() }
         // which volume each file is on asks the file system: off the main thread, as the sizes come in
         .task(id: cleanup.files) {
-            // sizes come in by the dozen a second while the scan measures: the bars follow once they pause (a new
-            // size cancels this wait), and the first ones, before any, come at once
-            if !volumes.isEmpty {
-                try? await Task.sleep(for: .milliseconds(300))
+            // sizes come in by the dozen a second while the scan measures: the bars follow at most every 0.4 s, so
+            // they fill in as it goes (waiting for a pause left them grey until the end, as sizes never pause)
+            let wait = 0.4 - Date.now.timeIntervalSince(volumesAt)
+            if wait > 0 {
+                try? await Task.sleep(for: .seconds(wait))
                 guard !Task.isCancelled else { return }
             }
             // the Mac's own drive too: Xcode builds, install copies, Mac apps and Metal's leftovers are there
@@ -41,6 +45,7 @@ public struct CleanupView: View {
             let found = await Task.detached { Cleanup.volumes(of: files, also: roots) }.value
             guard !Task.isCancelled else { return }
             volumes = found
+            volumesAt = .now
         }
         // the main window refreshes the library when the app comes back to the front: a game added or gone
         // rescans here through that, and coming back costs no second refresh and no measuring everything again
@@ -140,6 +145,7 @@ public struct CleanupView: View {
             }
         }
         .listStyle(.inset(alternatesRowBackgrounds: false))
+        .frame(minHeight: 160)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.separator))
     }

@@ -71,7 +71,8 @@ struct NXPlayApp: App {
             CleanupView()
                 .library(library)
         }
-        .defaultSize(width: 760, height: 680)
+        .defaultSize(width: 760, height: 860)
+        .windowResizability(.contentMinSize)
 
         Window("Setup", id: SetupView.windowID) {
             SetupView()

@@ -221,7 +221,7 @@ Everything the game runs uses it (extract, play, rebuild, IPA, Mac app, device i
 
 Pick files one by one, a whole game, or a whole kind. Nothing is selected until you pick it, and deleting needs you to type “yes, I'm sure”. Everything is deleted for good, not moved to the Trash.
 
-![Free Up Space: game files, builds, shader compile caches, IPAs, Xcode builds, device install copies, Mac apps and Metal's leftovers, per game with their sizes](docs/free-up-space.webp)
+![Free Up Space: a storage bar for each drive, then game files, builds, shader compile caches, IPAs, Xcode builds, device install copies, Mac apps and Metal's leftovers, per game with their sizes](docs/free-up-space.webp)
 
 nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, and keeps that copy, so the game takes up its space about twice, and a build without the folder unpacks it again. **Settings › General › Keep only the unpacked copy of NSZ and XCZ games** stops that. Once a game is built for the Mac, its unpacked NSP or XCI moves into the game folder and the NSZ or XCZ goes to the Trash; from then on the game builds from the NSP. Only a file nxnative recorded as unpacked from exactly that NSZ moves, and nothing moves while the game builds or runs. Turning it on offers to do the same for the games built already. It's off by default, since it changes your own files.
 

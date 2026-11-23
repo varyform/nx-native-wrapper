@@ -294,7 +294,7 @@
             // layout, icons, the sheet's animation; full screen and Free Up Space's measuring take longer
             try? await Task.sleep(
                 for: .seconds(
-                    scene == .console || scene == .consoleDetails || scene == .freeUpSpace ? 4 : 1.5
+                    scene == .freeUpSpace ? 10 : scene == .console || scene == .consoleDetails ? 4 : 1.5
                 ))
             let target =
                 ownWindow
@@ -302,9 +302,10 @@
                     $0.isVisible && $0 !== main && $0.sheetParent == nil && $0.level == .normal
                 }
                 : main
-            // Free Up Space opens at the size it was last left at
+            // Free Up Space opens at the size it was last left at; taller than the others, for its drives' bars and
+            // a few games under them
             if scene == .freeUpSpace, let target {
-                target.setContentSize(Self.windowSize)
+                target.setContentSize(NSSize(width: Self.windowSize.width, height: 960))
                 target.center()
             }
             target?.makeKeyAndOrderFront(nil)
