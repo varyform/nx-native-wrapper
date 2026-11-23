@@ -321,7 +321,7 @@ Not sure? Run nxnative's build script on the game yourself (`python3 scripts/bui
 ```sh
 bin/build        # build/Build/Products/Release/NX Play.app
 bin/install      # build and install into /Applications (or: bin/install ~/Applications)
-mise run app     # build and open it
+mise run app     # open it, building it first (signed) only when the code changed
 mise run test    # NXPlayKit tests (swift test --package-path Packages/NXPlayKit)
 mise run stats   # lines of code, types and functions per part of the repo, as rails stats (bin/stats)
 bin/release 1.7.12 "Stair Climber"  # release (the name is optional): sign, notarize, DMG, then (after you confirm, or at once with -y) commit, tag and publish

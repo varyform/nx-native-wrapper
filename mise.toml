@@ -36,6 +36,5 @@ description = "Regenerate the README screenshots in docs/ (bin/screenshots [game
 run = "bin/screenshots"
 
 [tasks.app]
-description = "Build and open NX Play"
-depends = ["build"]
-run = "open 'build/Build/Products/Release/NX Play.app'"
+description = "Open NX Play, building it (signed) first only when the code changed"
+run = "bin/app"

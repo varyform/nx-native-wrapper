@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Open NX Play from this checkout (mise run app), building it first only when the code changed since the last build:
+# a fingerprint of the working tree (the committed files, uncommitted changes and new files) is kept beside the app.
+# It builds signed with the Developer ID certificate when there is one, so macOS keeps the app's permissions (the
+# games drive) from build to build; an ad-hoc build is a new app to it each time, and asks again.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+app="build/Build/Products/Release/NX Play.app"
+stamp="build/app-fingerprint"
+
+fingerprint() {
+  {
+    git rev-parse 'HEAD^{tree}'
+    git diff HEAD --binary
+    git ls-files --others --exclude-standard -z | xargs -0 shasum 2> /dev/null || true
+  } | shasum | cut -d' ' -f1
+}
+
+now="$(fingerprint)"
+if [[ -d "$app" && -f "$stamp" && "$(cat "$stamp")" == "$now" ]]; then
+  echo "app: no code changes since the last build, opening it"
+else
+  identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)"
+  if [[ -n "$identity" ]]; then
+    team="$(sed -n 's/.*(\([A-Z0-9]*\))$/\1/p' <<< "$identity")"
+    bin/build CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$identity" DEVELOPMENT_TEAM="$team" \
+      OTHER_CODE_SIGN_FLAGS=--timestamp=none
+  else
+    echo "app: no Developer ID certificate in the keychain: building ad hoc, and macOS may ask for access again" >&2
+    bin/build
+  fi
+  echo "$now" > "$stamp"
+
+  # open would only bring a copy from the last build to the front: ask that one to quit (only this build's, not the
+  # installed app), as its Quit does, so it can say if a game or a build is still running in it
+  pid="$(pgrep -f "$PWD/$app/Contents/MacOS/" | head -1 || true)"
+  if [[ -n "$pid" ]]; then
+    osascript -l JavaScript -e "ObjC.import('AppKit'); \$.NSRunningApplication.runningApplicationWithProcessIdentifier($pid).terminate" > /dev/null
+    for _ in $(seq 50); do
+      kill -0 "$pid" 2> /dev/null || break
+      sleep 0.2
+    done
+    if kill -0 "$pid" 2> /dev/null; then
+      echo "app: the running copy didn't quit (busy?): quit it, then run this again" >&2
+      exit 1
+    fi
+  fi
+fi
+open "$app"

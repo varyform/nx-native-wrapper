@@ -17,8 +17,16 @@ scenes=("$@")
 command -v cwebp > /dev/null || { echo "bin/screenshots: cwebp is missing: brew install webp" >&2; exit 2; }
 
 if command -v mise > /dev/null; then mise exec -- xcodegen generate --quiet; else xcodegen generate --quiet; fi
+# signed with the Developer ID when there is one: an ad-hoc build is a new app to macOS each time, and asks again for
+# the games drive (bin/app does the same)
+signing=()
+identity="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p' | head -1)"
+if [[ -n "$identity" ]]; then
+  signing=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="$identity" OTHER_CODE_SIGN_FLAGS=--timestamp=none
+    DEVELOPMENT_TEAM="$(sed -n 's/.*(\([A-Z0-9]*\))$/\1/p' <<< "$identity")")
+fi
 xcodebuild -project NXPlay.xcodeproj -scheme NXPlay -configuration Debug -destination "platform=macOS,arch=$(uname -m)" \
-  -derivedDataPath build/screenshots -quiet build
+  -derivedDataPath build/screenshots -quiet build ${signing[@]+"${signing[@]}"}
 app="build/screenshots/Build/Products/Debug/NX Play.app/Contents/MacOS/NX Play"
 work="$PWD/build/screenshots/png"
 mkdir -p "$work" docs
