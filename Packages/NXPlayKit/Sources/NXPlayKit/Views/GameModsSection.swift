@@ -90,19 +90,21 @@ private struct ModRow: View {
     private var detail: String {
         switch mod.problem {
         case .noRomFS:
-            return mod.hasExeFS
-                ? "Only code changes (exefs), which nxnative can\u{2019}t use" : "No romfs folder in it"
+            return mod.hasOtherCode
+                ? "Only changes to the game\u{2019}s own code, which nxnative can\u{2019}t use" : "No romfs folder in it"
         case .colonInPath: return "Its folder\u{2019}s path has a colon, which nxnative can\u{2019}t take: rename it"
         case nil: break
         }
         var parts: [String] = []
-        if let files {
+        if let files, files.count > 0 || mod.plugins.isEmpty {
             parts.append(files.count == 1 ? "1 file" : "\(files.count) files")
             for (name, count) in files.covered.sorted(by: { $0.key < $1.key }) {
                 parts.append("\(count) from \(name), above")
             }
         }
-        if mod.hasExeFS { parts.append("its code changes (exefs) aren\u{2019}t used") }
+        // the plugins load on the Mac only: an iPhone app's code must be signed
+        if !mod.plugins.isEmpty { parts.append("code: \(mod.plugins.joined(separator: ", ")), on the Mac") }
+        if mod.hasOtherCode { parts.append("its changes to the game\u{2019}s own code aren\u{2019}t used") }
         if let other = mod.otherTitle { parts.append("made for \(other), another release") }
         return parts.isEmpty ? "Counting files\u{2026}" : parts.joined(separator: " \u{00B7} ")
     }

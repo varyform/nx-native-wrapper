@@ -4,6 +4,13 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+The pictures a game saves to its album are kept with your Pictures, and a mod can bring code that runs with the game.
+
+### Added
+
+- Game › Show in Finder › Screenshots: the pictures a game saves to the Switch's album, such as Pokopia's in-game camera, now that nxnative saves them. They go to `~/Pictures/nxnative/<title ID>`, where the game's Mac app puts them too, so Free Up Space and Remove Game leave them alone.
+- Mods with code: a mod's code plugins (`exefs/subsdk<N>`, made with exlaunch) load on the Mac, beside its files or on their own, now that nxnative can load them. Before the first play with one on, NX Play has nxnative rewrite them for its host, and again after an nxnative update changes the rewriter. Game Settings › Mods names them. A mod that replaces the game's own code still can't be used.
+
 ## 2.4.1 — 2026-11-21
 
 Fixes Play and Rebuild stopping at once with exit 1 in 2.3.0 and 2.4.0.

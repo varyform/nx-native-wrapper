@@ -32,6 +32,8 @@
 #        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
 #        DM_SAVE_SYNC_CHOICE (the player's answer when the cloud's save and this one both changed: NX Play compares
 #        them before a play; passed on as it is),
+#        DM_ALBUM_DIR (where a game's album pictures go; default ~/Pictures/nxnative/<title ID>, as nxnative's Mac app),
+#        DM_ROMFS_OVERLAY (mods' folders, as nxnative takes them; their code plugins are prepared before a play),
 #        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
 #        NXPLAY_NVN_RUNTIME (1: translate a shader the build lacks when the game first uses it, nxnative's runtime
 #        translator, in testing; an NVN game on the Mac),
@@ -1044,6 +1046,13 @@ start() {
   played="$(dirname "$1")/run/last_played"
   mkdir -p "$(dirname "$played")"
   touch "$played"
+  # the pictures a game saves to the console's album (its in-game camera): where nxnative's Mac app puts them, not
+  # its fallback in the build folder, which Free Up Space and Remove Game delete
+  if [[ -z "${DM_ALBUM_DIR:-}" ]]; then
+    local id
+    id="$(basename "$(dirname "$1")")"
+    export DM_ALBUM_DIR="$HOME/Pictures/nxnative/${id%_build}"
+  fi
   # what the game compiles while it plays, for its next build (play_shaders_of); a player's own folder wins
   # (a folder that can't be made, on a volume this Mac can't write to, only goes without it)
   if [[ -z "${DM_GLSLC_CAPTURE:-}" ]]; then
@@ -1052,6 +1061,7 @@ start() {
   fi
   trap 'touch "$played"; [[ -n "${tail_pid:-}" ]] && kill "$tail_pid" 2> /dev/null; play_shaders_report; true' EXIT
   if [[ "${NXPLAY_NVN_RUNTIME:-0}" == 1 ]]; then nvn_runtime "$1"; fi
+  prepare_mod_code
   local app save
   save="$(play_save "$1")"
   app="$(find_app)"
@@ -1119,6 +1129,43 @@ nvn_runtime() {
   export DM_NVN_RUNTIME_PYTHON DM_NVN_RUNTIME_COMPILER="$compiler"
   DM_NVN_RUNTIME_PYTHON="$(command -v python3)"
   say "nxplay: shaders the build lacks are translated when the game first uses them (nxnative's runtime translator, in testing): a scene that needs one waits for it once"
+}
+
+# A mod's code plugins (exefs/subsdk<N>, exlaunch's) beside a RomFS folder in DM_ROMFS_OVERLAY load on the Mac once
+# nxnative's prepare_mod.py has rewritten them into exefs/nxnative/ (dm/host/hle_exl.c), and again after the rewriter
+# changed: a stamp there names the tree of dm/tools they were rewritten with. One that fails to prepare is left out, and
+# the game plays without it.
+prepare_mod_code() {
+  [[ -n "${DM_ROMFS_OVERLAY:-}" ]] || return 0
+  local entry root exefs f name stamp want stale found
+  local -a entries
+  IFS=: read -r -a entries <<< "$DM_ROMFS_OVERLAY"
+  want="$(git -C "$repo" rev-parse -q --verify HEAD:dm/tools 2> /dev/null || true)"
+  for entry in "${entries[@]}"; do
+    root="${entry%/}"
+    if [[ "$(basename "$root" | tr '[:upper:]' '[:lower:]')" == romfs ]]; then root="$(dirname "$root")"; fi
+    exefs="$root/exefs" stamp="$root/exefs/nxnative/.nxplay-rewriter"
+    found=0 stale=0
+    for f in "$exefs"/subsdk*; do
+      if [[ -f "$f" && "$(basename "$f")" =~ ^subsdk[0-9]+$ ]]; then
+        found=1
+        if [[ ! -f "$stamp" || "$f" -nt "$stamp" ]]; then stale=1; fi
+      fi
+    done
+    (( found )) || continue
+    name="${root#"$game/Mods/"}" name="${name%%/*}"
+    if [[ ! -f "$repo/scripts/prepare_mod.py" ]]; then
+      say "nxplay: this nxnative can't load a mod's code yet: $name plays without it"
+      continue
+    fi
+    if (( ! stale )) && [[ -n "$want" && "$(cat "$stamp")" == "$want" ]]; then continue; fi
+    say "nxplay: preparing $name's code for nxnative (once, and again after nxnative's rewriter changes)"
+    if (cd "$repo" && python3 scripts/prepare_mod.py "$root"); then
+      if [[ -n "$want" ]]; then printf '%s\n' "$want" > "$stamp"; fi
+    else
+      warn "nxplay: $name's code couldn't be prepared: the game plays without it"
+    fi
+  done
 }
 
 # The save this play uses, said in the log: the build's (DM_SAVE in the launcher), or with NXPLAY_SAVE=app the Mac

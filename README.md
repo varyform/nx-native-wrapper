@@ -114,7 +114,7 @@ Right-click a game for more, or use the **Game** menu:
   - **Opened from Finder or the Dock**, the app plays on from the same save: NX Play points it there through the app's `env.txt` in `~/Library/Application Support/nxnative/<title ID>`. An app that already had a save of its own keeps it, and while the two saves differ, **Play** asks which one to use: NX Play's, the app's, or the newer one. **Don't ask again** keeps the answer for the game; **Ask Again** in Game Settings undoes it. The log names the save each play uses.
 - **Transfer Saves**: copies a save between the Mac and a device ([Saves](#saves)).
 - **nxnative Notes…** (⌥⌘I): what nxnative says about the game: tested, in bring-up, or no profile (a badge on the artwork says the same), and the profile's commits since your build (a blue badge counts them).
-- **Show in Finder**: a submenu with the game's folder (⇧⌘R), its build folder, **Saves**, **Cheats**, **Mods** and **Build Logs**, and the IPA or Mac app when it has one. **Open Mac App** starts the Mac app.
+- **Show in Finder**: a submenu with the game's folder (⇧⌘R), its build folder, **Saves**, **Cheats**, **Mods**, **Screenshots** and **Build Logs**, and the IPA or Mac app when it has one. **Open Mac App** starts the Mac app.
 - **Remove Game…** (⌘⌫): deletes the game's files, build, IPAs and Mac app for good. Anything else in its folder stays. Its saves and cheats stay too, in the folder, unless you also remove the saves; put the game files back and it plays on from them. You confirm by typing the phrase it shows.
 
 <img src="docs/install-ipa.webp" alt="Install &amp; IPA: install on an iPhone with the game files copied on their own, signed with a certificate and its provisioning profile" width="560">
@@ -173,6 +173,8 @@ A folder shared from a Mac with File Sharing works. If it's on an external drive
 
 A game's save is in `<title ID>_build/run/save`. A game that lets several people play under their own accounts asks who's playing, and keeps the saves of players 2 to 8 beside it (`save_user2`…`save_user8`, with the list of players in `save.users`). Free Up Space and Remove Game keep them all, like the main save.
 
+A picture a game saves to the Switch's album, such as a photo from Pokopia's in-game camera, goes to `~/Pictures/nxnative/<title ID>` as a PNG, where the game's Mac app puts it too (**Show in Finder › Screenshots**). It's outside the build, so Free Up Space and Remove Game don't touch it.
+
 **Transfer Saves** (Game menu) compares the Mac's save with a device's, file by file, and copies one over the other. It copies the main player's save only. The replaced save is kept in `<title ID>_build/run/save-backups`.
 
 ![Transfer Saves: the Mac's save is newer than the iPad's](docs/transfer-saves.webp)
@@ -189,7 +191,7 @@ nxnative runs Atmosphère-format cheat codes. In a game's window, the **Cheats**
 
 Mods that replace or add game files (textures, models, text, sounds) load without a rebuild: nxnative layers them over the game's files (its `DM_ROMFS_OVERLAY`). **Game › Show in Finder › Mods** opens the game's `Mods` folder. Put each mod in a folder of its own there, holding the `romfs` folder it comes with. A mod shared for a Switch SD card, with `atmosphere/contents/<title ID>/romfs` inside, works as it is. Game Settings lists the mods: turn each one on or off, and drag them into order. When two mods change the same file, the higher one wins, and the lower one's row says how many of its files come from the one above. A new mod is on, and while Game Settings is open, a mod added, removed or changed in Finder shows there at once. NX Play keeps the order in `Mods/order.txt`. Mods load the next time the game starts, and the log lists them. They load in the game's Mac app too, through Play or from Finder, but not in an iPhone app or a device install.
 
-A mod that changes the game's code (`exefs`, or `exefs_patches` such as a 60 fps patch) can't work: nxnative rewrites the game's code when it builds it. Its row says so, and its `romfs` still loads. A mod with new shaders may not draw them, since nxnative translates the game's shaders when it builds it too. A mod made for another version or release of the game may not fit yours.
+A mod's code plugins (`exefs/subsdk<N>`, made with exlaunch, such as Pokémon Compass) load on the Mac, beside its `romfs` or on their own. Before the first play with one on, NX Play has nxnative rewrite them (its `prepare_mod.py`, into the mod's `exefs/nxnative`), and again after an nxnative update changes its rewriter. A mod that replaces the game's own code (`exefs/main`, or `exefs_patches` such as a 60 fps patch) can't work: nxnative rewrites the game's code when it builds it. Its row says so, and its `romfs` still loads. A mod with new shaders may not draw them, since nxnative translates the game's shaders when it builds it too. A mod made for another version or release of the game may not fit yours.
 
 ### Testing an nxnative branch
 

@@ -85,6 +85,18 @@ public struct Game: Identifiable, Hashable, Sendable {
         buildFolder?.appending(path: "cheats", directoryHint: .isDirectory)
     }
 
+    /// The pictures the game saves to the console's album (nn::album, a game's in-game camera): nxplay points
+    /// DM_ALBUM_DIR at ~/Pictures/nxnative/<title ID>, where nxnative's own Mac app puts them, so they are outside
+    /// the build that Free Up Space and Remove Game delete. Nil until the game has saved one.
+    public var screenshotsFolder: URL? {
+        guard let build = buildFolder?.lastPathComponent, build.hasSuffix("_build") else { return nil }
+        let folder = Self.albumRoot.appending(path: String(build.dropLast(6)), directoryHint: .isDirectory)
+        return FileManager.default.fileExists(atPath: folder.path) ? folder : nil
+    }
+
+    static let albumRoot = FileManager.default.homeDirectoryForCurrentUser
+        .appending(path: "Pictures/nxnative", directoryHint: .isDirectory)
+
     private func existingFolder(_ path: String) -> URL? {
         guard let folder = buildFolder?.appending(path: path, directoryHint: .isDirectory),
             FileManager.default.fileExists(atPath: folder.path)

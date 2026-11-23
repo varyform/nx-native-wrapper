@@ -138,6 +138,9 @@ private struct FinderItems: View {
             }
             // the game's file mods (Game Settings › Mods), one folder each; made here when missing, as the cheats'
             Button("Mods", systemImage: "puzzlepiece.extension") { open(made: library.modsFolder(for: game)) }
+            if let screenshots = game.screenshotsFolder {
+                Button("Screenshots", systemImage: "photo.on.rectangle") { NSWorkspace.shared.open(screenshots) }
+            }
             if let logs = game.logsFolder {
                 Button("Build Logs", systemImage: "doc.text") { NSWorkspace.shared.open(logs) }
             }

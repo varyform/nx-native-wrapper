@@ -23,10 +23,18 @@ import Testing
         b = os.path.join(game, '0100000000001000_build')
         for d in ('run', 'tools', 'patched_v0'): os.makedirs(os.path.join(b, d), exist_ok=True)
         host = os.path.join(b, 'tools/dmhost')
-        open(host, 'w').write('#!/bin/sh\\necho host ran\\n'); os.chmod(host, 0o755)
+        open(host, 'w').write('#!/bin/sh\\necho "host ran album=$DM_ALBUM_DIR"\\n'); os.chmod(host, 0o755)
         open(os.path.join(os.path.dirname(game), 'built'), 'a').write(' '.join(sys.argv[2:]) + '\\n')
         print('done: the game runs on the Mac with this command')
         print(f"cd '{b}/run' && '{host}' '{b}/patched_v0'")
+        """
+
+    /// Records the mod it prepares and writes its exefs/nxnative, as nxnative's prepare_mod.py does.
+    static let fakePrepare = """
+        import os, sys
+        mod = sys.argv[1]
+        os.makedirs(os.path.join(mod, 'exefs/nxnative'), exist_ok=True)
+        open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(mod))), 'prepared'), 'a').write(mod + '\\n')
         """
 
     init() throws {
@@ -35,6 +43,8 @@ import Testing
         try write(repo.appending(path: "scripts/build_ipa_from_nsp.py"), Self.fakeBuild)
         try write(repo.appending(path: "dm/gfx/nvn/dmsh_chain.h"), "#define DMSH_CHAIN \"c1\"\n")
         try write(repo.appending(path: "dm/gfx/tools/dmsh_live.py"), "")
+        try write(repo.appending(path: "dm/tools/patch_nso.py"), "# the rewriter\n")
+        try write(repo.appending(path: "scripts/prepare_mod.py"), Self.fakePrepare)
         try git("init", "-q")
         try git("add", "-A")
         try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "fake")
@@ -109,5 +119,48 @@ import Testing
             [], environment: ["NXPLAY_NVN_RUNTIME": "1", "NXPLAY_UPDATE": "current"])
         #expect(status == 0, "\(output)")
         #expect(output.contains("host ran"), "\(output)")
+    }
+
+    /// The pictures a game saves to its album go where nxnative's Mac app puts them, not into the build, which Free
+    /// Up Space deletes; a player's own folder wins.
+    @Test func aPlaySavesAlbumPicturesOutsideTheBuild() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try nxplay(["--build-only"]).0 == 0)
+        let pictures = FileManager.default.homeDirectoryForCurrentUser.path + "/Pictures/nxnative/0100000000001000"
+        let (status, output) = try nxplay([], environment: ["NXPLAY_UPDATE": "current"])
+        #expect(status == 0, "\(output)")
+        #expect(output.contains("host ran album=\(pictures)\n"), "\(output)")
+        let own = try nxplay([], environment: ["NXPLAY_UPDATE": "current", "DM_ALBUM_DIR": "/elsewhere"])
+        #expect(own.1.contains("host ran album=/elsewhere\n"), "\(own.1)")
+    }
+
+    /// A mod's code plugins are rewritten for nxnative before the play that first loads them, and again only once
+    /// nxnative's rewriter changed.
+    @Test func aModsCodeIsPreparedOnceForEachRewriter() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try nxplay(["--build-only"]).0 == 0)
+        let mod = game.appending(path: "Mods/Compass", directoryHint: .isDirectory)
+        try write(mod.appending(path: "exefs/subsdk9"), "NSO0")
+        try write(game.appending(path: "Mods/Files/romfs/a"), "a")
+        let env = [
+            "NXPLAY_UPDATE": "current",
+            "DM_ROMFS_OVERLAY": "\(game.path)/Mods/Files/romfs:\(mod.path)/romfs",
+        ]
+        func prepared() -> [String] {
+            ((try? String(contentsOf: root.appending(path: "prepared"), encoding: .utf8)) ?? "")
+                .split(separator: "\n").map(String.init)
+        }
+
+        let (status, output) = try nxplay([], environment: env)
+        #expect(status == 0, "\(output)")
+        #expect(output.contains("preparing Compass's code"), "\(output)")
+        #expect(prepared() == [mod.path])
+        #expect(try nxplay([], environment: env).0 == 0)
+        #expect(prepared().count == 1)
+
+        try write(repo.appending(path: "dm/tools/patch_nso.py"), "# the rewriter, changed\n")
+        try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "rewriter")
+        #expect(try nxplay([], environment: env).0 == 0)
+        #expect(prepared().count == 2)
     }
 }

@@ -75,8 +75,39 @@ import Testing
         #expect(found["Both"]?.romfs?.standardizedFileURL == both.standardizedFileURL)  // this game's first
         #expect(found["Other"]?.romfs?.standardizedFileURL == other.standardizedFileURL)
         #expect(found["Other"]?.otherTitle == "0100000000010000")
-        #expect(found["Atmosphere"]?.hasExeFS == true && found["Atmosphere"]?.problem == nil)
-        #expect(found["Code"]?.problem == .noRomFS && found["Code"]?.hasExeFS == true)
+        // an exefs with no plugin in it is code nxnative can't use
+        #expect(found["Atmosphere"]?.hasOtherCode == true && found["Atmosphere"]?.problem == nil)
+        #expect(found["Code"]?.problem == .noRomFS && found["Code"]?.hasOtherCode == true)
+    }
+
+    /// A path as the scan gives it, with the temporary folder's /private or not.
+    static func same(_ path: String) -> String { URL(filePath: path).resolvingSymlinksInPath().path }
+
+    /// A file in a mod's exefs.
+    func code(_ mod: String, _ names: [String], layout: String = "") throws {
+        let exefs = mods.appending(path: mod).appending(path: layout).appending(path: "exefs")
+        try FileManager.default.createDirectory(at: exefs, withIntermediateDirectories: true)
+        for name in names { try Data("NSO0".utf8).write(to: exefs.appending(path: name)) }
+    }
+
+    /// exlaunch's plugins load beside the RomFS the overlay lists; with none, beside where it would be, which the
+    /// host skips as a folder that isn't there.
+    @Test func codePluginsLoadBesideTheRomFS() throws {
+        let place = "atmosphere/contents/\(Self.id)"
+        let both = try mod("Both", ["a"], layout: place)
+        try code("Both", ["subsdk10", "subsdk2", "subsdk9.bak", "main.npdm"], layout: place)
+        try code("Only", ["subsdk9"], layout: place)
+        try code("Main", ["main", "subsdk9"])
+
+        let found = Dictionary(uniqueKeysWithValues: GameMods.scan(mods, titleID: Self.id).map { ($0.name, $0) })
+        #expect(found["Both"]?.plugins == ["subsdk2", "subsdk10"])
+        #expect(found["Both"]?.overlayPath.map(Self.same) == Self.same(both.path), "\(found["Both"]?.overlayPath ?? "")")
+        #expect(found["Both"]?.hasOtherCode == false)
+        #expect(found["Only"]?.problem == nil && found["Only"]?.romfs == nil)
+        // the folder isn't there, so its path is compared as the scan gives it
+        #expect(found["Only"]?.overlayPath?.hasSuffix("/Mods/Only/\(place)/romfs") == true)
+        #expect(found["Main"]?.plugins == ["subsdk9"] && found["Main"]?.hasOtherCode == true)
+        #expect(GameMods.overlay(Array(found.values)).loaded.count == 3)
     }
 
     @Test func theOverlayListsTheModsThatLoadInOrder() throws {
@@ -94,7 +125,7 @@ import Testing
         let long = (0..<60).map { i in
             GameMod(
                 name: "\(i)", folder: root, romfs: URL(filePath: "/" + String(repeating: "m", count: 99)), isOn: true,
-                hasExeFS: false, otherTitle: nil)
+                plugins: [], codeRoot: nil, hasOtherCode: false, otherTitle: nil)
         }
         let cut = GameMods.overlay(long)
         #expect(cut.value.utf8.count <= 4095 && cut.loaded.count == 40 && cut.tooLong.count == 20)

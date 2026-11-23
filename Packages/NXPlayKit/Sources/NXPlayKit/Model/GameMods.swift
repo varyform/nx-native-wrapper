@@ -4,10 +4,13 @@ import Foundation
 /// replaces or adds. nxnative's host layers them over the game's RomFS (DM_ROMFS_OVERLAY, dm/host/hle_fs.c): a read
 /// looks in each folder in turn before the game's own files, and a folder's listing merges them all, so the first mod
 /// wins a file two change and a mod can add files. No rebuild: it takes effect at the next start, on the Mac only.
-/// Code mods (`exefs`) can't work, as nxnative rewrites the game's code when it builds it.
+/// A mod's code plugins (`exefs/subsdk<N>`, exlaunch's) load on the Mac once nxnative's scripts/prepare_mod.py has
+/// rewritten them into `exefs/nxnative/`, which nxplay does before a play; the host finds them beside the RomFS folder
+/// the overlay lists (dm/host/hle_exl.c). Code that replaces the game's own (`exefs/main`, `exefs_patches`) can't work,
+/// as nxnative rewrites the game's code when it builds it.
 public struct GameMod: Identifiable, Equatable, Sendable {
     public enum Problem: Equatable, Sendable {
-        /// Nothing at any of the layouts mods come in.
+        /// Neither files nor code plugins at any of the layouts mods come in.
         case noRomFS
         /// nxnative splits DM_ROMFS_OVERLAY at colons.
         case colonInPath
@@ -19,15 +22,25 @@ public struct GameMod: Identifiable, Equatable, Sendable {
     /// The folder nxnative layers over the game's RomFS.
     public let romfs: URL?
     public var isOn: Bool
-    /// It has code changes too, which nxnative doesn't use.
-    public let hasExeFS: Bool
+    /// Its code plugins (subsdk<N>), in the `exefs` folder beside where its RomFS is or would be.
+    public let plugins: [String]
+    /// The folder whose `exefs` holds the plugins, with a RomFS folder or none.
+    public let codeRoot: URL?
+    /// It changes the game's own code (`exefs/main`, `exefs_patches`), which nxnative can't use.
+    public let hasOtherCode: Bool
     /// The title ID its layout names, when that's another game's (a mod for another release).
     public let otherTitle: String?
     public var id: String { name }
 
     public var problem: Problem? {
-        guard let romfs else { return .noRomFS }
-        return romfs.path.contains(":") ? .colonInPath : nil
+        guard let path = overlayPath else { return .noRomFS }
+        return path.contains(":") ? .colonInPath : nil
+    }
+
+    /// What DM_ROMFS_OVERLAY lists for it: its RomFS, or for code alone where the RomFS would be, which the host
+    /// finds the code beside and skips as a folder that isn't there.
+    var overlayPath: String? {
+        romfs?.path ?? codeRoot?.appending(path: "romfs", directoryHint: .isDirectory).path
     }
 
     /// It loads at the next start.
@@ -96,16 +109,35 @@ public enum GameMods {
         let own = titleID?.uppercased()
         let found = places.filter { GameScanner.isDirectory($0.0.appending(path: "romfs")) }
             .sorted { ($0.1 == nil || $0.1 == own ? 0 : 1) < ($1.1 == nil || $1.1 == own ? 0 : 1) }.first
-        // code: a replaced exefs, or Atmosphère's patches to it
-        let code =
-            places.contains { GameScanner.isDirectory($0.0.appending(path: "exefs")) }
+        // code plugins sit beside the RomFS the host is given; with no RomFS, at this game's place first
+        let coded = places.filter { !plugins(in: $0.0).isEmpty }
+            .sorted { ($0.1 == nil || $0.1 == own ? 0 : 1) < ($1.1 == nil || $1.1 == own ? 0 : 1) }.first
+        let place = found ?? coded
+        let names = place.map { plugins(in: $0.0) } ?? []
+        // code nxnative can't use: one that replaces the game's, or Atmosphère's patches to it
+        let other =
+            places.contains { GameScanner.isDirectory($0.0.appending(path: "exefs")) && plugins(in: $0.0).isEmpty }
+            || places.contains { FileManager.default.fileExists(atPath: $0.0.appending(path: "exefs/main").path) }
             || GameScanner.isDirectory(folder.appending(path: "atmosphere/exefs_patches"))
             || GameScanner.isDirectory(folder.appending(path: "exefs_patches"))
-        let other = found?.1.flatMap { $0 == own || own == nil ? nil : $0 }
+        let otherTitle = place?.1.flatMap { $0 == own || own == nil ? nil : $0 }
         return GameMod(
             name: folder.lastPathComponent, folder: folder,
             romfs: found.map { $0.0.appending(path: "romfs", directoryHint: .isDirectory) }, isOn: on,
-            hasExeFS: code, otherTitle: other)
+            plugins: names, codeRoot: names.isEmpty ? nil : place?.0, hasOtherCode: other, otherTitle: otherTitle)
+    }
+
+    /// exlaunch's plugin names, as the host takes them (is_subsdk_name): subsdk and a number, under 16 characters.
+    static func plugins(in place: URL) -> [String] {
+        GameScanner.children(of: place.appending(path: "exefs", directoryHint: .isDirectory))
+            .filter { url in
+                let name = url.lastPathComponent
+                return name.count < 16 && name.hasPrefix("subsdk") && name.count > 6
+                    && name.dropFirst(6).allSatisfy { $0.isASCII && $0.isNumber }
+                    && (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+            }
+            .map(\.lastPathComponent)
+            .sorted { Int($0.dropFirst(6)) ?? 0 < Int($1.dropFirst(6)) ?? 0 }
     }
 
     private static func isTitleID(_ name: String) -> Bool {
@@ -117,7 +149,7 @@ public enum GameMods {
     static func overlay(_ mods: [GameMod]) -> (value: String, loaded: [GameMod], tooLong: [GameMod]) {
         var paths: [String] = [], loaded: [GameMod] = [], tooLong: [GameMod] = []
         for mod in mods where mod.loads {
-            guard let path = mod.romfs?.path else { continue }
+            guard let path = mod.overlayPath else { continue }
             if (paths + [path]).joined(separator: ":").utf8.count > overlayLimit {
                 tooLong.append(mod)
             } else {
