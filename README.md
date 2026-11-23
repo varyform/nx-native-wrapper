@@ -9,6 +9,8 @@
 - Pull nxnative's latest fixes before a play and rebuild when they change something, after asking whether to update now or play the current build. Or keep a build that works as it is.
 
 > You need your own games (NSP, NSZ, XCI or XCZ files, or a NUP file or dump of a Switch 2 game) and the `prod.keys` of your own Switch. Nothing here downloads games or keys.
+>
+> The screenshots are illustrations, taken in a screenshot mode with sample data: the paths, devices, saves, team and build logs in them are made up. The game names and icons in them belong to their owners and appear only to show what the app does.
 
 **Contents**
 
@@ -342,3 +344,5 @@ To work in Xcode, run `xcodegen generate` (or `mise run generate`) and open `NXP
 ## License
 
 MIT, see [LICENSE](LICENSE). nxnative has its own license.
+
+NX Play isn't affiliated with, endorsed by or sponsored by Nintendo. Nintendo Switch is a trademark of Nintendo. Game names, icons and artwork belong to their owners.
