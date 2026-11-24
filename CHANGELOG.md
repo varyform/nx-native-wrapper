@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.5.3 — 2026-11-24
+
 ### Fixed
 
 - `DM_SAVE=<folder> nxplay <game folder>` plays with that save folder, as nxnative's message for a game on exFAT suggests. The build's launcher set its own save inline, which overrode the environment, so the game still saved to the build. A play whose save is on a drive that isn't APFS, where nxnative can't write a save, now says so when it starts, with what helps.
