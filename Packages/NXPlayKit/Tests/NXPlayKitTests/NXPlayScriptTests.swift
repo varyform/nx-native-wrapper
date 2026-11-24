@@ -23,10 +23,10 @@ import Testing
         b = os.path.join(game, '0100000000001000_build')
         for d in ('run', 'tools', 'patched_v0'): os.makedirs(os.path.join(b, d), exist_ok=True)
         host = os.path.join(b, 'tools/dmhost')
-        open(host, 'w').write('#!/bin/sh\\necho "host ran album=$DM_ALBUM_DIR"\\n'); os.chmod(host, 0o755)
+        open(host, 'w').write('#!/bin/sh\\necho "host ran album=$DM_ALBUM_DIR"\\necho "save=$DM_SAVE"\\n'); os.chmod(host, 0o755)
         open(os.path.join(os.path.dirname(game), 'built'), 'a').write(' '.join(sys.argv[2:]) + '\\n')
         print('done: the game runs on the Mac with this command')
-        print(f"cd '{b}/run' && '{host}' '{b}/patched_v0'")
+        print(f"cd '{b}/run' && DM_SAVE='{b}/run/save' '{host}' '{b}/patched_v0'")
         """
 
     /// Records the mod it prepares and writes its exefs/nxnative, as nxnative's prepare_mod.py does.
@@ -132,6 +132,23 @@ import Testing
         #expect(output.contains("host ran album=\(pictures)\n"), "\(output)")
         let own = try nxplay([], environment: ["NXPLAY_UPDATE": "current", "DM_ALBUM_DIR": "/elsewhere"])
         #expect(own.1.contains("host ran album=/elsewhere\n"), "\(own.1)")
+    }
+
+    /// A save folder of the player's (DM_SAVE, one on an APFS volume for a game on exFAT) is the one the game plays
+    /// with, though the launcher sets the build's inline (issue #37).
+    @Test func aPlayersOwnSaveFolderIsUsed() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try nxplay(["--build-only"]).0 == 0)
+        let (status, output) = try nxplay([], environment: ["NXPLAY_UPDATE": "current"])
+        #expect(status == 0, "\(output)")
+        #expect(output.contains("save=\(build.path)/run/save\n"), "\(output)")
+        #expect(!output.contains("isn't APFS"), "\(output)")
+
+        let own = root.appending(path: "Saves/Game").path
+        let mine = try nxplay([], environment: ["NXPLAY_UPDATE": "current", "DM_SAVE": own])
+        #expect(mine.0 == 0, "\(mine.1)")
+        #expect(mine.1.contains("save: \(own) (DM_SAVE)"), "\(mine.1)")
+        #expect(mine.1.contains("save=\(own)\n"), "\(mine.1)")
     }
 
     /// A clone of the fake nxnative, a commit behind it: the new commit removes a header, changes the file that

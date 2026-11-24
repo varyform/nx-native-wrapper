@@ -29,6 +29,8 @@
 #                  Each setting is an environment variable (DM_FPS_TARGET=30, ...) the game reads when it starts
 # env:   NXNATIVE (repository; default ./nxnative in this checkout, as bin/setup clones it, else ../nxnative beside it),
 #        NXPLAY_VENV (Python environment; default .venv in this checkout, made by bin/setup), NX_KEYS (default ~/.switch/prod.keys),
+#        DM_SAVE (a save folder of your own, for this play: one on an APFS volume for a game on exFAT, where a save
+#        can't be written; instead of the build's run/save, which NX Play's save backups and transfers use),
 #        DM_SAVE_SYNC (nxnative's cloud saves: a folder, icloud, or 0; passed on to the game as it is),
 #        DM_SAVE_SYNC_CHOICE (the player's answer when the cloud's save and this one both changed: NX Play compares
 #        them before a play; passed on as it is),
@@ -1210,23 +1212,37 @@ prepare_mod_code() {
   done
 }
 
-# The save this play uses, said in the log: the build's (DM_SAVE in the launcher), or with NXPLAY_SAVE=app the Mac
-# app's own, which NX Play chose when the two differ.
+# The save this play uses, said in the log: a DM_SAVE of the player's, with NXPLAY_SAVE=app the Mac app's own, which
+# NX Play chose when the two differ, or else the build's (DM_SAVE in the launcher, which the launch environment can't
+# override by itself: it's set inline). nxnative commits a save by cloning its folder, so a save on a drive that can't
+# clone (exFAT, a network share) is mounted read-only and no progress is kept: said before the game starts, with what
+# helps, rather than only in its log as it plays (issue #37).
 play_save() {
-  local build id app_save
+  local build id app_save save="" at
   build="$(dirname "$1")"
-  if [[ "${NXPLAY_SAVE:-}" == app ]]; then
+  if [[ -n "${DM_SAVE:-}" ]]; then
+    save="$DM_SAVE"
+    warn "save: $save (DM_SAVE)"
+  elif [[ "${NXPLAY_SAVE:-}" == app ]]; then
     id="$(basename "$build")"
     app_save="$HOME/Library/Application Support/nxnative/${id%_build}/save"
     if [[ -d "$app_save" ]]; then
-      warn "save: $app_save (the Mac app's own)"
-      echo "$app_save"
-      return
+      save="$app_save"
+      warn "save: $save (the Mac app's own)"
+    else
+      warn "nxplay: the Mac app has no save of its own ($app_save): playing NX Play's"
     fi
-    warn "nxplay: the Mac app has no save of its own ($app_save): playing NX Play's"
   fi
-  warn "save: $build/run/save"
-  echo "$build/run/save"
+  if [[ -z "$save" ]]; then
+    save="$build/run/save"
+    warn "save: $save"
+  fi
+  # the save folder, or the nearest folder above it, before the game's first save makes it
+  at="$save"
+  while [[ ! -d "$at" && "$at" != / ]]; do at="$(dirname "$at")"; done
+  can_clone "$at" \
+    || warn "nxplay: the save's drive isn't APFS, so the game can't save its progress (nxnative clones the save's folder to save it): set DM_SAVE to a folder on an APFS volume, or keep the build on one (README › Games on an exFAT drive)"
+  echo "$save"
 }
 
 # Plays the game through its Mac app, so the Dock shows the game's own name and icon: its launcher
