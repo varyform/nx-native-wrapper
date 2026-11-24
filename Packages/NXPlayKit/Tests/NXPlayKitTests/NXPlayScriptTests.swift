@@ -134,6 +134,54 @@ import Testing
         #expect(own.1.contains("host ran album=/elsewhere\n"), "\(own.1)")
     }
 
+    /// A clone of the fake nxnative, a commit behind it: the new commit removes a header, changes the file that
+    /// included it, and adds a profile. Its path, for NXNATIVE.
+    private func checkoutBehind() throws -> URL {
+        try write(repo.appending(path: "dm/gfx/nvn/cover.h"), "// cover\n")
+        try write(repo.appending(path: "dm/gfx/nvn/mtl.m"), "#include \"cover.h\"\n")
+        try git("add", "-A")
+        try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "cover")
+        let checkout = root.appending(path: "checkout", directoryHint: .isDirectory)
+        try git("clone", "-q", repo.path, checkout.path)
+        try FileManager.default.removeItem(at: repo.appending(path: "dm/gfx/nvn/cover.h"))
+        try write(repo.appending(path: "dm/gfx/nvn/mtl.m"), "// no cover\n")
+        try write(repo.appending(path: "dm/games/0100000000001000/game.tsv"), "profile\n")
+        try git("add", "-A")
+        try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "no cover")
+        return checkout
+    }
+
+    /// An update cut off halfway left some files the new commit's and the rest the old one's: every merge after it
+    /// refused them, and the build mixed both, a header gone while a file still included it (issue #36). The next
+    /// update finishes it.
+    @Test func anUpdateCutOffHalfwayIsFinished() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let checkout = try checkoutBehind()
+        // the cut: the header removed and the profile written, the file that included it not yet changed
+        try FileManager.default.removeItem(at: checkout.appending(path: "dm/gfx/nvn/cover.h"))
+        try write(checkout.appending(path: "dm/games/0100000000001000/game.tsv"), "profile\n")
+
+        let (status, output) = try nxplay(["--build-only"], environment: ["NXNATIVE": checkout.path])
+        #expect(status == 0, "\(output)")
+        #expect(output.contains("cut off halfway"), "\(output)")
+        #expect(!output.contains("could not update"), "\(output)")
+        let mtl = try String(contentsOf: checkout.appending(path: "dm/gfx/nvn/mtl.m"), encoding: .utf8)
+        #expect(mtl == "// no cover\n")
+    }
+
+    /// A change of the player's own in the checkout is never overwritten: the update stops and says so.
+    @Test func anEditOfTheirOwnStopsTheUpdate() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let checkout = try checkoutBehind()
+        try write(checkout.appending(path: "dm/gfx/nvn/mtl.m"), "// my own change\n")
+
+        let (status, output) = try nxplay(["--build-only"], environment: ["NXNATIVE": checkout.path])
+        #expect(status == 0, "\(output)")
+        #expect(output.contains("could not update"), "\(output)")
+        let mtl = try String(contentsOf: checkout.appending(path: "dm/gfx/nvn/mtl.m"), encoding: .utf8)
+        #expect(mtl == "// my own change\n")
+    }
+
     /// A mod's code plugins are rewritten for nxnative before the play that first loads them, and again only once
     /// nxnative's rewriter changed.
     @Test func aModsCodeIsPreparedOnceForEachRewriter() throws {

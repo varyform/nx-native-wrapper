@@ -309,6 +309,47 @@ no_local_commits() {
   [[ -n "$moves" ]] && ! grep -qvE '^(clone|reset|branch): |: [Ff]ast-forward$' <<<"$moves"
 }
 
+# An update cut off halfway (NX Play quit, or a Stop, during the merge) leaves the checkout between two commits: some
+# files already the new one's, the rest still HEAD's. Every later merge refuses those files as local changes, and a
+# build mixes the two (a header gone while a file still includes it; issue #36). When every file that differs from
+# HEAD is one an upstream tip has, or is gone as that tip removed it, the update is finished at that tip: what the
+# checkout holds is that tip's already, so nothing of anyone's is lost. Real edits leave it as it is.
+finish_cut_off_update() {
+  local changed untracked index tip at need differ path stays local_ok=0
+  changed="$(git -C "$repo" -c core.quotePath=false diff --name-only HEAD | lines)"
+  untracked="$(git -C "$repo" -c core.quotePath=false ls-files --others --exclude-standard | lines)"
+  [[ -n "$changed$untracked" ]] || return 0
+  if no_local_commits; then local_ok=1; fi
+  index="$(mktemp)"
+  # the update may have been to an upstream tip before the one just fetched
+  for tip in $(git -C "$repo" rev-list --walk-reflogs -n 10 '@{u}' 2> /dev/null || git -C "$repo" rev-parse '@{u}'); do
+    (( local_ok )) || git -C "$repo" merge-base --is-ancestor HEAD "$tip" || continue
+    # the index's file times carry over for the files the tip has unchanged, so only the others are read again
+    cp "$(git -C "$repo" rev-parse --absolute-git-dir)/index" "$index" || break
+    GIT_INDEX_FILE="$index" git -C "$repo" read-tree -m "$tip" 2> /dev/null || continue
+    GIT_INDEX_FILE="$index" git -C "$repo" update-index -q --refresh > /dev/null || true   # nonzero: files differ
+    at="$(GIT_INDEX_FILE="$index" git -C "$repo" -c core.quotePath=false ls-files | lines)"
+    differ="$(GIT_INDEX_FILE="$index" git -C "$repo" -c core.quotePath=false diff-files --name-only | lines)"
+    # the changed files, and the untracked ones the tip has (written before the cut)
+    need="$({ printf '%s\n' "$changed"; LC_ALL=C comm -12 <(printf '%s\n' "$untracked") <(printf '%s\n' "$at"); } | lines)"
+    [[ -n "$need" ]] || continue
+    [[ -z "$(LC_ALL=C comm -12 <(printf '%s\n' "$need") <(printf '%s\n' "$differ") | lines)" ]] || continue
+    stays=0
+    while IFS= read -r path; do
+      if [[ -n "$path" && ( -e "$repo/$path" || -L "$repo/$path" ) ]]; then stays=1; break; fi
+    done < <(LC_ALL=C comm -23 <(printf '%s\n' "$need") <(printf '%s\n' "$at"))
+    (( ! stays )) || continue   # a file the tip removed is still there
+    rm -f "$index"
+    say "nxnative: the last update was cut off halfway: finishing it"
+    git -C "$repo" reset --quiet --hard "$tip"
+    return 0
+  done
+  rm -f "$index"
+}
+
+# Lines sorted bytewise, once each, no empty ones: what comm compares
+lines() { sed '/^$/d' | LC_ALL=C sort -u; }
+
 update_nxnative() {
   # nothing to follow, which is what a game pinned to a local branch wants: not a failure to report on every play
   if ! git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null; then
@@ -319,6 +360,7 @@ update_nxnative() {
   local upstream tip
   upstream="$(git -C "$repo" rev-parse '@{u}')" || return 1
   if [[ "$upstream" == "$before" ]]; then say "nxnative: up to date"; return 0; fi
+  finish_cut_off_update
   if git -C "$repo" merge-base --is-ancestor HEAD '@{u}'; then
     git -C "$repo" merge --ff-only --quiet '@{u}'
     return
