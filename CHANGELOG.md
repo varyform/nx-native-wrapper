@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.5.2 — 2026-11-24
+
 ### Fixed
 
 - An nxnative update cut off halfway, by a Stop or by quitting NX Play while it ran, for example, no longer breaks every rebuild after it. It left nxnative's files half old and half new, so each later update stopped at "Your local changes … would be overwritten by merge" and builds failed with errors such as `'nvn_cover.h' file not found`. The next play or rebuild now finishes that update. A change of your own in the nxnative folder is still never overwritten.
