@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.5.4 — 2026-11-25
+
 ### Fixed
 
 - An nxnative update no longer gives up with `cannot lock ref 'refs/remotes/origin/main'` when another fetch runs in the same nxnative folder at that moment, such as a play from NX Play and one from the Terminal. It tries again a second later.
