@@ -352,13 +352,26 @@ finish_cut_off_update() {
 # Lines sorted bytewise, once each, no empty ones: what comm compares
 lines() { sed '/^$/d' | LC_ALL=C sort -u; }
 
+# Fetches nxnative's upstream; again a moment later when it fails, said only when that fails too. Two fetches at once
+# in one checkout (two plays, NX Play's and a Terminal's, an editor's own fetch) race for its refs, and the one that
+# loses stops with "cannot lock ref … is at <new> but expected <old>", the other fetch having just moved it: the
+# update then went on with the old code, though the next fetch has nothing left to race for.
+fetch_nxnative() {
+  local err
+  err="$(git -C "$repo" fetch --quiet 2>&1)" && return 0
+  sleep 1
+  err="$(git -C "$repo" fetch --quiet 2>&1)" && return 0
+  [[ -z "$err" ]] || printf '%s\n' "$err" >&2
+  return 1
+}
+
 update_nxnative() {
   # nothing to follow, which is what a game pinned to a local branch wants: not a failure to report on every play
   if ! git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null; then
     say "nxnative: no upstream to follow, staying on this code"
     return 0
   fi
-  git -C "$repo" fetch --quiet || return 1
+  fetch_nxnative || return 1
   local upstream tip
   upstream="$(git -C "$repo" rev-parse '@{u}')" || return 1
   if [[ "$upstream" == "$before" ]]; then say "nxnative: up to date"; return 0; fi
@@ -431,7 +444,7 @@ ask_update() {
   [[ ! -f "$build/keep" ]] && has_game_files || return 0
   built="$(sed -n 's/^# nxnative tree //p' "$launcher")"
   [[ -n "$built" ]] || return 0
-  git -C "$repo" fetch --quiet 2> /dev/null || true
+  fetch_nxnative 2> /dev/null || true
   # what an update plays: upstream's tip when the checkout can move there (update_nxnative), else the checkout
   target=HEAD
   if git -C "$repo" rev-parse -q --verify '@{u}' > /dev/null \

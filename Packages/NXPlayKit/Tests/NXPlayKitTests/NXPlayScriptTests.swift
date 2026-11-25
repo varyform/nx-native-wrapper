@@ -186,6 +186,35 @@ import Testing
         #expect(mtl == "// no cover\n")
     }
 
+    /// A fetch that lost a race with another one in the same checkout ("cannot lock ref"), which only the first try
+    /// hits, still brings the update.
+    @Test func aFetchThatLostARaceIsTriedAgain() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        let checkout = try checkoutBehind()
+        let bin = root.appending(path: "bin", directoryHint: .isDirectory)
+        let raced = root.appending(path: "raced").path
+        try write(bin.appending(path: "git"), """
+            #!/bin/bash
+            if [[ " $* " == *" fetch "* && ! -e '\(raced)' ]]; then
+              touch '\(raced)'
+              echo "error: cannot lock ref 'refs/remotes/origin/main': is at 1 but expected 2" >&2
+              exit 1
+            fi
+            exec /usr/bin/git "$@"
+            """)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: bin.appending(path: "git").path)
+        let path = bin.path + ":" + (ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin")
+
+        let (status, output) = try nxplay(["--build-only"], environment: ["NXNATIVE": checkout.path, "PATH": path])
+        #expect(status == 0, "\(output)")
+        #expect(FileManager.default.fileExists(atPath: raced))
+        #expect(!output.contains("cannot lock ref"), "\(output)")
+        #expect(!output.contains("could not update"), "\(output)")
+        let mtl = try String(contentsOf: checkout.appending(path: "dm/gfx/nvn/mtl.m"), encoding: .utf8)
+        #expect(mtl == "// no cover\n")
+    }
+
     /// A change of the player's own in the checkout is never overwritten: the update stops and says so.
     @Test func anEditOfTheirOwnStopsTheUpdate() throws {
         defer { try? FileManager.default.removeItem(at: root) }
