@@ -236,7 +236,9 @@ nxnative unpacks an NSZ or XCZ into the build folder's `nsp/` before building, a
 
 ### Settings
 
-Settings has a tab for each subject: **General** (the games folders, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)), **Remote** ([building on another Mac](#building-on-another-mac)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+Settings has a tab for each subject: **General** (the games folders, the keys file, keeping only the unpacked copy of compressed games, the nxnative folder, the Metal compiler check, prewarm contributions, Setup), **Games** (the settings every game gets unless it has its own, and the controllers), **Saves** (the backup repository, cloud saves), **Devices** (the Apple team for device installs, and the [iPhone & iPad app](#iphone-and-ipad)), **Remote** ([building on another Mac](#building-on-another-mac)) and **Updates**. **Game Controls** (in the menu bar, and the keyboard button in the toolbar) shows the keyboard controls. While builds run, the Dock icon shows their progress.
+
+**Contribute prewarm lists to nxnative** (General, on by default, as nxnative's own switch): a game's Mac app and iPhone app send nxnative the list of pipelines the game prepared while you played (`pso_user.tsv`), with its title ID and version, so later builds of the game prepare them ahead and stutter less for everyone. A list is sent again only when it changed, and nxnative's maintainers review the lists before using them. Turned off, a Mac app stops sending at its next play, and an iPhone app once it's installed again (its in-game gear menu has the same switch).
 
 <img src="docs/settings.webp" alt="NX Play's Settings" width="560">
 

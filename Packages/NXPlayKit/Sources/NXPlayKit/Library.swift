@@ -34,6 +34,7 @@ public final class Library {
         static let saveBackup = "saveBackupRepository"
         static let allowOtherMetal = "allowOtherMetal"
         static let lookUpIssues = "lookUpNXNativeIssues"
+        static let contributesPrewarmLists = "contributePrewarmLists"
         static let translatesMissingShaders = "translateMissingShaders"
         static let keepUnpackedOnly = "keepUnpackedOnly"
         static let installUpdatesWhenIdle = "installUpdatesWhenIdle"
@@ -115,6 +116,12 @@ public final class Library {
     /// only the title ID leaves the Mac.
     public var lookUpIssues: Bool {
         didSet { defaults.set(lookUpIssues, forKey: Keys.lookUpIssues) }
+    }
+    /// nxnative's prewarm contributions: a game's Mac and iPhone apps send the pipelines it prepared (pso_user.tsv),
+    /// its title ID and version to nxnative's inbox. On by default, as nxnative's own switch, which is in the Mac
+    /// app's settings window that a play skips: NX Play's Settings set it instead (nxplay's NXPLAY_PREWARM_UPLOAD).
+    public var contributesPrewarmLists: Bool {
+        didSet { defaults.set(contributesPrewarmLists, forKey: Keys.contributesPrewarmLists) }
     }
     /// Why each failed job failed (Library+FailureHelp.swift), by job.
     public internal(set) var failures: [Job.ID: FailureReport] = [:]
@@ -357,6 +364,7 @@ public final class Library {
             .compactMapValues(SaveChoice.init(rawValue:))
         allowOtherMetal = defaults.bool(forKey: Keys.allowOtherMetal)
         lookUpIssues = defaults.object(forKey: Keys.lookUpIssues) as? Bool ?? true
+        contributesPrewarmLists = defaults.object(forKey: Keys.contributesPrewarmLists) as? Bool ?? true
         translatesMissingShaders = defaults.bool(forKey: Keys.translatesMissingShaders)
         keepUnpackedOnly = defaults.bool(forKey: Keys.keepUnpackedOnly)
         installUpdatesWhenIdle = defaults.bool(forKey: Keys.installUpdatesWhenIdle)
@@ -1030,6 +1038,15 @@ public final class Library {
             .map { ["--lang", $0] } ?? []
         var environment = NXPlayCommand.environment(
             nxnative: repo, keys: keys, venv: AppHome.venv.path)
+        // turned off, an iPhone app is built without the inbox's address, so it never sends; a Mac app's play sets
+        // the app's own switch (and an update's repack keeps the address, for when it's turned on again)
+        environment["NXPLAY_PREWARM_UPLOAD"] = contributesPrewarmLists ? "1" : "0"
+        if !contributesPrewarmLists {
+            switch kind {
+            case .pack, .install: environment["DM_PREWARM_UPLOAD_URL"] = ""
+            default: break
+            }
+        }
         var arguments: [String]
         switch kind {
         case .extract: arguments = ["--build-only", game.folder.path]

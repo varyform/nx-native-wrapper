@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Added
+
+- **Contribute prewarm lists to nxnative** in Settings › General, on by default. nxnative's newest Mac and iPhone apps send nxnative the pipelines a game prepared while you played, with its title ID and version, so later builds stutter less for everyone. The Mac app's own switch for this is in its settings window, which Play skips, so NX Play's setting now decides it. Turned off, an iPhone app is built without it.
+
 ## 2.5.4 — 2026-11-25
 
 ### Fixed

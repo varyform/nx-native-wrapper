@@ -96,12 +96,13 @@ private struct GeneralSettings: View {
                 Toggle(
                     "Translate missing shaders while playing (testing)", isOn: $library.translatesMissingShaders)
                 Toggle("Look up nxnative's issues when a game fails", isOn: $library.lookUpIssues)
+                Toggle("Contribute prewarm lists to nxnative", isOn: $library.contributesPrewarmLists)
                 LabeledContent("Tools") {
                     SetupMenuItem()
                 }
             } footer: {
                 Footer(
-                    "Before a play, nxplay looks for new nxnative commits. A game built with older code can update first (a rebuild, and the Mac app packed again) or play as it is; Ask says what the update brings and how long it took last time. Rebuild and Update All Builds always take the latest code. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242). A game whose build lacks a shader draws that scene without it; translating it when the game first uses it (nxnative's runtime translator, still in testing) makes the scene wait for it once instead. When a build or game fails, NX Play asks GitHub for nxnative's issues that name the game's title ID, the only thing it sends."
+                    "Before a play, nxplay looks for new nxnative commits. A game built with older code can update first (a rebuild, and the Mac app packed again) or play as it is; Ask says what the update brings and how long it took last time. Rebuild and Update All Builds always take the latest code. nxnative stops a build when this Mac's Metal compiler (Xcode's) isn't the one it tested its shaders with; the toggle builds anyway, at the risk of shader glitches (nxnative issue #242). A game whose build lacks a shader draws that scene without it; translating it when the game first uses it (nxnative's runtime translator, still in testing) makes the scene wait for it once instead. When a build or game fails, NX Play asks GitHub for nxnative's issues that name the game's title ID, the only thing it sends. A game's Mac and iPhone apps send nxnative the list of pipelines the game prepared while you played (its pso_user.tsv), with its title ID and version, so that later builds prepare them ahead for everyone; an unchanged list isn't sent again. Turned off, a Mac app stops sending at its next play, and an iPhone app once it's installed again."
                 )
             }
         }

@@ -151,6 +151,58 @@ import Testing
         #expect(mine.1.contains("save=\(own)\n"), "\(mine.1)")
     }
 
+    /// A play through the game's Mac app sets the app's own switch for nxnative's prewarm contributions from NX
+    /// Play's Settings: the switch is in the app's settings window, which the play skips.
+    @Test func aPlayThroughTheMacAppSetsItsPrewarmSwitch() throws {
+        let bundle = "info.varyform.nxplay-test.\(UUID().uuidString.lowercased())"
+        defer {
+            try? FileManager.default.removeItem(at: root)
+            _ = try? run("/usr/bin/defaults", "delete", bundle)
+            // the domain's file stays, empty, after its last key goes
+            try? FileManager.default.removeItem(
+                at: FileManager.default.homeDirectoryForCurrentUser.appending(
+                    path: "Library/Preferences/\(bundle).plist"))
+        }
+        #expect(try nxplay(["--build-only"]).0 == 0)
+        let app = game.appending(path: "Game.app/Contents", directoryHint: .isDirectory)
+        try write(app.appending(path: "MacOS/dmhost"), "#!/bin/sh\n")
+        try write(app.appending(path: "MacOS/nxnative"), "#!/bin/sh\necho app ran\n")
+        for tool in ["dmhost", "nxnative"] {
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: app.appending(path: "MacOS/\(tool)").path)
+        }
+        let plist: [String: String] = ["CFBundleIdentifier": bundle, "DMTitleID": "0100000000001000"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: app.appending(path: "Info.plist"))
+        // packed with the build's code (Make Mac App records it), so Play starts the app
+        let launcher = try String(contentsOf: build.appending(path: "start_mac.sh"), encoding: .utf8)
+        let tree = launcher.split(separator: "\n").first { $0.hasPrefix("# nxnative tree ") }?.dropFirst(16) ?? ""
+        try write(build.appending(path: "app.tree"), "\(tree)\n")
+        let home = root.appending(path: "home").path
+        for (setting, expected) in [("0", "0"), ("1", "1")] {
+            let (status, output) = try nxplay(
+                [], environment: ["NXPLAY_UPDATE": "current", "NXPLAY_PREWARM_UPLOAD": setting, "HOME": home])
+            #expect(status == 0, "\(output)")
+            #expect(output.contains("app ran"), "\(output)")
+            let read = try run("/usr/bin/defaults", "read", bundle, "prewarm.upload")
+            #expect(read.trimmingCharacters(in: .whitespacesAndNewlines) == expected)
+        }
+    }
+
+    /// A tool's output.
+    private func run(_ tool: String, _ arguments: String...) throws -> String {
+        let process = Process()
+        process.executableURL = URL(filePath: tool)
+        process.arguments = arguments
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+        return text
+    }
+
     /// A clone of the fake nxnative, a commit behind it: the new commit removes a header, changes the file that
     /// included it, and adds a profile. Its path, for NXNATIVE.
     private func checkoutBehind() throws -> URL {

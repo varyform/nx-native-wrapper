@@ -37,6 +37,8 @@
 #        DM_ALBUM_DIR (where a game's album pictures go; default ~/Pictures/nxnative/<title ID>, as nxnative's Mac app),
 #        DM_ROMFS_OVERLAY (mods' folders, as nxnative takes them; their code plugins are prepared before a play),
 #        NXPLAY_SETTINGS (names of DM_ variables in the environment the game is given, said in the output when it starts),
+#        NXPLAY_PREWARM_UPLOAD (1 or 0: whether a play through the game's Mac app lets it send nxnative the pipelines
+#        the game prepared, nxnative's prewarm contributions; unset leaves the app's own choice),
 #        NXPLAY_NVN_RUNTIME (1: translate a shader the build lacks when the game first uses it, nxnative's runtime
 #        translator, in testing; an NVN game on the Mac),
 #        NXPLAY_SAVE (app: play on from the Mac app's own save, ~/Library/Application Support/nxnative/<title ID>/save,
@@ -1270,6 +1272,15 @@ start_app() {
   id="$(plist "$app" DMTitleID)"
   mkdir -p "$save"
   share_save "$app" "$build"
+  # nxnative's prewarm contributions (the game's pso_user.tsv, title ID and version sent to nxnative's inbox, on by
+  # default): their switch is in the app's settings window, which this start skips, so NX Play's Settings set it
+  # (NXPLAY_PREWARM_UPLOAD=1 or 0); without it, as from the Terminal, the app's own choice stays
+  if [[ "${NXPLAY_PREWARM_UPLOAD:-}" == [01] ]]; then
+    local bundle on=false
+    bundle="$(plist "$app" CFBundleIdentifier)"
+    [[ "$NXPLAY_PREWARM_UPLOAD" == 1 ]] && on=true
+    if [[ -n "$bundle" ]]; then defaults write "$bundle" prewarm.upload -bool "$on" 2> /dev/null || true; fi
+  fi
   export DM_LAUNCHER=0 DM_SAVE="$save" DM_CHEATS="$build/cheats"
   if [[ -n "$lang" ]]; then say "game language: $lang"; export DM_LANG="$lang"; fi
   say "playing through $(basename "$app")"
