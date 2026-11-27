@@ -1398,8 +1398,11 @@ printf '#!/bin/sh\n# written by nxplay from the build output\n# nxnative tree %s
 chmod +x "$launcher"
 
 say "saved: $launcher"
-# the new build is made: its clone goes, and from here a failure is the game's, not the build's
-rm -rf "$(safety_of "$(dirname "$launcher")")"
+# the new build is made: its clone goes, and from here a failure is the game's, not the build's. The clone is of the
+# build the old launcher was in, which needn't be the new one's: a multi-program application's program 1 built alone
+# (--program 1), then the whole application, whose launcher is program 0's. Left there, the clone of program 1's
+# build went back over the one just made, as if the rebuild had failed.
+for built in "$(dirname "$launcher")" ${old_launcher:+"$(dirname "$old_launcher")"}; do rm -rf "$(safety_of "$built")"; done
 trap - INT TERM
 rm -f "$log"   # start replaces the EXIT trap
 if [[ -n "$old_tree" && -n "$current_tree" && "$old_tree" != "$current_tree" ]]; then

@@ -25,6 +25,9 @@ import Testing
         host = os.path.join(b, 'tools/dmhost')
         open(host, 'w').write('#!/bin/sh\\necho "host ran album=$DM_ALBUM_DIR"\\necho "save=$DM_SAVE"\\n'); os.chmod(host, 0o755)
         open(os.path.join(os.path.dirname(game), 'built'), 'a').write(' '.join(sys.argv[2:]) + '\\n')
+        # program 1 of a multi-program application, rebuilt with it
+        p1 = os.path.join(game, '0100000000001001_build')
+        if os.path.isdir(p1): open(os.path.join(p1, 'rebuilt'), 'w').write('new')
         print('done: the game runs on the Mac with this command')
         print(f"cd '{b}/run' && DM_SAVE='{b}/run/save' '{host}' '{b}/patched_v0'")
         """
@@ -101,6 +104,29 @@ import Testing
         #expect(status == 0, "\(output)")
         let built = try String(contentsOf: root.appending(path: "built"), encoding: .utf8)
         #expect(built.split(separator: "\n").count == 2, "\(built)")
+    }
+
+    /// A multi-program application whose program 1 was built alone (its launcher in program 1's build) rebuilds
+    /// whole, its launcher now program 0's: program 1's rebuilt build stays, the clone made before the rebuild goes.
+    @Test func aRebuildWhoseLauncherMovesKeepsTheOtherBuild() throws {
+        defer { try? FileManager.default.removeItem(at: root) }
+        #expect(try nxplay(["--build-only"]).0 == 0)
+        let program1 = game.appending(path: "0100000000001001_build", directoryHint: .isDirectory)
+        try write(program1.appending(path: "tools/dmhost"), "#!/bin/sh\n")
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o755], ofItemAtPath: program1.appending(path: "tools/dmhost").path)
+        try write(program1.appending(path: "rebuilt"), "old")
+        try write(program1.appending(path: "start_mac.sh"), "#!/bin/sh\n# nxnative tree 0\ncd /nowhere\n")
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date.now.addingTimeInterval(60)],
+            ofItemAtPath: program1.appending(path: "start_mac.sh").path)
+
+        let (status, output) = try nxplay(["--rebuild", "--build-only"])
+        #expect(status == 0, "\(output)")
+        #expect(!output.contains("did not finish"), "\(output)")
+        #expect(try String(contentsOf: program1.appending(path: "rebuilt"), encoding: .utf8) == "new")
+        let left = try FileManager.default.contentsOfDirectory(atPath: game.path).filter { $0.hasSuffix(".before-rebuild") }
+        #expect(left.isEmpty, "\(left)")
     }
 
     /// A play with the translator on, of a build whose nxnative tree the checkout no longer has (a rewritten
