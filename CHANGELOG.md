@@ -4,6 +4,8 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+## 2.6.1 — 2026-11-27
+
 ### Fixed
 
 - A collection of several games (a multi-program application, such as the Metal Gear Solid Master Collection) whose game program was last built on its own no longer loses that program's rebuild. When the whole collection was rebuilt, the copy of the old build was put back over the new one at the end, with "the rebuild did not finish" after a build that had finished.
