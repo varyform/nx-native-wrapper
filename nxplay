@@ -319,36 +319,39 @@ no_local_commits() {
 # HEAD is one an upstream tip has, or is gone as that tip removed it, the update is finished at that tip: what the
 # checkout holds is that tip's already, so nothing of anyone's is lost. Real edits leave it as it is.
 finish_cut_off_update() {
-  local changed untracked index tip at need differ path stays local_ok=0
+  local changed untracked tip tree at need have want path stays local_ok=0 tab=$'\t'
   changed="$(git -C "$repo" -c core.quotePath=false diff --name-only HEAD | lines)"
   untracked="$(git -C "$repo" -c core.quotePath=false ls-files --others --exclude-standard | lines)"
   [[ -n "$changed$untracked" ]] || return 0
   if no_local_commits; then local_ok=1; fi
-  index="$(mktemp)"
-  # the update may have been to an upstream tip before the one just fetched
-  for tip in $(git -C "$repo" rev-list --walk-reflogs -n 10 '@{u}' 2> /dev/null || git -C "$repo" rev-parse '@{u}'); do
+  # the upstream tips the update may have been to, the newest first: the reflog has none in a clone no fetch has
+  # moved yet (not even the tip), so the tip itself is always tried
+  for tip in $({ git -C "$repo" rev-parse '@{u}'; git -C "$repo" rev-list --walk-reflogs -n 10 '@{u}' 2> /dev/null; } | awk '!seen[$0]++'); do
     (( local_ok )) || git -C "$repo" merge-base --is-ancestor HEAD "$tip" || continue
-    # the index's file times carry over for the files the tip has unchanged, so only the others are read again
-    cp "$(git -C "$repo" rev-parse --absolute-git-dir)/index" "$index" || break
-    GIT_INDEX_FILE="$index" git -C "$repo" read-tree -m "$tip" 2> /dev/null || continue
-    GIT_INDEX_FILE="$index" git -C "$repo" update-index -q --refresh > /dev/null || true   # nonzero: files differ
-    at="$(GIT_INDEX_FILE="$index" git -C "$repo" -c core.quotePath=false ls-files | lines)"
-    differ="$(GIT_INDEX_FILE="$index" git -C "$repo" -c core.quotePath=false diff-files --name-only | lines)"
+    # the tip's files, "<path><tab><blob>" (not read-tree -m into an index: it refuses a tree whose files the
+    # checkout has modified, which is all an update cut off halfway leaves)
+    tree="$(git -C "$repo" -c core.quotePath=false ls-tree -r --full-tree "$tip" \
+      | awk -F '\t' '{ split($1, f, " "); print $2 "\t" f[3] }' | LC_ALL=C sort)"
+    at="$(cut -f 1 <<< "$tree")"
     # the changed files, and the untracked ones the tip has (written before the cut)
     need="$({ printf '%s\n' "$changed"; LC_ALL=C comm -12 <(printf '%s\n' "$untracked") <(printf '%s\n' "$at"); } | lines)"
     [[ -n "$need" ]] || continue
-    [[ -z "$(LC_ALL=C comm -12 <(printf '%s\n' "$need") <(printf '%s\n' "$differ") | lines)" ]] || continue
+    # each one the tip has holds the tip's content...
+    want="$(LC_ALL=C join -t "$tab" <(LC_ALL=C comm -12 <(printf '%s\n' "$need") <(printf '%s\n' "$at")) <(printf '%s\n' "$tree"))"
+    if [[ -n "$want" ]]; then
+      have="$(cut -f 1 <<< "$want" | (cd "$repo" && git hash-object --stdin-paths 2> /dev/null))" || continue
+      [[ "$(paste -d "$tab" <(cut -f 1 <<< "$want") <(printf '%s\n' "$have"))" == "$want" ]] || continue
+    fi
+    # ...and the ones it removed are gone
     stays=0
     while IFS= read -r path; do
       if [[ -n "$path" && ( -e "$repo/$path" || -L "$repo/$path" ) ]]; then stays=1; break; fi
     done < <(LC_ALL=C comm -23 <(printf '%s\n' "$need") <(printf '%s\n' "$at"))
-    (( ! stays )) || continue   # a file the tip removed is still there
-    rm -f "$index"
+    (( ! stays )) || continue
     say "nxnative: the last update was cut off halfway: finishing it"
     git -C "$repo" reset --quiet --hard "$tip"
     return 0
   done
-  rm -f "$index"
 }
 
 # Lines sorted bytewise, once each, no empty ones: what comm compares

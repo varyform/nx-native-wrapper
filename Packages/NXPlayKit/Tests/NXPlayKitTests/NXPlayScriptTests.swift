@@ -230,16 +230,18 @@ import Testing
     }
 
     /// A clone of the fake nxnative, a commit behind it: the new commit removes a header, changes the file that
-    /// included it, and adds a profile. Its path, for NXNATIVE.
+    /// included it and another header, and adds a profile. Its path, for NXNATIVE.
     private func checkoutBehind() throws -> URL {
         try write(repo.appending(path: "dm/gfx/nvn/cover.h"), "// cover\n")
         try write(repo.appending(path: "dm/gfx/nvn/mtl.m"), "#include \"cover.h\"\n")
+        try write(repo.appending(path: "dm/gfx/nvn/obj.h"), "// v1\n")
         try git("add", "-A")
         try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "cover")
         let checkout = root.appending(path: "checkout", directoryHint: .isDirectory)
         try git("clone", "-q", repo.path, checkout.path)
         try FileManager.default.removeItem(at: repo.appending(path: "dm/gfx/nvn/cover.h"))
         try write(repo.appending(path: "dm/gfx/nvn/mtl.m"), "// no cover\n")
+        try write(repo.appending(path: "dm/gfx/nvn/obj.h"), "// v2\n")
         try write(repo.appending(path: "dm/games/0100000000001000/game.tsv"), "profile\n")
         try git("add", "-A")
         try git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "no cover")
@@ -252,8 +254,10 @@ import Testing
     @Test func anUpdateCutOffHalfwayIsFinished() throws {
         defer { try? FileManager.default.removeItem(at: root) }
         let checkout = try checkoutBehind()
-        // the cut: the header removed and the profile written, the file that included it not yet changed
+        // the cut: the header removed, the other one changed and the profile written, the file that included it not
+        // yet changed. A changed file is what git's read-tree -m refused, so 2.5.2's check never finished one
         try FileManager.default.removeItem(at: checkout.appending(path: "dm/gfx/nvn/cover.h"))
+        try write(checkout.appending(path: "dm/gfx/nvn/obj.h"), "// v2\n")
         try write(checkout.appending(path: "dm/games/0100000000001000/game.tsv"), "profile\n")
 
         let (status, output) = try nxplay(["--build-only"], environment: ["NXNATIVE": checkout.path])

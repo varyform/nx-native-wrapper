@@ -4,6 +4,10 @@ User-visible changes to NX Play, `nxplay` and the setup. The format follows [Kee
 
 ## Unreleased
 
+### Fixed
+
+- An nxnative update cut off halfway is now really finished by the next play or rebuild, as 2.5.2 meant to do. Its check gave up whenever a file the update had already changed was there, which is always the case, so every update after it still stopped at "Your local changes to the following files would be overwritten by merge" ([#38](https://github.com/varyform/nx-native-wrapper/issues/38)). A change of your own in the nxnative folder is still never overwritten.
+
 ## 2.6.1 — 2026-11-27
 
 ### Fixed
